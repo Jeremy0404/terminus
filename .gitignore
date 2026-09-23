@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+*.tsbuildinfo
+
+# Environment (secrets stay out of the repo; the example is tracked)
+.env
+.env.*
+!.env.example
+
+# Tooling / IDE (local-only, not shared)
+.claude/
+.idea/
+graphify-out/
+CLAUDE.md
+
+# Development docs (kept local or in the brain vault, never in git history)
+CONTRIBUTING.md
+
+# Logs / misc
+*.log
+.DS_Store
+
+# SQLite
+*.db
+*.db-wal
+*.db-shm
+data/
