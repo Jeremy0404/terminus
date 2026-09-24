@@ -51,6 +51,10 @@ export const toServerEventDto = (update: RunUpdate): ServerEventDto => {
       return { type: 'task-changed', task: toTaskSummaryDto(update.task) };
     case 'run-event':
       return { type: 'run-event', runId: update.runId, taskId: update.taskId, event: update.event };
+    case 'check-started':
+      return { type: 'check-started', runId: update.runId, taskId: update.taskId, name: update.name, command: update.command };
+    case 'check-output':
+      return { type: 'check-output', runId: update.runId, taskId: update.taskId, name: update.name, command: update.command, outputTail: update.outputTail };
     case 'check-result':
       return { type: 'check-result', runId: update.runId, taskId: update.taskId, result: update.result };
   }

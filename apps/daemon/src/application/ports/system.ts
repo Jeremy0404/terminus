@@ -14,6 +14,8 @@ export interface IdGenerator {
 export type RunUpdate =
   | { readonly kind: 'task-changed'; readonly task: Task }
   | { readonly kind: 'run-event'; readonly runId: string; readonly taskId: string; readonly event: AgentEvent }
+  | { readonly kind: 'check-started'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string }
+  | { readonly kind: 'check-output'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string; readonly outputTail: string }
   | { readonly kind: 'check-result'; readonly runId: string; readonly taskId: string; readonly result: CheckResult };
 
 export interface RunEventBus {
