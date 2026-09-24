@@ -27,6 +27,8 @@ export function claudeArguments(request: AgentRunRequest): string[] {
     '--output-format',
     'stream-json',
     '--verbose',
+    '--add-dir',
+    request.notesDir,
     ...(request.resume ? ['--resume', request.sessionId] : ['--session-id', request.sessionId]),
     '--permission-mode',
     'bypassPermissions',
@@ -41,7 +43,12 @@ export function claudeArguments(request: AgentRunRequest): string[] {
 }
 
 export function claudeEnvironment(request: AgentRunRequest, options: ClaudeCliOptions, base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...base, TERMINUS_WORKTREE: request.cwd, TERMINUS_SECRET_PATHS: options.secretPaths.join(':') };
+  const env: NodeJS.ProcessEnv = {
+    ...base,
+    TERMINUS_WORKTREE: request.cwd,
+    TERMINUS_NOTES_DIR: request.notesDir,
+    TERMINUS_SECRET_PATHS: options.secretPaths.join(':'),
+  };
   if (options.configDir) env['CLAUDE_CONFIG_DIR'] = options.configDir;
   if (options.oauthToken) env['CLAUDE_CODE_OAUTH_TOKEN'] = options.oauthToken;
   return env;

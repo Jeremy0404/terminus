@@ -3,6 +3,7 @@ export interface AgentRunRequest {
   readonly sessionId: string;
   readonly resume: boolean;
   readonly cwd: string;
+  readonly notesDir: string;
   readonly prompt: string;
   readonly systemPromptAppend: string;
   readonly skill: string | null;

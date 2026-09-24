@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
 import { ClaudeCliRunner } from './adapters/claude-cli/claude-cli-runner.js';
+import { FsTaskNotes } from './adapters/fs-notes/fs-task-notes.js';
 import { FsPlaybookRegistry } from './adapters/fs-playbooks/fs-playbook-registry.js';
 import { GitWorkspace } from './adapters/git/git-workspace.js';
 import { GhCodeHost, GhIssueTracker } from './adapters/github/gh-code-host.js';
@@ -84,6 +85,7 @@ const { http, scheduler } = compose(
     decisions: new SqliteDecisionRepository(db),
     transcripts: new JsonlTranscriptStore(join(home, 'runs')),
     workspace: new GitWorkspace(join(home, 'worktrees')),
+    notes: new FsTaskNotes(join(home, 'tasks')),
     agent: agentRunner(env['TERMINUS_AGENT']),
     checks: new ShellCheckRunner(CHECK_TIMEOUT_MS),
     codeHost: new GhCodeHost(),
