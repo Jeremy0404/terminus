@@ -192,4 +192,15 @@ describe('HTTP API', () => {
     expect(network.json.tasks.map((task) => task.title)).toEqual(['First task']);
     expect((await call('POST', '/api/adoption/scan', { repoPath: '/elsewhere' })).status).toBe(409);
   });
+
+  it('closes a task without merge through the API', async () => {
+    const { appId, taskId } = await givenTask();
+
+    const closed = await call<{ task: TaskSummaryDto; warnings: string[] }>('POST', `/api/tasks/${taskId}/close`, { reason: 'duplicate', evidence: 'Same as the other station' });
+
+    expect(closed.json.task.status).toEqual({ kind: 'closed', reason: 'duplicate', evidence: 'Same as the other station' });
+    expect((await call<NetworkDto>('GET', `/api/apps/${appId}/network`)).json.inbox).toEqual([]);
+    expect((await call('POST', `/api/tasks/${taskId}/close`, { reason: 'duplicate' })).status).toBe(409);
+    expect((await call('POST', `/api/tasks/${taskId}/close`, { reason: 'bored' })).status).toBe(400);
+  });
 });

@@ -3,6 +3,7 @@ import { streamSSE } from 'hono/streaming';
 import { ZodError, type ZodType } from 'zod';
 import {
   AnswerBody,
+  CloseBody,
   CreateAppBody,
   CutOverBody,
   HealthCheckBody,
@@ -88,6 +89,13 @@ export function createHttpApp(deps: HttpDeps): Hono {
     const taskId = c.req.param('taskId');
     const { option, rewindTo } = await body(c, RecoverBody);
     return c.json(toTaskSummaryDto(act(taskId, () => actions.recover(taskId, option, rewindTo)) as ReturnType<TaskActions['recover']>));
+  });
+  app.post('/api/tasks/:taskId/close', async (c) => {
+    const taskId = c.req.param('taskId');
+    const { reason, evidence } = await body(c, CloseBody);
+    const { task, warnings } = actions.close(taskId, reason, evidence);
+    act(taskId, () => task);
+    return c.json({ task: toTaskSummaryDto(task), warnings });
   });
   app.post('/api/tasks/:taskId/take-over', (c) => {
     const { task, command } = actions.takeOver(c.req.param('taskId'));

@@ -1,6 +1,7 @@
 import type {
   AppDto,
   CheckResultDto,
+  CloseReasonDto,
   CutOverResultDto,
   EpicDto,
   NetworkDto,
@@ -50,6 +51,8 @@ export const api = {
   recover: (taskId: string, option: 'restart-from-checkpoint' | 'resume-session' | 'rewind', rewindTo?: number) =>
     post<TaskSummaryDto>(`/tasks/${taskId}/recover`, rewindTo === undefined ? { option } : { option, rewindTo }),
   takeOver: (taskId: string) => post<TakeOverDto>(`/tasks/${taskId}/take-over`),
+  close: (taskId: string, reason: CloseReasonDto, evidence: string) =>
+    post<{ task: TaskSummaryDto; warnings: string[] }>(`/tasks/${taskId}/close`, { reason, evidence }),
   answer: (decisionId: string, answer: { kind: 'option'; index: number } | { kind: 'other'; text: string }) =>
     post<TaskSummaryDto>(`/decisions/${decisionId}/answer`, answer),
   scanRepo: (repoPath: string) => post<RepoScanDto>('/adoption/scan', { repoPath }),

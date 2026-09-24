@@ -4,6 +4,7 @@ import { DEFAULT_FAILURE_POLICY } from './failure.js';
 import {
   answerDecision,
   approveGate,
+  closeTask,
   completePhase,
   createTask,
   currentPhaseId,
@@ -185,5 +186,27 @@ describe('verification cycles', () => {
     const task = passChecks(verifying({ checkFailures: [failure()] }), checkpoint(1, 4));
     expect(task.checkFailures).toEqual([]);
     expect(currentPhaseId(task)).toBe('review');
+  });
+});
+
+describe('closing without merge', () => {
+  it('closes an open task from any waiting status, with its reason and evidence', () => {
+    for (const status of [{ kind: 'todo' }, { kind: 'ready', mode: 'fresh' }, { kind: 'awaiting-gate', gate: 'merge' }, { kind: 'blocked', failure: failure() }, { kind: 'manual' }] as const) {
+      expect(closeTask({ ...newTask(), status }, 'already-done', 'Merged in #26').status).toEqual({ kind: 'closed', reason: 'already-done', evidence: 'Merged in #26' });
+    }
+  });
+
+  it('refuses to close a running, merged or already closed task', () => {
+    expect(() => closeTask({ ...newTask(), status: { kind: 'running', runId: 'r' } }, 'obsolete', '')).toThrow(/interrupt it before closing/);
+    expect(() => closeTask({ ...newTask(), status: { kind: 'done' } }, 'obsolete', '')).toThrow(DomainError);
+    expect(() => closeTask({ ...newTask(), status: { kind: 'closed', reason: 'duplicate', evidence: '' } }, 'obsolete', '')).toThrow(DomainError);
+  });
+
+  it('lets dependants open after a dependency closed as done elsewhere, not after an abandoned one', () => {
+    const dependant = newTask({ id: 't2', dependsOn: ['t1'] });
+    const doneElsewhere = closeTask(newTask(), 'already-done', '#26');
+    const abandoned = closeTask(newTask(), 'abandoned', '');
+    expect(openTask(dependant, [doneElsewhere]).status).toEqual({ kind: 'ready', mode: 'fresh' });
+    expect(() => openTask(dependant, [abandoned])).toThrow(/waits for t1/);
   });
 });

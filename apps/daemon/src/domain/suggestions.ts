@@ -39,6 +39,7 @@ export function suggestedActions(task: Task, tasks: readonly Task[]): SuggestedA
     case 'manual':
       return [{ kind: 'resume-from-manual' }];
     case 'done':
+    case 'closed':
       return [];
   }
 }

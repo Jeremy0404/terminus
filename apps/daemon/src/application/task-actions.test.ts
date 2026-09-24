@@ -177,4 +177,37 @@ describe('TaskActions', () => {
       expect(() => actions.approve('t1')).toThrow(/merged with merge/);
     });
   });
+
+  describe('close', () => {
+    it('closes the task, removes its worktree and closes its pull request', () => {
+      givenTask('t1', { kind: 'awaiting-gate', gate: 'merge' }, { phaseIndex: 6 });
+      runs.save({ id: 'publish', taskId: 't1', phaseIndex: 6, sessionId: 'code-host', status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null, output: { pullRequest: { number: 27, url: 'u' } } });
+
+      const { task, warnings } = actions.close('t1', 'already-done', 'Covered by #26');
+
+      expect(task.status).toEqual({ kind: 'closed', reason: 'already-done', evidence: 'Covered by #26' });
+      expect(workspace.removed).toEqual(['t1']);
+      expect(codeHost.closed).toEqual([{ number: 27, comment: 'Closed from Terminus (already-done): Covered by #26' }]);
+      expect(warnings).toEqual([]);
+    });
+
+    it('closes a task that never published anything', () => {
+      givenTask('t1', { kind: 'todo' });
+      expect(actions.close('t1', 'obsolete', '').task.status.kind).toBe('closed');
+      expect(codeHost.closed).toEqual([]);
+    });
+
+    it('still closes the task when GitHub refuses to close the pull request, and says so', () => {
+      givenTask('t1', { kind: 'awaiting-gate', gate: 'merge' }, { phaseIndex: 6 });
+      runs.save({ id: 'publish', taskId: 't1', phaseIndex: 6, sessionId: 'code-host', status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null, output: { pullRequest: { number: 27, url: 'u' } } });
+      codeHost.close = () => {
+        throw new Error('network down');
+      };
+
+      const { task, warnings } = actions.close('t1', 'abandoned', '');
+
+      expect(task.status.kind).toBe('closed');
+      expect(warnings).toEqual(['Pull request #27 could not be closed: Error: network down']);
+    });
+  });
 });

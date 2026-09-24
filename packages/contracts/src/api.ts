@@ -33,6 +33,13 @@ export const RecoverBody = z.object({
 });
 
 export type AutonomyDto = z.infer<typeof Autonomy>;
+
+export const CloseBody = z.object({
+  reason: z.enum(['already-done', 'obsolete', 'duplicate', 'abandoned']),
+  evidence: z.string().max(2000).default(''),
+});
+
+export type CloseReasonDto = z.infer<typeof CloseBody>['reason'];
 export type GateDto = 'plan-approval' | 'human-review' | 'merge' | 'phase-approval';
 
 export interface FailureDto {
@@ -50,7 +57,8 @@ export type TaskStatusDto =
   | { readonly kind: 'awaiting-gate'; readonly gate: GateDto }
   | { readonly kind: 'blocked'; readonly failure: FailureDto }
   | { readonly kind: 'manual' }
-  | { readonly kind: 'done' };
+  | { readonly kind: 'done' }
+  | { readonly kind: 'closed'; readonly reason: CloseReasonDto; readonly evidence: string };
 
 export interface AppDto {
   readonly id: string;

@@ -90,6 +90,11 @@ describe('GhCodeHost', () => {
     expect(fakeGh({ 'pr checks': { stdout, exit } }).checks(repo, 3)).toBe(expected);
   });
 
+  it('closes a pull request with a comment and deletes its branch', () => {
+    fakeGh({}).close(repo, 27, 'Closed from Terminus (obsolete).');
+    expect(ghCalls()).toEqual([['pr', 'close', '27', '--comment', 'Closed from Terminus (obsolete).', '--delete-branch']]);
+  });
+
   it('squash-merges the pull request', () => {
     fakeGh({}).merge(repo, 9);
     expect(ghCalls()).toEqual([['pr', 'merge', '9', '--squash']]);
