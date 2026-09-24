@@ -1,4 +1,4 @@
-export type FailureKind = 'check-failed' | 'loop-detected' | 'budget-exceeded' | 'agent-crashed' | 'quota-exhausted';
+export type FailureKind = 'check-failed' | 'loop-detected' | 'budget-exceeded' | 'agent-crashed' | 'quota-exhausted' | 'publish-failed';
 
 export interface Failure {
   readonly kind: FailureKind;

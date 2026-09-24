@@ -6,7 +6,7 @@ import {
   InMemoryRunRepository,
   InMemoryTaskRepository,
 } from '../adapters/in-memory/in-memory-repositories.js';
-import { FakeWorkspace, FixedClock, RecordingBus } from '../adapters/in-memory/fakes.js';
+import { FakeCodeHost, FakeWorkspace, FixedClock, RecordingBus } from '../adapters/in-memory/fakes.js';
 import type { Decision } from '../domain/decision.js';
 import type { TaskWorkspace } from './ports/workspace.js';
 import { createTask, type Task, type TaskStatus } from '../domain/task.js';
@@ -24,6 +24,7 @@ let tasks: InMemoryTaskRepository;
 let decisions: InMemoryDecisionRepository;
 let runs: InMemoryRunRepository;
 let workspace: RewindRecordingWorkspace;
+let codeHost: FakeCodeHost;
 let actions: TaskActions;
 
 beforeEach(() => {
@@ -33,9 +34,10 @@ beforeEach(() => {
   decisions = new InMemoryDecisionRepository();
   runs = new InMemoryRunRepository();
   workspace = new RewindRecordingWorkspace();
+  codeHost = new FakeCodeHost();
   apps.save({ id: 'app', name: 'app', repoPath: '/repo', verification: [], createdAt: '2026-09-24T09:00:00Z' });
   epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'Interface', status: 'active', position: 1 });
-  actions = new TaskActions({ apps, epics, tasks, runs, decisions, workspace, clock: new FixedClock(), bus: new RecordingBus(), baseRef: 'main' });
+  actions = new TaskActions({ apps, epics, tasks, runs, decisions, workspace, codeHost, clock: new FixedClock(), bus: new RecordingBus(), baseRef: 'main' });
 });
 
 function givenTask(id: string, status: TaskStatus, extra: Partial<Task> = {}): Task {
@@ -120,5 +122,38 @@ describe('TaskActions', () => {
     expect(task.status).toEqual({ kind: 'manual' });
     expect(command).toBe('cd /worktrees/app/t1 && claude --resume abc-123');
     expect(actions.resumeFromManual('t1').status).toEqual({ kind: 'ready', mode: 'fresh' });
+  });
+
+  describe('merge', () => {
+    const atMergeGate = (): Task => {
+      const task = givenTask('t1', { kind: 'awaiting-gate', gate: 'merge' }, { phaseIndex: 6 });
+      runs.save({ id: 'publish', taskId: 't1', phaseIndex: 6, sessionId: 'code-host', status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null,
+        output: { pullRequest: { number: 42, url: 'u' } } });
+      return task;
+    };
+
+    it('merges once CI is green and completes the task', () => {
+      atMergeGate();
+      expect(actions.merge('t1').status).toEqual({ kind: 'done' });
+      expect(codeHost.merged).toEqual([42]);
+    });
+
+    it('merges a repository without CI', () => {
+      atMergeGate();
+      codeHost.checksState = 'none';
+      expect(actions.merge('t1').status).toEqual({ kind: 'done' });
+    });
+
+    it.each(['pending', 'failure'] as const)('refuses while CI is %s', (state) => {
+      atMergeGate();
+      codeHost.checksState = state;
+      expect(() => actions.merge('t1')).toThrow(`CI on pull request #42 is ${state}`);
+      expect(codeHost.merged).toEqual([]);
+    });
+
+    it('does not let a plain approval skip the merge', () => {
+      atMergeGate();
+      expect(() => actions.approve('t1')).toThrow(/merged with merge/);
+    });
   });
 });
