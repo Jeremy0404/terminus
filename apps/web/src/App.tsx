@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ServerEventsProvider } from './api/events';
+import { ActivityBar, Toasts } from './components/ActivityFeedback';
 import { AdoptionWizard } from './components/adoption/AdoptionWizard';
 import { AppSelector } from './components/AppSelector';
 import { Inbox } from './components/Inbox';
@@ -73,6 +74,7 @@ function Cockpit() {
 
   return (
     <div className="shell">
+      <ActivityBar />
       <header className="top-bar">
         <span className="roundel" aria-hidden="true" />
         <AppSelector apps={apps.data ?? []} current={current} onSelect={(id) => go({ app: id, line: null, task: null })} onAdopt={() => setAdopting(true)} />
@@ -137,6 +139,7 @@ function Cockpit() {
           </div>
         </>
       )}
+      <Toasts />
     </div>
   );
 }

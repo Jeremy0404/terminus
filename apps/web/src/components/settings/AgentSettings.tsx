@@ -8,13 +8,23 @@ import { useAction } from '../platform/useAction';
 export function AgentSettings({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const [phases, setPhases] = useState<readonly AgentPhaseDto[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const load = useAction();
   const save = useAction();
 
   useEffect(() => {
-    void load.run(async () => setPhases(await api.agentSettings()));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelled = false;
+    api
+      .agentSettings()
+      .then((loaded) => {
+        if (!cancelled) setPhases(loaded);
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) setLoadError(cause instanceof Error ? cause.message : String(cause));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const change = (key: string, choice: AgentChoiceDto): void => {
@@ -40,7 +50,7 @@ export function AgentSettings({ onClose }: { onClose: () => void }) {
         </div>
         <button type="button" className="btn small" onClick={onClose} aria-label={t('settings.close')}>✕</button>
       </div>
-      {load.error && <p className="action-error" role="alert">{load.error}</p>}
+      {loadError && <p className="action-error" role="alert">{loadError}</p>}
       {phases && (
         <ul className="settings-rows">
           {phases.map((phase) => {

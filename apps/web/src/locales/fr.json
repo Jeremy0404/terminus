@@ -388,5 +388,8 @@
     "save": "Enregistrer",
     "saving": "Enregistrement…",
     "saved": "Enregistré"
+  },
+  "feedback": {
+    "done": "✓ {{action}}"
   }
 }
