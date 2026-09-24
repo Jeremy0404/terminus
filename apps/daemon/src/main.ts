@@ -1,9 +1,10 @@
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
-import { ClaudeCliRunner } from './adapters/claude-cli/claude-cli-runner.js';
+import { buildAgentHome, readAgentProfile } from './adapters/claude-cli/agent-home.js';
+import { BUILTIN_PLUGINS, ClaudeCliRunner } from './adapters/claude-cli/claude-cli-runner.js';
 import { FsTaskNotes } from './adapters/fs-notes/fs-task-notes.js';
 import { FsPlaybookRegistry } from './adapters/fs-playbooks/fs-playbook-registry.js';
 import { GitWorkspace } from './adapters/git/git-workspace.js';
@@ -46,15 +47,6 @@ function readEnvFile(path: string): Record<string, string> {
   );
 }
 
-function syncAgentSkills(agentHome: string): void {
-  const target = join(agentHome, 'skills');
-  mkdirSync(target, { recursive: true });
-  for (const lifecycle of readdirSync(playbooksDir)) {
-    const skills = join(playbooksDir, lifecycle, 'skills');
-    if (existsSync(skills)) cpSync(skills, target, { recursive: true });
-  }
-}
-
 function agentRunner(kind: string | undefined): AgentRunner {
   if (kind === 'demo') return new DemoAgentRunner();
   const secrets = readEnvFile(join(home, '.env'));
@@ -66,9 +58,20 @@ function agentRunner(kind: string | undefined): AgentRunner {
         'or start with TERMINUS_AGENT=demo, or TERMINUS_AGENT_ISOLATION=off to use your own Claude Code configuration.',
     );
   }
-  const agentHome = join(home, 'agent-home');
-  if (isolated) syncAgentSkills(agentHome);
-  return new ClaudeCliRunner({ binary: env['TERMINUS_CLAUDE_BIN'] ?? 'claude', configDir: isolated ? agentHome : null, oauthToken: token, secretPaths: SECRET_PATHS });
+  if (!isolated) return new ClaudeCliRunner({ binary: env['TERMINUS_CLAUDE_BIN'] ?? 'claude', oauthToken: token, secretPaths: SECRET_PATHS, profile: null });
+  const configDir = join(home, 'agent-home');
+  const built = buildAgentHome(configDir, playbooksDir, readAgentProfile(join(home, 'agent.json')));
+  console.log(`agent profile: skills ${built.skills.join(', ')}; MCP ${built.mcpServers ? Object.keys(built.mcpServers).join(', ') : 'none'}`);
+  return new ClaudeCliRunner({
+    binary: env['TERMINUS_CLAUDE_BIN'] ?? 'claude',
+    oauthToken: token,
+    secretPaths: SECRET_PATHS,
+    profile: {
+      configDir,
+      expected: { skills: built.skills, mcpServers: built.mcpServers ? Object.keys(built.mcpServers) : [], plugins: BUILTIN_PLUGINS },
+      mcpConfig: built.mcpServers,
+    },
+  });
 }
 
 mkdirSync(home, { recursive: true });

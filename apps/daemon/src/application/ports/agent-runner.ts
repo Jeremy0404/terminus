@@ -12,7 +12,7 @@ export interface AgentRunRequest {
   readonly outputSchema: object | null;
 }
 
-export type AgentOutcome = 'success' | 'error' | 'max-turns' | 'interrupted' | 'quota-exhausted';
+export type AgentOutcome = 'success' | 'error' | 'max-turns' | 'interrupted' | 'quota-exhausted' | 'isolation-breach';
 
 export type AgentEvent =
   | { readonly type: 'text'; readonly text: string }

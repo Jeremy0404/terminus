@@ -194,6 +194,14 @@ describe('PhaseRunner', () => {
     expect(task.status).toMatchObject({ kind: 'blocked', failure: { kind: 'quota-exhausted' } });
   });
 
+  it('blocks at once when the agent setup breaks isolation', async () => {
+    givenTask(3);
+    const task = await runner(
+      new ScriptedAgentRunner(script({ type: 'finished', outcome: 'isolation-breach', summary: 'unexpected skill brain-access', structuredOutput: null })),
+    ).run('t1');
+    expect(task.status).toMatchObject({ kind: 'blocked', failure: { kind: 'isolation-breach', message: 'unexpected skill brain-access' } });
+  });
+
   it('counts a run that ends without any result as a crash', async () => {
     givenTask(3);
     const task = await runner(new ScriptedAgentRunner(script({ type: 'text', text: 'partial' }))).run('t1');

@@ -216,6 +216,7 @@ export class PhaseRunner {
   private failureFrom(finished: RunObservation['finished']): Failure {
     if (!finished) return this.failure('agent-crashed', 'no-result', 'The agent stopped without a result');
     if (finished.outcome === 'quota-exhausted') return this.failure('quota-exhausted', 'quota', finished.summary);
+    if (finished.outcome === 'isolation-breach') return this.failure('isolation-breach', 'isolation', finished.summary);
     if (finished.outcome === 'max-turns') return this.failure('budget-exceeded', 'max-turns', finished.summary);
     return this.failure('agent-crashed', `outcome:${finished.outcome}`, finished.summary);
   }
