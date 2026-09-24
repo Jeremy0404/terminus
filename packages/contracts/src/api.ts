@@ -147,3 +147,64 @@ export type ServerEventDto =
   | { readonly type: 'task-changed'; readonly task: TaskSummaryDto }
   | { readonly type: 'run-event'; readonly runId: string; readonly taskId: string; readonly event: unknown }
   | { readonly type: 'check-result'; readonly runId: string; readonly taskId: string; readonly result: unknown };
+
+const VerificationCommandSchema = z.object({ name: z.string().min(1), command: z.string().min(1) });
+
+export const RepoPathBody = z.object({ repoPath: z.string().min(1) });
+
+export const HealthCheckBody = z.object({ repoPath: z.string().min(1), commands: z.array(VerificationCommandSchema) });
+
+export const CutOverBody = z.object({
+  name: z.string().min(1),
+  repoPath: z.string().min(1),
+  verification: z.array(VerificationCommandSchema),
+  lines: z
+    .array(
+      z.object({
+        code: z.string().regex(/^[A-Z0-9]{1,3}$/),
+        name: z.string().min(1),
+        tasks: z.array(z.object({ title: z.string().min(1), issueNumber: z.number().int().positive().optional() })),
+      }),
+    )
+    .min(1),
+  closeIssues: z.boolean(),
+});
+
+export interface VerificationCommandDto {
+  readonly name: string;
+  readonly command: string;
+}
+
+export interface RepoScanDto {
+  readonly repoPath: string;
+  readonly name: string;
+  readonly isGitRepo: boolean;
+  readonly hasOrigin: boolean;
+  readonly defaultBranch: string | null;
+  readonly packageManager: string | null;
+  readonly ciWorkflows: readonly string[];
+  readonly agentDocs: readonly string[];
+  readonly suggestedVerification: readonly VerificationCommandDto[];
+  readonly todos: readonly { readonly file: string; readonly line: number; readonly text: string }[];
+}
+
+export interface CheckResultDto {
+  readonly name: string;
+  readonly command: string;
+  readonly ok: boolean;
+  readonly exitCode: number | null;
+  readonly outputTail: string;
+  readonly durationMs: number;
+}
+
+export interface ProposalsDto {
+  readonly issues: readonly { readonly number: number; readonly title: string; readonly url: string; readonly labels: readonly string[] }[];
+  readonly todos: RepoScanDto['todos'];
+  readonly warnings: readonly string[];
+}
+
+export interface CutOverResultDto {
+  readonly app: AppDto;
+  readonly closedIssues: readonly number[];
+  readonly closeErrors: readonly string[];
+}

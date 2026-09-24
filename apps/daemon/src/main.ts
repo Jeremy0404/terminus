@@ -5,8 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
 import { FsPlaybookRegistry } from './adapters/fs-playbooks/fs-playbook-registry.js';
 import { GitWorkspace } from './adapters/git/git-workspace.js';
-import { GhCodeHost } from './adapters/github/gh-code-host.js';
+import { GhCodeHost, GhIssueTracker } from './adapters/github/gh-code-host.js';
 import { DemoAgentRunner } from './adapters/in-memory/demo-agent-runner.js';
+import { FsRepoScanner } from './adapters/repo-scanner/fs-repo-scanner.js';
 import { JsonlTranscriptStore } from './adapters/jsonl-transcripts/jsonl-transcript-store.js';
 import { ShellCheckRunner } from './adapters/shell-checks/shell-check-runner.js';
 import { openDatabase } from './adapters/sqlite/database.js';
@@ -52,6 +53,8 @@ const { http, scheduler } = compose(
     agent: agentRunner(env['TERMINUS_AGENT']),
     checks: new ShellCheckRunner(CHECK_TIMEOUT_MS),
     codeHost: new GhCodeHost(),
+    scanner: new FsRepoScanner(),
+    issues: new GhIssueTracker(),
     playbooks,
     clock: new SystemClock(),
     ids: new RandomIds(),

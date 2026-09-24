@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import type { ChecksState, CodeHost, PullRequest } from '../../application/ports/code-host.js';
+import type { IssueTracker, OpenIssue } from '../../application/ports/issue-tracker.js';
 import type { TaskWorkspace } from '../../application/ports/workspace.js';
 
 const FAILED_STATES = new Set(['FAILURE', 'ERROR', 'CANCELLED', 'TIMED_OUT', 'ACTION_REQUIRED', 'STARTUP_FAILURE']);
@@ -42,5 +43,23 @@ function run(binary: string, cwd: string, args: readonly string[], options: { al
     const stdout = (error as { stdout?: string }).stdout;
     if (options.allowFailure && typeof stdout === 'string') return stdout;
     throw error;
+  }
+}
+
+export class GhIssueTracker implements IssueTracker {
+  constructor(private readonly gh = 'gh') {}
+
+  listOpen(repoPath: string): OpenIssue[] {
+    const raw = JSON.parse(run(this.gh, repoPath, ['issue', 'list', '--state', 'open', '--limit', '100', '--json', 'number,title,url,labels'])) as {
+      number: number;
+      title: string;
+      url: string;
+      labels: { name: string }[];
+    }[];
+    return raw.map((issue) => ({ number: issue.number, title: issue.title, url: issue.url, labels: issue.labels.map((label) => label.name) }));
+  }
+
+  close(repoPath: string, issueNumber: number, comment: string): void {
+    run(this.gh, repoPath, ['issue', 'close', String(issueNumber), '--comment', comment]);
   }
 }

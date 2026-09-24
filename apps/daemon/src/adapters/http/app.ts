@@ -4,12 +4,16 @@ import { ZodError, type ZodType } from 'zod';
 import {
   AnswerBody,
   CreateAppBody,
+  CutOverBody,
+  HealthCheckBody,
+  RepoPathBody,
   CreateEpicBody,
   CreateTaskBody,
   RecoverBody,
   SendBackBody,
   type HealthResponse,
 } from '@terminus/contracts';
+import type { Adoption } from '../../application/adoption.js';
 import type { Catalog } from '../../application/catalog.js';
 import type { RunUpdate } from '../../application/ports/system.js';
 import { NotFound, type Queries } from '../../application/queries.js';
@@ -23,6 +27,7 @@ export interface HttpDeps {
   readonly version: string;
   readonly queries: Queries;
   readonly catalog: Catalog;
+  readonly adoption: Adoption;
   readonly actions: TaskActions;
   readonly runs: { interrupt(taskId: string): boolean };
   readonly scheduler: { tick(): unknown; release(taskId: string): void };
@@ -96,6 +101,17 @@ export function createHttpApp(deps: HttpDeps): Hono {
     const task = actions.answer(c.req.param('decisionId'), await body(c, AnswerBody));
     act(task.id, () => task);
     return c.json(toTaskSummaryDto(task));
+  });
+
+  app.post('/api/adoption/scan', async (c) => c.json(deps.adoption.scan((await body(c, RepoPathBody)).repoPath)));
+  app.post('/api/adoption/health', async (c) => {
+    const { repoPath, commands } = await body(c, HealthCheckBody);
+    return c.json(await deps.adoption.health(repoPath, commands));
+  });
+  app.post('/api/adoption/proposals', async (c) => c.json(deps.adoption.proposals((await body(c, RepoPathBody)).repoPath)));
+  app.post('/api/adoption/cut-over', async (c) => {
+    const result = deps.adoption.cutOver(await body(c, CutOverBody));
+    return c.json({ ...result, app: toAppDto(result.app) }, 201);
   });
 
   app.get('/api/events', (c) =>
