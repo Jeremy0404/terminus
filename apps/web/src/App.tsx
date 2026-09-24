@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ServerEventsProvider } from './api/events';
+import { AdoptionWizard } from './components/adoption/AdoptionWizard';
 import { AppSelector } from './components/AppSelector';
 import { Inbox } from './components/Inbox';
 import { LineCard } from './components/LineCard';
@@ -43,6 +44,7 @@ function Cockpit() {
   const apps = useApps();
   const [place, go] = usePlace();
   const [inboxOpen, setInboxOpen] = useState(false);
+  const [adopting, setAdopting] = useState(false);
   const appId = place.app ?? (apps.data ? (apps.data.find((app) => app.id === readLastApp())?.id ?? apps.data[0]?.id ?? null) : null);
   const network = useNetwork(appId);
   const level = levelOf(place);
@@ -69,15 +71,29 @@ function Cockpit() {
     <div className="shell">
       <header className="top-bar">
         <span className="roundel" aria-hidden="true" />
-        <AppSelector apps={apps.data ?? []} current={current} onSelect={(id) => go({ app: id, line: null, task: null })} />
+        <AppSelector apps={apps.data ?? []} current={current} onSelect={(id) => go({ app: id, line: null, task: null })} onAdopt={() => setAdopting(true)} />
         <span className="spacer" />
         {notifications.permission === 'default' && (
           <button type="button" className="btn small" onClick={notifications.ask}>{t('notify.enable')}</button>
         )}
         {apps.error && <span className="offline" role="status">{t('app.daemon.offline')}</span>}
       </header>
-      {!network.data ? (
-        <p className="empty-state" role="status">{apps.data && apps.data.length === 0 ? t('apps.empty') : t('app.loading')}</p>
+      {adopting ? (
+        <div className="adoption-stage">
+          <AdoptionWizard
+            onCancel={() => setAdopting(false)}
+            onAdopted={(id) => {
+              setAdopting(false);
+              apps.reload();
+              go({ app: id, line: null, task: null });
+            }}
+          />
+        </div>
+      ) : !network.data ? (
+        <div className="empty-state" role="status">
+          <p>{apps.data && apps.data.length === 0 ? t('apps.empty') : t('app.loading')}</p>
+          {apps.data && apps.data.length === 0 && <button type="button" className="btn primary" onClick={() => setAdopting(true)}>{t('adopt.open')}</button>}
+        </div>
       ) : (
         <>
           <Trip network={network.data} place={{ ...place, app: appId }} go={go} />

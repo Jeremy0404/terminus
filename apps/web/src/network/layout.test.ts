@@ -45,10 +45,12 @@ describe('layoutNetwork', () => {
     expect(line?.endX).toBeGreaterThan(line?.startX ?? 0);
   });
 
-  it('sizes the drawing to its content', () => {
-    const layout = layoutNetwork([epic('a', 1), epic('b', 2)], [task('a1', 'a'), task('a2', 'a')]);
-    expect(layout.width).toBeGreaterThan(LEFT + STEP);
-    expect(layout.height).toBeGreaterThan(TOP + ROW);
+  it('sizes the drawing to its content, never below a readable minimum', () => {
+    const small = layoutNetwork([epic('a', 1)], [task('a1', 'a')]);
+    expect([small.width, small.height]).toEqual([1000, 380]);
+
+    const wide = layoutNetwork([epic('a', 1)], Array.from({ length: 9 }, (_, index) => task(`a${index}`, 'a')));
+    expect(wide.width).toBeGreaterThan(LEFT + 8 * STEP);
   });
 
   it('zooms onto a line without cutting its name or blowing up a short line', () => {

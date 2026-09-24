@@ -206,5 +206,61 @@
     "blocked": "Besoin de toi",
     "decision": "Une décision t’attend",
     "gate": "Une validation t’attend"
+  },
+  "adopt": {
+    "open": "Adopter un repo",
+    "eyebrow": "Adoption",
+    "title": "Adopter un repo existant",
+    "yes": "oui",
+    "no": "non",
+    "back": "Retour",
+    "validate": "Valider cette station",
+    "station": {
+      "scan": "Scan",
+      "health": "Santé",
+      "import": "Import",
+      "profile": "Vérification",
+      "cutover": "Bascule"
+    },
+    "scan": {
+      "path": "Chemin du repo",
+      "run": "Scanner",
+      "git": "Branche git",
+      "origin": "Remote origin",
+      "noOrigin": "absent : pas de PR possible",
+      "packageManager": "Gestionnaire",
+      "ci": "CI",
+      "agentDocs": "Consignes agent",
+      "checks": "Vérifications proposées",
+      "noChecks": "aucune détectée, à définir à la station Vérification"
+    },
+    "health": {
+      "intro": "Les commandes proposées tournent une fois dans le repo pour fixer la ligne de base. Rouge ici n’empêche pas l’adoption.",
+      "running": "Les commandes tournent…",
+      "none": "Aucune commande à lancer."
+    },
+    "import": {
+      "defaultLine": "Backlog importé",
+      "issues": "Issues GitHub ouvertes ({{count}})",
+      "todos": "TODO du code ({{count}})",
+      "lineName": "Ligne qui les accueille"
+    },
+    "profile": {
+      "intro": "Ces commandes forment la barrière déterministe de chaque tâche.",
+      "name": "Nom",
+      "command": "Commande",
+      "remove": "Retirer {{name}}",
+      "add": "Ajouter une commande",
+      "empty": "Sans commande, la vérification passe toujours."
+    },
+    "cutover": {
+      "name": "Nom de l’app",
+      "summary": "{{stations}} stations sur la ligne « {{line}} », {{checks}} commandes de vérification.",
+      "close_one": "Fermer l’issue importée sur GitHub, avec un lien vers Terminus",
+      "close_other": "Fermer les {{count}} issues importées sur GitHub, avec un lien vers Terminus",
+      "run": "Basculer",
+      "done": "{{name}} est adoptée. {{closed}} issue(s) fermée(s).",
+      "open": "Ouvrir le réseau"
+    }
   }
 }
