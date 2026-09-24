@@ -11,6 +11,7 @@ import {
   CreateTaskBody,
   RecoverBody,
   SendBackBody,
+  type ChecksResponseDto,
   type HealthResponse,
 } from '@terminus/contracts';
 import type { Adoption } from '../../application/adoption.js';
@@ -65,6 +66,7 @@ export function createHttpApp(deps: HttpDeps): Hono {
   });
 
   app.get('/api/tasks/:taskId', (c) => c.json(toTaskDetailDto(queries.task(c.req.param('taskId')))));
+  app.get('/api/tasks/:taskId/checks', (c) => c.json<ChecksResponseDto>({ state: actions.checks(c.req.param('taskId')) }));
   app.get('/api/runs/:runId/transcript', (c) => c.json(queries.transcript(c.req.param('runId'))));
 
   const simple = {
