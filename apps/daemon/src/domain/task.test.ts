@@ -65,18 +65,23 @@ describe('a task going through its lifecycle', () => {
     expect(task.status).toEqual({ kind: 'done' });
   });
 
-  it('pauses on a grill decision and resumes the same phase', () => {
+  it('walks the grill decisions one by one, then resumes the same phase session', () => {
     const task = requestDecision(startRun(openTask(newTask(), []), 'run-1'), 'd1');
     expect(task.status).toEqual({ kind: 'awaiting-decision', decisionId: 'd1' });
-    expect(answerDecision(task).status).toEqual({ kind: 'ready', retry: false });
-    expect(currentPhaseId(answerDecision(task))).toBe('spec');
+
+    const second = answerDecision(task, 'd2');
+    expect(second.status).toEqual({ kind: 'awaiting-decision', decisionId: 'd2' });
+
+    const resumed = answerDecision(second, null);
+    expect(resumed.status).toEqual({ kind: 'ready', mode: 'resume' });
+    expect(currentPhaseId(resumed)).toBe('spec');
   });
 
   it('sends a task back from review to execution', () => {
     const atReview: Task = { ...newTask(), phaseIndex: 5, status: { kind: 'awaiting-gate', gate: 'human-review' } };
     const back = sendBack(atReview, 'execute');
     expect(currentPhaseId(back)).toBe('execute');
-    expect(back.status).toEqual({ kind: 'ready', retry: false });
+    expect(back.status).toEqual({ kind: 'ready', mode: 'fresh' });
     expect(() => sendBack(atReview, 'merge')).toThrow(DomainError);
   });
 
@@ -96,7 +101,7 @@ describe('dependencies', () => {
     const pending = { ...newTask({ id: 't0' }) };
     const done: Task = { ...pending, status: { kind: 'done' } };
     expect(() => openTask(task, [pending])).toThrow(/waits for t0/);
-    expect(openTask(task, [done]).status).toEqual({ kind: 'ready', retry: false });
+    expect(openTask(task, [done]).status).toEqual({ kind: 'ready', mode: 'fresh' });
   });
 });
 
@@ -105,7 +110,7 @@ describe('failures and recovery', () => {
 
   it('retries automatically once, then blocks with the failure', () => {
     const retried = failRun(running(), failure(), DEFAULT_FAILURE_POLICY);
-    expect(retried.status).toEqual({ kind: 'ready', retry: true });
+    expect(retried.status).toEqual({ kind: 'ready', mode: 'retry' });
 
     const blocked = failRun(startRun(retried, 'run-2'), failure(), DEFAULT_FAILURE_POLICY);
     expect(blocked.status).toEqual({ kind: 'blocked', failure: failure() });
@@ -125,10 +130,13 @@ describe('failures and recovery', () => {
     return task;
   };
 
-  it('restarts from the checkpoint or resumes the session with a clean failure count', () => {
-    for (const option of ['restart-from-checkpoint', 'resume-session'] as const) {
-      const recovered = recover(blocked(), option);
-      expect(recovered.status).toEqual({ kind: 'ready', retry: false });
+  it('restarts from the checkpoint with a summary, or resumes the session, with a clean failure count', () => {
+    const restarted = recover(blocked(), 'restart-from-checkpoint');
+    const resumed = recover(blocked(), 'resume-session');
+
+    expect(restarted.status).toEqual({ kind: 'ready', mode: 'retry' });
+    expect(resumed.status).toEqual({ kind: 'ready', mode: 'resume' });
+    for (const recovered of [restarted, resumed]) {
       expect(recovered.failuresInPhase).toEqual([]);
       expect(currentPhaseId(recovered)).toBe('plan');
     }
@@ -144,6 +152,6 @@ describe('failures and recovery', () => {
   it('hands the task over and takes it back', () => {
     const manual = recover(blocked(), 'take-over');
     expect(manual.status).toEqual({ kind: 'manual' });
-    expect(resumeFromManual(manual).status).toEqual({ kind: 'ready', retry: false });
+    expect(resumeFromManual(manual).status).toEqual({ kind: 'ready', mode: 'fresh' });
   });
 });

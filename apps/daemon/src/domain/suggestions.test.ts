@@ -11,7 +11,7 @@ const task = (status: TaskStatus, extra: Partial<Task> = {}): Task => ({
 
 describe('suggestedActions', () => {
   it('offers to start the current phase of a ready task', () => {
-    expect(suggestedActions(task({ kind: 'ready', retry: false }, { phaseIndex: 2 }), [])).toEqual([{ kind: 'start-phase', phaseId: 'plan' }]);
+    expect(suggestedActions(task({ kind: 'ready', mode: 'fresh' }, { phaseIndex: 2 }), [])).toEqual([{ kind: 'start-phase', phaseId: 'plan' }]);
   });
 
   it('offers nothing for a todo task whose dependencies are pending', () => {

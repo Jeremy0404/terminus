@@ -8,7 +8,7 @@ const task = (id: string, status: TaskStatus, dependsOn: string[] = []): Task =>
   ...createTask({ id, epicId: 'e', title: id, lifecycle: TASK_LIFECYCLE, dependsOn }),
   status,
 });
-const ready: TaskStatus = { kind: 'ready', retry: false };
+const ready: TaskStatus = { kind: 'ready', mode: 'fresh' };
 const todo: TaskStatus = { kind: 'todo' };
 
 describe('unblockCount', () => {

@@ -9,6 +9,7 @@ export interface PhaseDefinition {
   readonly gate?: GateKind;
   readonly skill?: string;
   readonly model?: string;
+  readonly output?: 'decisions';
 }
 
 export interface LifecycleDefinition {
