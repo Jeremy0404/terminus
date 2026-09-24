@@ -6,6 +6,7 @@ export const LEFT = 230;
 export const TOP = 110;
 const RIGHT_MARGIN = 140;
 const BOTTOM_MARGIN = 70;
+const MIN_ZOOM_SHARE = 0.55;
 
 export interface StationPosition {
   readonly task: TaskSummaryDto;
@@ -96,8 +97,8 @@ function rankTasks(tasks: readonly TaskSummaryDto[]): Map<string, number> {
 export function lineViewBox(layout: NetworkLayout, epicId: string, aspect: number): [number, number, number, number] {
   const line = layout.lines.find((candidate) => candidate.epic.id === epicId);
   if (!line) return fullViewBox(layout);
-  const x = line.startX - LEFT + 20;
-  const width = Math.max(line.endX - x + 80, STEP * 3);
+  const x = line.startX - LEFT - 10;
+  const width = Math.max(line.endX - x + 80, STEP * 5, layout.width * MIN_ZOOM_SHARE);
   const height = width / aspect;
   return [x, line.y - height / 2, width, height];
 }

@@ -78,5 +78,108 @@
     "verify": "Vérif.",
     "review": "Review",
     "merge": "Merge"
+  },
+  "decision": {
+    "eyebrow": "Grill · question {{position}} sur {{total}}",
+    "recommended": "Recommandé",
+    "other": "Autre réponse",
+    "otherPlaceholder": "Décris ton option…",
+    "submit": "Valider la décision"
+  },
+  "recovery": {
+    "eyebrow": "Run suspendu",
+    "default": "Par défaut",
+    "apply": "Appliquer",
+    "copy": "Copier",
+    "rewindTo": "Revenir au checkpoint",
+    "checkpoint": "Checkpoint {{sequence}} · après {{phase}}",
+    "title": {
+      "default": "L’agent s’est arrêté",
+      "loop-detected": "L’agent tourne en rond",
+      "check-failed": "La vérification reste rouge",
+      "budget-exceeded": "Budget dépassé",
+      "quota-exhausted": "Quota de l’abonnement épuisé",
+      "agent-crashed": "L’agent s’est arrêté sans résultat",
+      "publish-failed": "La publication de la PR a échoué",
+      "interrupted": "Run interrompu"
+    },
+    "option": {
+      "restart-from-checkpoint": "Repartir du checkpoint avec résumé",
+      "resume-session": "Reprendre la session",
+      "rewind": "Revenir en arrière",
+      "take-over": "Reprendre la main"
+    },
+    "hint": {
+      "restart-from-checkpoint": "Contexte neuf depuis le dernier checkpoint, avec ce qui a été tenté.",
+      "resume-session": "Même contexte, via la reprise de session.",
+      "rewind": "Retour à un checkpoint plus ancien pour revoir l’approche.",
+      "take-over": "Ouvre le worktree dans ton terminal ; la tâche passe en manuel."
+    }
+  },
+  "gate": {
+    "approve": "Valider",
+    "sendBack": "Renvoyer",
+    "sendBackTo": "Renvoyer vers la phase",
+    "plan-approval": {
+      "eyebrow": "Point de validation · plan",
+      "title": "Le plan est prêt, à toi de le valider"
+    },
+    "phase-approval": {
+      "eyebrow": "Point de validation",
+      "title": "Phase terminée, on continue ?"
+    },
+    "human-review": {
+      "eyebrow": "Barrière 3 sur 3 · toi",
+      "title": "Relis et décide"
+    },
+    "merge": {
+      "eyebrow": "Porte de merge",
+      "title": "Tout est prêt, la rame attend ton signal",
+      "action": "Merger",
+      "pullRequest": "Pull request #{{number}}"
+    },
+    "verdict": {
+      "approve": "Approuvé",
+      "changes-requested": "Changements demandés"
+    }
+  },
+  "run": {
+    "eyebrow": "Agent en route · {{phase}}",
+    "interrupt": "Interrompre",
+    "empty": "En attente des premiers événements…",
+    "usage": "{{input}} tokens lus · {{output}} écrits",
+    "tokens": "{{count}} tokens",
+    "status": {
+      "running": "En cours",
+      "succeeded": "Réussi",
+      "failed": "Échoué",
+      "interrupted": "Interrompu"
+    }
+  },
+  "history": {
+    "title": "Historique · {{runs}} runs, {{checkpoints}} checkpoints",
+    "replay": "Rejouer",
+    "close": "Fermer"
+  },
+  "ready": {
+    "fresh": "Prochaine phase",
+    "retry": "Relance avec diagnostic",
+    "resume": "Reprise de session",
+    "waiting": "{{phase}} démarre dès qu’un créneau d’agent se libère."
+  },
+  "todo": {
+    "eyebrow": "Station pas encore ouverte",
+    "ready": "Toutes ses dépendances sont mergées.",
+    "waiting": "Elle attend que ses dépendances soient mergées.",
+    "open": "Ouvrir la station"
+  },
+  "manual": {
+    "eyebrow": "Entre tes mains",
+    "body": "Tu travailles dans le worktree. Rends la main quand tu as fini.",
+    "resume": "Rendre la main à l’agent"
+  },
+  "done": {
+    "eyebrow": "Mergée",
+    "body": "Toutes les barrières sont passées et la PR est mergée."
   }
 }

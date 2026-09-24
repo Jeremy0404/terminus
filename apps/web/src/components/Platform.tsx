@@ -2,6 +2,8 @@ import { useTranslation } from 'react-i18next';
 import type { NetworkDto } from '@terminus/contracts';
 import { lineColor } from '../network/line-colors';
 import { useTask } from '../state/resources';
+import { ActionPanel } from './platform/ActionPanel';
+import { RunHistory } from './platform/RunHistory';
 import { StatusPill } from './StatusPill';
 
 interface Props {
@@ -12,7 +14,7 @@ interface Props {
 
 export function Platform({ network, taskId, onClose }: Props) {
   const { t } = useTranslation();
-  const { data } = useTask(taskId);
+  const { data, live } = useTask(taskId);
   const summary = network.tasks.find((task) => task.id === taskId);
   const epic = network.epics.find((candidate) => candidate.id === summary?.epicId);
   if (!summary || !epic) return null;
@@ -36,6 +38,12 @@ export function Platform({ network, taskId, onClose }: Props) {
           </li>
         ))}
       </ol>
+      {data && data.task.id === taskId && (
+        <>
+          <ActionPanel detail={data} live={live} />
+          <RunHistory runs={data.runs} checkpoints={data.checkpoints} phases={data.task.phases} />
+        </>
+      )}
     </section>
   );
 }
