@@ -9,7 +9,7 @@ const replay = (fixture: string, parser = new ClaudeStreamParser()): AgentEvent[
     .flatMap((line) => parser.push(line));
 
 describe('ClaudeStreamParser on recorded runs', () => {
-  it('turns a run with a failing tool into calls, a failure, deduplicated usage without cache reads, and a success', () => {
+  it('turns a run with a failing tool into calls, a failure, usage without cache reads settled by the final totals, and a success', () => {
     const events = replay('tool-failure');
 
     expect(events.filter((event) => event.type !== 'usage')).toEqual([
@@ -20,8 +20,9 @@ describe('ClaudeStreamParser on recorded runs', () => {
       { type: 'finished', outcome: 'success', summary: 'done', structuredOutput: null },
     ]);
     const usage = events.filter((event) => event.type === 'usage');
-    expect(usage).toHaveLength(2);
-    expect(usage.at(-1)).toEqual({ type: 'usage', inputTokens: 10 + 8123 + 8 + 926, outputTokens: 4 + 2 });
+    expect(usage).toHaveLength(3);
+    expect(usage[1]).toEqual({ type: 'usage', inputTokens: 10 + 8123 + 8 + 926, outputTokens: 4 + 2 });
+    expect(usage.at(-1)).toEqual({ type: 'usage', inputTokens: 18 + 9049, outputTokens: 218 });
   });
 
   it('reads the structured output of a schema-constrained run', () => {
