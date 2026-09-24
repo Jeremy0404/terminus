@@ -4,7 +4,7 @@ import type { EpicDto, ProposedStationDto } from '@terminus/contracts';
 import { api } from '../api/client';
 import { useAction } from './platform/useAction';
 
-export function BreakdownPanel({ epic }: { epic: EpicDto }) {
+export function BreakdownPanel({ epic, prominent = false }: { epic: EpicDto; prominent?: boolean }) {
   const { t } = useTranslation();
   const { busy, error, run } = useAction();
   const [brief, setBrief] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export function BreakdownPanel({ epic }: { epic: EpicDto }) {
     <div className="breakdown">
       {breakdown.status === 'failed' && <p className="action-error" role="alert">{t('breakdown.failed', { error: breakdown.error })}</p>}
       {brief === null ? (
-        <button type="button" className="btn small" disabled={busy} onClick={() => setBrief(breakdown.status === 'failed' ? breakdown.brief : epic.description)}>
+        <button type="button" className={prominent ? 'btn primary' : 'btn small'} disabled={busy} onClick={() => setBrief(breakdown.status === 'failed' ? breakdown.brief : epic.description)}>
           {t('breakdown.open')}
         </button>
       ) : (

@@ -237,6 +237,8 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .btn.subtle:hover { border-color: var(--rule); color: var(--ink); }
 
 .agent-picker { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.next-step { display: grid; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--rule); }
+.next-step .btn { justify-self: start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .track-chip.agent-chip { background: none; text-transform: none; letter-spacing: 0.02em; }
 .track-chip.agent-chip:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
 .agent-editor { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
