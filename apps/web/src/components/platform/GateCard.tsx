@@ -47,6 +47,7 @@ export function GateCard({ task, gate, runs }: Props) {
   const { busy, error, run } = useAction();
   const earlier = task.phases.slice(0, task.phaseIndex).filter((phase) => task.phasesInTrack.includes(phase));
   const [target, setTarget] = useState(earlier.includes('execute') ? 'execute' : (earlier.at(-1) ?? ''));
+  const [comment, setComment] = useState('');
   const [checks, setChecks] = useState<ChecksDisplayState>('loading');
   const review = [...runs].reverse().find((candidate) => isReview(candidate.output))?.output;
   const pullRequest = gate === 'merge' ? pullRequestOf(runs) : null;
@@ -101,10 +102,21 @@ export function GateCard({ task, gate, runs }: Props) {
             <select aria-label={t('gate.sendBackTo')} value={target} onChange={(event) => setTarget(event.target.value)} disabled={busy}>
               {earlier.map((phase) => <option key={phase} value={phase}>{t(`phase.${phase}`)}</option>)}
             </select>
-            <button type="button" className="btn" disabled={busy || !target} onClick={() => void run(() => api.sendBack(task.id, target))}>{t('gate.sendBack')}</button>
+            <button type="button" className="btn" disabled={busy || !target} onClick={() => void run(() => api.sendBack(task.id, target, comment))}>{t('gate.sendBack')}</button>
           </>
         )}
       </div>
+      {earlier.length > 0 && (
+        <textarea
+          className="free-answer send-back-comment"
+          aria-label={t('gate.sendBackComment')}
+          placeholder={t('gate.sendBackComment')}
+          value={comment}
+          maxLength={2000}
+          disabled={busy}
+          onChange={(event) => setComment(event.target.value)}
+        />
+      )}
       {error && <p className="action-error" role="alert">{error}</p>}
     </div>
   );

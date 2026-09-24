@@ -64,7 +64,7 @@ export const api = {
   skip: (taskId: string) => post<TaskSummaryDto>(`/tasks/${taskId}/skip`),
   setTrack: (taskId: string, track: TrackDto) => post<TaskSummaryDto>(`/tasks/${taskId}/track`, { track }),
   act: (taskId: string, action: TaskAction) => post<TaskSummaryDto | null>(`/tasks/${taskId}/${action}`),
-  sendBack: (taskId: string, toPhaseId: string) => post<TaskSummaryDto>(`/tasks/${taskId}/send-back`, { toPhaseId }),
+  sendBack: (taskId: string, toPhaseId: string, comment: string) => post<TaskSummaryDto>(`/tasks/${taskId}/send-back`, { toPhaseId, comment }),
   recover: (taskId: string, option: 'restart-from-checkpoint' | 'resume-session' | 'rewind', rewindTo?: number) =>
     post<TaskSummaryDto>(`/tasks/${taskId}/recover`, rewindTo === undefined ? { option } : { option, rewindTo }),
   takeOver: (taskId: string) => post<TakeOverDto>(`/tasks/${taskId}/take-over`),

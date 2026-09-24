@@ -112,8 +112,8 @@ export function createHttpApp(deps: HttpDeps): Hono {
   }
   app.post('/api/tasks/:taskId/send-back', async (c) => {
     const taskId = c.req.param('taskId');
-    const { toPhaseId } = await body(c, SendBackBody);
-    return c.json(toTaskSummaryDto(act(taskId, () => actions.sendBack(taskId, toPhaseId)) as ReturnType<TaskActions['sendBack']>));
+    const { toPhaseId, comment } = await body(c, SendBackBody);
+    return c.json(toTaskSummaryDto(act(taskId, () => actions.sendBack(taskId, toPhaseId, comment)) as ReturnType<TaskActions['sendBack']>));
   });
   app.post('/api/tasks/:taskId/recover', async (c) => {
     const taskId = c.req.param('taskId');

@@ -61,7 +61,7 @@ export const AnswerBody = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('other'), text: z.string().min(1) }),
 ]);
 
-export const SendBackBody = z.object({ toPhaseId: z.string().min(1) });
+export const SendBackBody = z.object({ toPhaseId: z.string().min(1), comment: z.string().max(2000).default('') });
 
 export const RecoverBody = z.object({
   option: z.enum(['restart-from-checkpoint', 'resume-session', 'rewind']),

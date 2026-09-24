@@ -155,7 +155,8 @@
     "verdict": {
       "approve": "Approuvé",
       "changes-requested": "Changements demandés"
-    }
+    },
+    "sendBackComment": "Commentaire pour l’agent (facultatif)"
   },
   "run": {
     "eyebrow": "Agent en route · {{phase}}",
