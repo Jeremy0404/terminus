@@ -1,5 +1,8 @@
 import type { TFunction } from 'i18next';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+const FOLLOW_SLACK_PX = 24;
 
 interface LogLine {
   readonly tone: 'plain' | 'muted' | 'good' | 'bad' | 'accent';
@@ -68,16 +71,36 @@ function foldLines(events: readonly unknown[], t: TFunction): LogLine[] {
 export function RunLog({ events, live = false }: { events: readonly unknown[]; live?: boolean }) {
   const { t } = useTranslation();
   const lines = foldLines(events, t);
+  const box = useRef<HTMLPreElement>(null);
+  const [following, setFollowing] = useState(true);
+
+  useLayoutEffect(() => {
+    const element = box.current;
+    if (element && following) element.scrollTop = element.scrollHeight;
+  }, [events, following]);
+
+  const onScroll = (): void => {
+    const element = box.current;
+    if (element) setFollowing(element.scrollHeight - element.scrollTop - element.clientHeight <= FOLLOW_SLACK_PX);
+  };
+
   return (
-    <pre className="run-log" aria-live={live ? 'polite' : 'off'}>
-      {lines.length === 0 && <span className="log-muted">{t('run.empty')}</span>}
-      {lines.map((line, index) => (
-        <span key={index} className={`log-${line.tone}`}>
-          {line.text}
-          {'\n'}
-        </span>
-      ))}
-      {live && <span className="cursor" aria-hidden="true" />}
-    </pre>
+    <div className="run-log-box">
+      <pre ref={box} className="run-log" aria-live={live ? 'polite' : 'off'} onScroll={onScroll}>
+        {lines.length === 0 && <span className="log-muted">{t('run.empty')}</span>}
+        {lines.map((line, index) => (
+          <span key={index} className={`log-${line.tone}`}>
+            {line.text}
+            {'\n'}
+          </span>
+        ))}
+        {live && <span className="cursor" aria-hidden="true" />}
+      </pre>
+      {!following && (
+        <button type="button" className="btn small log-follow" onClick={() => setFollowing(true)}>
+          {t('run.follow')}
+        </button>
+      )}
+    </div>
   );
 }

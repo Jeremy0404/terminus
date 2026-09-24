@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { RunLog } from './RunLog';
 
 describe('RunLog', () => {
@@ -65,5 +65,25 @@ describe('RunLog', () => {
 
     rerender(<RunLog events={[{ type: 'check-started', name: 'test', command: 'pnpm test' }]} />);
     expect(screen.queryByText('En attente des premiers événements…')).not.toBeInTheDocument();
+  });
+
+  it('follows new lines until the reader scrolls up, and offers to follow again', () => {
+    const text = (n: number) => Array.from({ length: n }, (_, i) => ({ type: 'text', text: `line ${i}` }));
+    const { rerender } = render(<RunLog events={text(1)} live />);
+    const pre = document.querySelector('.run-log') as HTMLPreElement;
+    Object.defineProperty(pre, 'scrollHeight', { configurable: true, value: 1000 });
+    Object.defineProperty(pre, 'clientHeight', { configurable: true, value: 200 });
+
+    rerender(<RunLog events={text(2)} live />);
+    expect(pre.scrollTop).toBe(1000);
+
+    pre.scrollTop = 100;
+    fireEvent.scroll(pre);
+    rerender(<RunLog events={text(3)} live />);
+    expect(pre.scrollTop).toBe(100);
+
+    fireEvent.click(screen.getByRole('button', { name: '↓ Suivre' }));
+    expect(pre.scrollTop).toBe(1000);
+    expect(screen.queryByRole('button', { name: '↓ Suivre' })).toBeNull();
   });
 });
