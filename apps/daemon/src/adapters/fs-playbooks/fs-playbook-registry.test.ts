@@ -10,13 +10,21 @@ const REPO_PLAYBOOKS = fileURLToPath(new URL('../../../../../playbooks', import.
 let root: string;
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-function playbooks(files: Record<string, string>): string {
+function playbooks(files: Record<string, string>, skills: Record<string, string> = { plan: skill('plan') }): string {
   root = mkdtempSync(join(tmpdir(), 'terminus-playbooks-'));
   for (const [folder, content] of Object.entries(files)) {
     mkdirSync(join(root, folder));
     writeFileSync(join(root, folder, 'lifecycle.yaml'), content);
+    for (const [name, body] of Object.entries(skills)) {
+      mkdirSync(join(root, folder, 'skills', name), { recursive: true });
+      writeFileSync(join(root, folder, 'skills', name, 'SKILL.md'), body);
+    }
   }
   return root;
+}
+
+function skill(name: string, extra = ''): string {
+  return `---\nname: ${name}\ndescription: Does ${name}. Use in the ${name} phase.\n${extra}---\n\n# ${name}\n`;
 }
 
 describe('FsPlaybookRegistry', () => {
@@ -48,6 +56,14 @@ describe('FsPlaybookRegistry', () => {
     ['an id that does not match its folder', 'id: epic\nphases:\n  - id: plan\n'],
   ])('rejects %s', (_label, content) => {
     expect(() => new FsPlaybookRegistry(playbooks({ task: content }))).toThrow(PlaybookError);
+  });
+
+  it.each([
+    ['a missing skill', {}],
+    ['a skill whose name differs from its folder', { plan: skill('planning') }],
+    ['a skill with a non-standard frontmatter field', { plan: skill('plan', 'argument-hint: x\n') }],
+  ])('rejects a phase pointing at %s', (_label, skills) => {
+    expect(() => new FsPlaybookRegistry(playbooks({ task: 'id: task\nphases:\n  - id: plan\n    skill: plan\n' }, skills))).toThrow(/invalid skills/);
   });
 
   it('reports an unknown lifecycle', () => {

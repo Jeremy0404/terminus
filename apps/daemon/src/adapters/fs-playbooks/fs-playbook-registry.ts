@@ -6,6 +6,7 @@ import { z } from 'zod';
 import type { PlaybookRegistry } from '../../application/ports/playbook-registry.js';
 import type { LifecycleDefinition, PhaseDefinition } from '../../domain/lifecycle.js';
 import { LifecycleFileSchema } from './lifecycle-schema.js';
+import { validateSkill } from './skill-validator.js';
 
 const LIFECYCLE_FILE = 'lifecycle.yaml';
 const VERSION_LENGTH = 12;
@@ -41,6 +42,8 @@ function loadLifecycle(directory: string, folderName: string): LifecycleDefiniti
   const result = LifecycleFileSchema.safeParse(parse(source));
   if (!result.success) throw new PlaybookError(`${path} is invalid:\n${z.prettifyError(result.error)}`);
   if (result.data.id !== folderName) throw new PlaybookError(`${path} declares id ${result.data.id}, expected ${folderName}`);
+  const skillErrors = result.data.phases.flatMap((phase) => (phase.skill ? validateSkill(join(directory, 'skills', phase.skill)) : []));
+  if (skillErrors.length > 0) throw new PlaybookError(`Playbook ${folderName} has invalid skills:\n${skillErrors.join('\n')}`);
   return {
     id: result.data.id,
     version: createHash('sha256').update(source).digest('hex').slice(0, VERSION_LENGTH),
