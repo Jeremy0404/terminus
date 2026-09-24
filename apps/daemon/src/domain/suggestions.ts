@@ -1,6 +1,6 @@
 import type { GateKind } from './lifecycle.js';
 import { dependenciesMet } from './scheduling.js';
-import { currentPhaseId, DEFAULT_RECOVERY, type RecoveryOption, type Task } from './task.js';
+import { canSkipPhase, currentPhaseId, DEFAULT_RECOVERY, type RecoveryOption, type Task } from './task.js';
 
 export type SuggestedAction =
   | { readonly kind: 'open-task' }
@@ -12,11 +12,17 @@ export type SuggestedAction =
   | { readonly kind: 'merge' }
   | { readonly kind: 'recover'; readonly option: RecoveryOption; readonly isDefault: boolean }
   | { readonly kind: 'split-task' }
-  | { readonly kind: 'resume-from-manual' };
+  | { readonly kind: 'resume-from-manual' }
+  | { readonly kind: 'skip-phase'; readonly phaseId: string };
 
 const RECOVERY_ORDER: readonly RecoveryOption[] = ['restart-from-checkpoint', 'resume-session', 'rewind', 'take-over'];
 
 export function suggestedActions(task: Task, tasks: readonly Task[]): SuggestedAction[] {
+  const actions = statusActions(task, tasks);
+  return canSkipPhase(task) ? [...actions, { kind: 'skip-phase', phaseId: currentPhaseId(task) }] : actions;
+}
+
+function statusActions(task: Task, tasks: readonly Task[]): SuggestedAction[] {
   const status = task.status;
   switch (status.kind) {
     case 'todo':

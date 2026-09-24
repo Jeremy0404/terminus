@@ -291,5 +291,14 @@
       "duplicate": "Doublon",
       "abandoned": "Abandonnée"
     }
+  },
+  "track": {
+    "standard": "Parcours standard",
+    "light": "Parcours léger",
+    "lightHint": "Parcours léger · sans grill ni plan"
+  },
+  "deviation": {
+    "skip": "Passer « {{phase}} »",
+    "switchTrack": "Passer en {{track}}"
   }
 }

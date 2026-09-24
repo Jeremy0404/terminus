@@ -4,6 +4,8 @@ export type Autonomy = 'step-by-step' | 'up-to-pr' | 'up-to-merge';
 
 export type PhaseExecutorKind = 'agent' | 'checks' | 'sync' | 'code-host';
 
+export type Track = 'standard' | 'light';
+
 export type GateKind = 'plan-approval' | 'human-review' | 'merge';
 
 export interface PhaseDefinition {
@@ -14,6 +16,8 @@ export interface PhaseDefinition {
   readonly output?: 'decisions' | 'review';
   readonly executor?: PhaseExecutorKind;
   readonly retryFrom?: string;
+  readonly tracks?: readonly Track[];
+  readonly skippable?: boolean;
 }
 
 export interface LifecycleDefinition {
@@ -32,6 +36,18 @@ export function phaseIndexOf(lifecycle: LifecycleDefinition, phaseId: string): n
   const index = lifecycle.phases.findIndex((phase) => phase.id === phaseId);
   if (index === -1) throw new DomainError(`Lifecycle ${lifecycle.id} has no phase ${phaseId}`);
   return index;
+}
+
+export function appliesTo(phase: PhaseDefinition, track: Track): boolean {
+  return !phase.tracks || phase.tracks.includes(track);
+}
+
+export function nextPhaseIndex(lifecycle: LifecycleDefinition, track: Track, after: number): number | null {
+  for (let index = after + 1; index < lifecycle.phases.length; index += 1) {
+    const phase = lifecycle.phases[index];
+    if (phase && appliesTo(phase, track)) return index;
+  }
+  return null;
 }
 
 export function isLastPhase(lifecycle: LifecycleDefinition, index: number): boolean {

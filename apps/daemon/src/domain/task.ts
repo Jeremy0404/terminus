@@ -2,13 +2,15 @@ import type { Checkpoint } from './checkpoint.js';
 import { DomainError } from './errors.js';
 import { decideAfterFailure, isLooping, type Failure, type FailurePolicy } from './failure.js';
 import {
-  isLastPhase,
+  appliesTo,
+  nextPhaseIndex,
   phaseAt,
   phaseIndexOf,
   requiresHuman,
   type Autonomy,
   type GateKind,
   type LifecycleDefinition,
+  type Track,
 } from './lifecycle.js';
 
 export type RecoveryOption = 'restart-from-checkpoint' | 'resume-session' | 'rewind' | 'take-over';
@@ -38,6 +40,7 @@ export interface Task {
   readonly title: string;
   readonly lifecycle: LifecycleDefinition;
   readonly autonomy: Autonomy;
+  readonly track: Track;
   readonly dependsOn: readonly string[];
   readonly phaseIndex: number;
   readonly status: TaskStatus;
@@ -52,6 +55,7 @@ export interface NewTask {
   readonly title: string;
   readonly lifecycle: LifecycleDefinition;
   readonly autonomy?: Autonomy;
+  readonly track?: Track;
   readonly dependsOn?: readonly string[];
 }
 
@@ -63,6 +67,7 @@ export function createTask(input: NewTask): Task {
     title: input.title,
     lifecycle: input.lifecycle,
     autonomy: input.autonomy ?? 'up-to-pr',
+    track: input.track ?? 'standard',
     dependsOn: input.dependsOn ?? [],
     phaseIndex: 0,
     status: { kind: 'todo' },
@@ -121,6 +126,7 @@ export function sendBack(task: Task, toPhaseId: string): Task {
   expectStatus(task, 'awaiting-gate');
   const target = phaseIndexOf(task.lifecycle, toPhaseId);
   if (target >= task.phaseIndex) throw new DomainError(`Cannot send task ${task.id} forward to ${toPhaseId}`);
+  if (!appliesTo(phaseAt(task.lifecycle, target), task.track)) throw new DomainError(`Phase ${toPhaseId} is not part of the ${task.track} track`);
   return enterPhase(task, target);
 }
 
@@ -145,7 +151,9 @@ export function recover(task: Task, option: RecoveryOption, rewindTo?: number): 
       const checkpoint = task.checkpoints.find((candidate) => candidate.sequence === rewindTo);
       if (!checkpoint) throw new DomainError(`Task ${task.id} has no checkpoint ${String(rewindTo)}`);
       const kept = task.checkpoints.filter((candidate) => candidate.sequence <= checkpoint.sequence);
-      return { ...enterPhase(task, checkpoint.phaseIndex + 1), checkpoints: kept };
+      const resumeAt = nextPhaseIndex(task.lifecycle, task.track, checkpoint.phaseIndex);
+      if (resumeAt === null) throw new DomainError(`Task ${task.id} has nothing left after checkpoint ${checkpoint.sequence}`);
+      return { ...enterPhase(task, resumeAt), checkpoints: kept };
     }
   }
 }
@@ -179,14 +187,35 @@ export function isSettled(task: Task): boolean {
   return task.status.kind === 'done' || (task.status.kind === 'closed' && SATISFYING_CLOSE_REASONS.includes(task.status.reason));
 }
 
+const OPEN_FOR_CHANGES: readonly TaskStatus['kind'][] = ['todo', 'ready', 'awaiting-decision', 'awaiting-gate', 'blocked'];
+
+export function setTrack(task: Task, track: Track): Task {
+  if (!OPEN_FOR_CHANGES.includes(task.status.kind)) throw new DomainError(`Task ${task.id} is ${task.status.kind}; its track can no longer change`);
+  const switched = { ...task, track };
+  if (appliesTo(phaseAt(task.lifecycle, task.phaseIndex), track)) return switched;
+  return task.status.kind === 'todo' ? { ...switched, phaseIndex: nextPhaseIndex(task.lifecycle, track, task.phaseIndex) ?? task.phaseIndex } : advance(switched);
+}
+
+export function canSkipPhase(task: Task): boolean {
+  return phaseAt(task.lifecycle, task.phaseIndex).skippable === true && OPEN_FOR_CHANGES.includes(task.status.kind) && task.status.kind !== 'todo';
+}
+
+export function skipPhase(task: Task): Task {
+  const phase = phaseAt(task.lifecycle, task.phaseIndex);
+  if (phase.skippable !== true) throw new DomainError(`Phase ${phase.id} cannot be skipped`);
+  if (!canSkipPhase(task)) throw new DomainError(`Task ${task.id} is ${task.status.kind}; phase ${phase.id} cannot be skipped now`);
+  return advance(task);
+}
+
 export function resumeFromManual(task: Task): Task {
   expectStatus(task, 'manual');
   return { ...task, failuresInPhase: [], status: { kind: 'ready', mode: 'fresh' } };
 }
 
 function advance(task: Task): Task {
-  if (isLastPhase(task.lifecycle, task.phaseIndex)) return { ...task, failuresInPhase: [], status: { kind: 'done' } };
-  return enterPhase(task, task.phaseIndex + 1);
+  const next = nextPhaseIndex(task.lifecycle, task.track, task.phaseIndex);
+  if (next === null) return { ...task, failuresInPhase: [], status: { kind: 'done' } };
+  return enterPhase(task, next);
 }
 
 function enterPhase(task: Task, phaseIndex: number): Task {

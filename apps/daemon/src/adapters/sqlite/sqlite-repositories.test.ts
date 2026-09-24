@@ -126,6 +126,7 @@ describe('SqliteRunRepository and SqliteDecisionRepository', () => {
     const decisions = new SqliteDecisionRepository(db);
     const open: Decision = {
       id: 'd1',
+      kind: 'question',
       taskId: 't1',
       phaseIndex: 1,
       question: 'Where do phase definitions live?',

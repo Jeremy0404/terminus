@@ -6,7 +6,7 @@ import {
   InMemoryRunRepository,
   InMemoryTaskRepository,
 } from '../adapters/in-memory/in-memory-repositories.js';
-import { FakeCodeHost, FakeWorkspace, FixedClock, RecordingBus } from '../adapters/in-memory/fakes.js';
+import { FakeCodeHost, FakeWorkspace, FixedClock, RecordingBus, SequentialIds } from '../adapters/in-memory/fakes.js';
 import type { Decision } from '../domain/decision.js';
 import type { TaskWorkspace } from './ports/workspace.js';
 import { createTask, type Task, type TaskStatus } from '../domain/task.js';
@@ -39,7 +39,7 @@ beforeEach(() => {
   bus = new RecordingBus();
   apps.save({ id: 'app', name: 'app', repoPath: '/repo', verification: [], createdAt: '2026-09-24T09:00:00Z' });
   epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'Interface', status: 'active', position: 1 });
-  actions = new TaskActions({ apps, epics, tasks, runs, decisions, workspace, codeHost, clock: new FixedClock(), bus, baseRef: 'main' });
+  actions = new TaskActions({ apps, epics, tasks, runs, decisions, workspace, codeHost, clock: new FixedClock(), ids: new SequentialIds(), bus, baseRef: 'main' });
 });
 
 function givenTask(id: string, status: TaskStatus, extra: Partial<Task> = {}): Task {
@@ -50,7 +50,7 @@ function givenTask(id: string, status: TaskStatus, extra: Partial<Task> = {}): T
 
 function givenDecision(id: string): Decision {
   const decision: Decision = {
-    id, taskId: 't1', phaseIndex: 1, question: `Question ${id}`,
+    id, kind: 'question', taskId: 't1', phaseIndex: 1, question: `Question ${id}`,
     options: [{ label: 'A', description: 'a', recommended: true }, { label: 'B', description: 'b', recommended: false }],
     answer: null, createdAt: '2026-09-24T09:00:00Z', answeredAt: null,
   };
@@ -230,6 +230,34 @@ describe('TaskActions', () => {
       bus.updates.length = 0;
       actions.checks('t1');
       expect(bus.updates).toEqual([]);
+    });
+  });
+
+  describe('track and skips', () => {
+    const FLEXIBLE = {
+      ...TASK_LIFECYCLE,
+      phases: TASK_LIFECYCLE.phases.map((phase) =>
+        ['grill', 'plan'].includes(phase.id) ? { ...phase, tracks: ['standard' as const], skippable: true } : phase.id === 'spec' ? { ...phase, skippable: true } : phase,
+      ),
+    };
+
+    it('switches to the light track, moves past phases it drops, and records the deviation', () => {
+      givenTask('t1', { kind: 'ready', mode: 'fresh' }, { phaseIndex: 1, lifecycle: FLEXIBLE });
+
+      const task = actions.changeTrack('t1', 'light');
+
+      expect(task.track).toBe('light');
+      expect(task.phaseIndex).toBe(3);
+      expect(decisions.listByTask('t1')).toEqual([expect.objectContaining({ kind: 'deviation', question: 'Track changed from standard to light', answer: { kind: 'other', text: 'Decided by the human' } })]);
+    });
+
+    it('skips a skippable phase and records it, and refuses the others', () => {
+      givenTask('t1', { kind: 'awaiting-gate', gate: 'plan-approval' }, { phaseIndex: 2, lifecycle: FLEXIBLE });
+      expect(actions.skip('t1').phaseIndex).toBe(3);
+      expect(decisions.listByTask('t1')[0]).toMatchObject({ kind: 'deviation', question: 'Phase plan skipped' });
+
+      givenTask('t2', { kind: 'ready', mode: 'fresh' }, { phaseIndex: 4, lifecycle: FLEXIBLE });
+      expect(() => actions.skip('t2')).toThrow(/Phase verify cannot be skipped/);
     });
   });
 });

@@ -43,4 +43,10 @@ describe('suggestedActions', () => {
     const blocked = task({ kind: 'blocked', failure: failure() });
     expect(suggestedActions(blocked, []).some((action) => action.kind === 'recover' && action.option === 'rewind')).toBe(false);
   });
+
+  it('offers to skip a skippable phase', () => {
+    const lifecycle = { ...TASK_LIFECYCLE, phases: TASK_LIFECYCLE.phases.map((phase) => (phase.id === 'plan' ? { ...phase, skippable: true } : phase)) };
+    const atPlanGate = { ...task({ kind: 'awaiting-gate', gate: 'plan-approval' }, { phaseIndex: 2 }), lifecycle };
+    expect(suggestedActions(atPlanGate, [])).toContainEqual({ kind: 'skip-phase', phaseId: 'plan' });
+  });
 });

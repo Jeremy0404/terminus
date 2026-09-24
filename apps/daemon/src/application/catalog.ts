@@ -1,7 +1,7 @@
 import type { App, VerificationCommand } from '../domain/app.js';
 import type { Epic, EpicStatus } from '../domain/epic.js';
 import { DomainError } from '../domain/errors.js';
-import type { Autonomy } from '../domain/lifecycle.js';
+import type { Autonomy, Track } from '../domain/lifecycle.js';
 import { assertAcyclic } from '../domain/scheduling.js';
 import { createTask, type Task } from '../domain/task.js';
 import type { PlaybookRegistry } from './ports/playbook-registry.js';
@@ -36,7 +36,7 @@ export class Catalog {
     return epic;
   }
 
-  createTask(epicId: string, input: { title: string; dependsOn: readonly string[]; autonomy: Autonomy }): Task {
+  createTask(epicId: string, input: { title: string; dependsOn: readonly string[]; autonomy: Autonomy; track?: Track }): Task {
     const epic = this.deps.epics.get(epicId);
     if (!epic) throw new DomainError(`Unknown epic ${epicId}`);
     const existing = this.deps.tasks.listByApp(epic.appId);

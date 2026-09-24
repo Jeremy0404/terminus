@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
 const Autonomy = z.enum(['step-by-step', 'up-to-pr', 'up-to-merge']);
+const Track = z.enum(['standard', 'light']);
+
+export type TrackDto = z.infer<typeof Track>;
+
+export const TrackBody = z.object({ track: Track });
 
 export const CreateAppBody = z.object({
   name: z.string().min(1),
@@ -18,6 +23,7 @@ export const CreateTaskBody = z.object({
   title: z.string().min(1),
   dependsOn: z.array(z.string()).default([]),
   autonomy: Autonomy.default('up-to-pr'),
+  track: Track.default('standard'),
 });
 
 export const AnswerBody = z.discriminatedUnion('kind', [
@@ -80,7 +86,10 @@ export interface TaskSummaryDto {
   readonly epicId: string;
   readonly title: string;
   readonly autonomy: AutonomyDto;
+  readonly track: TrackDto;
   readonly phases: readonly string[];
+  readonly phasesInTrack: readonly string[];
+  readonly skippablePhases: readonly string[];
   readonly phaseIndex: number;
   readonly status: TaskStatusDto;
   readonly dependsOn: readonly string[];
@@ -110,7 +119,8 @@ export type SuggestedActionDto =
   | { readonly kind: 'merge' }
   | { readonly kind: 'recover'; readonly option: 'restart-from-checkpoint' | 'resume-session' | 'rewind' | 'take-over'; readonly isDefault: boolean }
   | { readonly kind: 'split-task' }
-  | { readonly kind: 'resume-from-manual' };
+  | { readonly kind: 'resume-from-manual' }
+  | { readonly kind: 'skip-phase'; readonly phaseId: string };
 
 export interface CheckpointDto {
   readonly sequence: number;
@@ -131,6 +141,7 @@ export interface RunDto {
 
 export interface DecisionDto {
   readonly id: string;
+  readonly kind: 'question' | 'deviation' | 'proposal';
   readonly phaseIndex: number;
   readonly question: string;
   readonly options: readonly { readonly label: string; readonly description: string; readonly recommended: boolean }[];

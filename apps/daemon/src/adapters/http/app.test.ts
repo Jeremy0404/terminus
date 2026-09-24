@@ -119,7 +119,7 @@ describe('HTTP API', () => {
     await settle();
     let detail = (await call<TaskDetailDto>('GET', `/api/tasks/${taskId}`)).json;
     expect(detail.task.status).toMatchObject({ kind: 'awaiting-decision' });
-    expect(detail.actions).toEqual([{ kind: 'answer-decision', decisionId: detail.decisions[0]?.id }]);
+    expect(detail.actions).toEqual([{ kind: 'answer-decision', decisionId: detail.decisions[0]?.id }, { kind: 'skip-phase', phaseId: 'grill' }]);
     const network = (await call<NetworkDto>('GET', `/api/apps/${appId}/network`)).json;
     expect(network.inbox).toEqual([expect.objectContaining({ taskId, reason: { kind: 'decision', decisionId: detail.decisions[0]?.id } })]);
 
@@ -212,5 +212,15 @@ describe('HTTP API', () => {
     expect((await call<NetworkDto>('GET', `/api/apps/${appId}/network`)).json.inbox).toEqual([]);
     expect((await call('POST', `/api/tasks/${taskId}/close`, { reason: 'duplicate' })).status).toBe(409);
     expect((await call('POST', `/api/tasks/${taskId}/close`, { reason: 'bored' })).status).toBe(400);
+  });
+
+  it('switches a task to the light track and skips a phase through the API', async () => {
+    const { taskId } = await givenTask();
+
+    const light = await call<TaskSummaryDto>('POST', `/api/tasks/${taskId}/track`, { track: 'light' });
+    expect(light.json).toMatchObject({ track: 'light', phasesInTrack: ['spec', 'execute', 'verify', 'review', 'sync', 'merge'] });
+    expect(light.json.skippablePhases).toEqual(['spec', 'grill', 'plan', 'review']);
+    expect((await call('POST', `/api/tasks/${taskId}/skip`)).status).toBe(409);
+    expect((await call('POST', `/api/tasks/${taskId}/track`, { track: 'fast' })).status).toBe(400);
   });
 });

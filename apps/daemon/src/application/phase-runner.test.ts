@@ -233,7 +233,7 @@ describe('PhaseRunner', () => {
   it('reminds the agent of the decisions already made', async () => {
     givenTask(1, { kind: 'ready', mode: 'resume' });
     decisions.save({
-      id: 'd1', taskId: 't1', phaseIndex: 1, question: 'Where do phases live?',
+      id: 'd1', kind: 'question', taskId: 't1', phaseIndex: 1, question: 'Where do phases live?',
       options: [{ label: 'YAML', description: 'files', recommended: true }, { label: 'SQLite', description: 'rows', recommended: false }],
       answer: { kind: 'option', index: 0 }, createdAt: '2026-09-24T09:00:00Z', answeredAt: '2026-09-24T09:05:00Z',
     });
