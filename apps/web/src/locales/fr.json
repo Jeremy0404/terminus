@@ -53,7 +53,8 @@
     "execute": "Exécution",
     "verify": "Vérification",
     "review": "Review",
-    "merge": "Merge"
+    "merge": "Merge",
+    "sync": "Synchro"
   },
   "status": {
     "todo": "À faire",
@@ -77,7 +78,8 @@
     "execute": "Exéc.",
     "verify": "Vérif.",
     "review": "Review",
-    "merge": "Merge"
+    "merge": "Merge",
+    "sync": "Sync"
   },
   "decision": {
     "eyebrow": "Grill · question {{position}} sur {{total}}",
@@ -102,7 +104,9 @@
       "agent-crashed": "L’agent s’est arrêté sans résultat",
       "publish-failed": "La publication de la PR a échoué",
       "interrupted": "Run interrompu",
-      "isolation-breach": "Configuration de l’agent inattendue, run arrêté"
+      "isolation-breach": "Configuration de l’agent inattendue, run arrêté",
+      "merge-conflict": "Conflits de merge non résolus",
+      "sync-failed": "La mise à jour avec main a échoué"
     },
     "option": {
       "restart-from-checkpoint": "Repartir du checkpoint avec résumé",

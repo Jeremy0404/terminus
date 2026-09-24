@@ -2,7 +2,7 @@ import { DomainError } from './errors.js';
 
 export type Autonomy = 'step-by-step' | 'up-to-pr' | 'up-to-merge';
 
-export type PhaseExecutorKind = 'agent' | 'checks' | 'code-host';
+export type PhaseExecutorKind = 'agent' | 'checks' | 'sync' | 'code-host';
 
 export type GateKind = 'plan-approval' | 'human-review' | 'merge';
 

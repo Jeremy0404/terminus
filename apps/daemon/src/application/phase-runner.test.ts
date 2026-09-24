@@ -370,4 +370,71 @@ describe('PhaseRunner', () => {
     expect(task.status).toEqual({ kind: 'ready', mode: 'retry' });
     expect(task.failuresInPhase[0]).toMatchObject({ kind: 'publish-failed', message: 'remote rejected' });
   });
+
+  describe('sync phase', () => {
+    const WITH_SYNC = {
+      ...GRILL_LIFECYCLE,
+      phases: [
+        ...GRILL_LIFECYCLE.phases.slice(0, 6),
+        { id: 'sync', executor: 'sync' as const, skill: 'resolve-conflicts', retryFrom: 'execute' },
+        ...GRILL_LIFECYCLE.phases.slice(6),
+      ],
+    };
+    const atSync = (): Task => givenTask(6, { kind: 'ready', mode: 'fresh' }, { lifecycle: WITH_SYNC });
+
+    it('checks an up-to-date branch and moves on without an agent', async () => {
+      atSync();
+      const agent = new ScriptedAgentRunner();
+
+      const task = await runner(agent).run('t1');
+
+      expect(agent.requests).toEqual([]);
+      expect(checks.calls).toHaveLength(1);
+      expect(task.phaseIndex).toBe(7);
+      expect(workspace.checkpoints).toEqual(['1:sync']);
+    });
+
+    it('has an agent resolve conflicts, then verifies the merged branch', async () => {
+      atSync();
+      workspace.syncResults = [
+        { state: 'conflicts', base: 'origin/main', conflicts: ['apps/web/src/App.tsx'] },
+        { state: 'merged', base: 'origin/main', conflicts: [] },
+      ];
+      const agent = new ScriptedAgentRunner(script(success()));
+
+      const task = await runner(agent).run('t1');
+
+      expect(agent.requests[0]).toMatchObject({ skill: 'resolve-conflicts', outputSchema: null });
+      expect(agent.requests[0]?.prompt).toContain('stopped on conflicts in:\n- apps/web/src/App.tsx');
+      expect(checks.calls).toHaveLength(1);
+      expect(task.phaseIndex).toBe(7);
+      const transcript = transcripts.read(runs.listByTask('t1')[0]?.id ?? '');
+      expect(transcript[0]).toEqual({ type: 'text', text: 'Merging origin/main stopped on conflicts in: apps/web/src/App.tsx' });
+    });
+
+    it('fails the phase when conflicts remain after the agent', async () => {
+      atSync();
+      workspace.syncResults = [
+        { state: 'conflicts', base: 'origin/main', conflicts: ['a.ts'] },
+        { state: 'conflicts', base: 'origin/main', conflicts: ['a.ts'] },
+      ];
+
+      const task = await runner(new ScriptedAgentRunner(script(success()))).run('t1');
+
+      expect(task.status).toEqual({ kind: 'ready', mode: 'retry' });
+      expect(task.failuresInPhase[0]).toMatchObject({ kind: 'merge-conflict', message: 'Conflicts are still unresolved in: a.ts' });
+      expect(checks.calls).toEqual([]);
+    });
+
+    it('sends the task back to execution when the merged branch no longer passes', async () => {
+      atSync();
+      workspace.syncResults = [{ state: 'merged', base: 'origin/main', conflicts: [] }];
+      checks.outcomes = [{ build: false }];
+
+      const task = await runner(new ScriptedAgentRunner()).run('t1');
+
+      expect(task.phaseIndex).toBe(3);
+      expect(task.failuresInPhase[0]?.message).toContain('After syncing with origin/main, build failed');
+    });
+  });
 });

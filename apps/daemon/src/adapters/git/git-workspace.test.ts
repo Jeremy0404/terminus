@@ -92,4 +92,66 @@ describe('GitWorkspace', () => {
   it('refuses ids that could escape the worktrees folder', () => {
     expect(() => workspaces.prepare(repo, 'app', '../evil', 'main')).toThrow(/Unsafe path segment/);
   });
+
+  describe('syncing with the base branch', () => {
+    const commitOnMain = (file: string, content: string): void => {
+      writeFileSync(join(repo, file), content);
+      git(repo, 'add', '.');
+      git(repo, 'commit', '--quiet', '-m', `main: ${file}`);
+    };
+
+    it('reports a branch that already contains the base', () => {
+      const workspace = workspaces.prepare(repo, 'app', 't1', 'main');
+      expect(workspaces.syncWithBase(workspace, 'main')).toEqual({ state: 'up-to-date', base: 'main', conflicts: [] });
+      expect(workspaces.isBehindBase(workspace, 'main')).toBe(false);
+    });
+
+    it('merges new base commits, committing pending work first', () => {
+      const workspace = workspaces.prepare(repo, 'app', 't1', 'main');
+      writeFileSync(join(workspace.path, 'feature.ts'), 'feature\n');
+      commitOnMain('other.ts', 'other\n');
+      expect(workspaces.isBehindBase(workspace, 'main')).toBe(true);
+
+      expect(workspaces.syncWithBase(workspace, 'main')).toEqual({ state: 'merged', base: 'main', conflicts: [] });
+
+      expect(readFileSync(join(workspace.path, 'other.ts'), 'utf8')).toBe('other\n');
+      expect(readFileSync(join(workspace.path, 'feature.ts'), 'utf8')).toBe('feature\n');
+      expect(git(workspace.path, 'status', '--porcelain')).toBe('');
+      expect(workspaces.isBehindBase(workspace, 'main')).toBe(false);
+    });
+
+    it('stops on conflicts, then concludes the merge once they are resolved', () => {
+      const workspace = workspaces.prepare(repo, 'app', 't1', 'main');
+      writeFileSync(join(workspace.path, 'README.md'), 'hello from the task\n');
+      workspaces.checkpoint(workspace, 1, 'execute');
+      commitOnMain('README.md', 'hello from main\n');
+
+      expect(workspaces.syncWithBase(workspace, 'main')).toEqual({ state: 'conflicts', base: 'main', conflicts: ['README.md'] });
+      expect(workspaces.syncWithBase(workspace, 'main').state).toBe('conflicts');
+
+      writeFileSync(join(workspace.path, 'README.md'), 'hello from main and the task\n');
+      git(workspace.path, 'add', 'README.md');
+      expect(workspaces.syncWithBase(workspace, 'main')).toEqual({ state: 'merged', base: 'main', conflicts: [] });
+      expect(git(workspace.path, 'log', '-1', '--format=%P').trim().split(' ')).toHaveLength(2);
+      expect(workspaces.isBehindBase(workspace, 'main')).toBe(false);
+    });
+
+    it('starts new worktrees from the up-to-date remote base, not a stale local main', () => {
+      const remote = join(root, 'remote.git');
+      execFileSync('git', ['clone', '--quiet', '--bare', repo, remote]);
+      git(repo, 'remote', 'add', 'origin', remote);
+      git(repo, 'fetch', '--quiet', 'origin');
+      const other = join(root, 'other');
+      execFileSync('git', ['clone', '--quiet', remote, other]);
+      writeFileSync(join(other, 'remote-only.ts'), 'from the remote\n');
+      git(other, 'add', '.');
+      git(other, '-c', 'user.name=o', '-c', 'user.email=o@o', 'commit', '--quiet', '-m', 'remote work');
+      git(other, 'push', '--quiet', 'origin', 'main');
+
+      const workspace = workspaces.prepare(repo, 'app', 't2', 'main');
+
+      expect(readFileSync(join(workspace.path, 'remote-only.ts'), 'utf8')).toBe('from the remote\n');
+      expect(workspaces.syncWithBase(workspace, 'main')).toEqual({ state: 'up-to-date', base: 'origin/main', conflicts: [] });
+    });
+  });
 });

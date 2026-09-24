@@ -81,6 +81,7 @@ describe('FsPlaybookRegistry', () => {
       'execute',
       'verify',
       'review',
+      'sync',
       'merge',
     ]);
   });
