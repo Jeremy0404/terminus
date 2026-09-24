@@ -1,6 +1,6 @@
 import type { Checkpoint } from './checkpoint.js';
 import { DomainError } from './errors.js';
-import { decideAfterFailure, type Failure, type FailurePolicy } from './failure.js';
+import { decideAfterFailure, isLooping, type Failure, type FailurePolicy } from './failure.js';
 import {
   isLastPhase,
   phaseAt,
@@ -37,6 +37,7 @@ export interface Task {
   readonly phaseIndex: number;
   readonly status: TaskStatus;
   readonly failuresInPhase: readonly Failure[];
+  readonly checkFailures: readonly Failure[];
   readonly checkpoints: readonly Checkpoint[];
 }
 
@@ -61,6 +62,7 @@ export function createTask(input: NewTask): Task {
     phaseIndex: 0,
     status: { kind: 'todo' },
     failuresInPhase: [],
+    checkFailures: [],
     checkpoints: [],
   };
 }
@@ -141,6 +143,25 @@ export function recover(task: Task, option: RecoveryOption, rewindTo?: number): 
       return { ...enterPhase(task, checkpoint.phaseIndex + 1), checkpoints: kept };
     }
   }
+}
+
+export function passChecks(task: Task, checkpoint: Checkpoint): Task {
+  return completePhase({ ...task, checkFailures: [] }, checkpoint);
+}
+
+export function rejectByChecks(task: Task, failure: Failure, fixPhaseId: string, policy: FailurePolicy): Task {
+  expectStatus(task, 'running');
+  const checkFailures = [...task.checkFailures, failure];
+  const looping = isLooping(
+    checkFailures.map((candidate) => candidate.signature),
+    Math.min(policy.loopThreshold, policy.maxCheckCycles),
+  );
+  if (looping || checkFailures.length > policy.maxCheckCycles) {
+    return { ...task, checkFailures, status: { kind: 'blocked', failure } };
+  }
+  const fixPhase = phaseIndexOf(task.lifecycle, fixPhaseId);
+  if (fixPhase >= task.phaseIndex) throw new DomainError(`Cannot send task ${task.id} forward to ${fixPhaseId}`);
+  return { ...task, checkFailures, phaseIndex: fixPhase, failuresInPhase: [failure], status: { kind: 'ready', mode: 'retry' } };
 }
 
 export function resumeFromManual(task: Task): Task {

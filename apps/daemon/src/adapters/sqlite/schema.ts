@@ -1,4 +1,5 @@
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import type { VerificationCommand } from '../../domain/app.js';
 import type { DecisionAnswer, DecisionOption } from '../../domain/decision.js';
 import type { Failure } from '../../domain/failure.js';
 import type { PhaseDefinition } from '../../domain/lifecycle.js';
@@ -8,6 +9,7 @@ export const apps = sqliteTable('apps', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   repoPath: text('repo_path').notNull(),
+  verification: text('verification', { mode: 'json' }).$type<VerificationCommand[]>().notNull().default([]),
   createdAt: text('created_at').notNull(),
 });
 
@@ -46,6 +48,7 @@ export const tasks = sqliteTable(
     phaseIndex: integer('phase_index').notNull(),
     status: text('status', { mode: 'json' }).$type<TaskStatus>().notNull(),
     failuresInPhase: text('failures_in_phase', { mode: 'json' }).$type<Failure[]>().notNull(),
+    checkFailures: text('check_failures', { mode: 'json' }).$type<Failure[]>().notNull().default([]),
   },
   (table) => [index('tasks_epic_idx').on(table.epicId)],
 );
@@ -84,6 +87,7 @@ export const runs = sqliteTable(
     endedAt: text('ended_at'),
     inputTokens: integer('input_tokens'),
     outputTokens: integer('output_tokens'),
+    output: text('output', { mode: 'json' }).$type<unknown>(),
   },
   (table) => [index('runs_task_idx').on(table.taskId)],
 );

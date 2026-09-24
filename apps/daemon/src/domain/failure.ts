@@ -9,9 +9,11 @@ export interface Failure {
 
 export interface FailurePolicy {
   readonly maxAutoRetries: number;
+  readonly maxCheckCycles: number;
+  readonly loopThreshold: number;
 }
 
-export const DEFAULT_FAILURE_POLICY: FailurePolicy = { maxAutoRetries: 1 };
+export const DEFAULT_FAILURE_POLICY: FailurePolicy = { maxAutoRetries: 1, maxCheckCycles: 3, loopThreshold: 3 };
 
 export function isLooping(signatures: readonly string[], threshold: number): boolean {
   if (signatures.length < threshold) return false;

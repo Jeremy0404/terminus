@@ -1,16 +1,19 @@
 import type { Decision } from '../domain/decision.js';
 import { DomainError } from '../domain/errors.js';
 import { isLooping, type Failure, type FailurePolicy } from '../domain/failure.js';
-import { phaseAt } from '../domain/lifecycle.js';
+import type { App } from '../domain/app.js';
+import { phaseAt, type PhaseDefinition } from '../domain/lifecycle.js';
 import type { Run, RunStatus, RunUsage } from '../domain/run.js';
-import { completePhase, failRun, requestDecision, startRun, type Task } from '../domain/task.js';
+import { completePhase, failRun, passChecks, rejectByChecks, requestDecision, startRun, type Task } from '../domain/task.js';
 import { DECISIONS_OUTPUT_SCHEMA, readProposedDecisions } from './decision-output.js';
 import { buildPhasePrompt } from './phase-prompt.js';
+import { REVIEW_OUTPUT_SCHEMA } from './review-output.js';
+import type { CheckRunner } from './ports/check-runner.js';
 import type { AgentEvent, AgentRunner } from './ports/agent-runner.js';
 import type { AppRepository, DecisionRepository, EpicRepository, RunRepository, TaskRepository } from './ports/repositories.js';
 import type { Clock, IdGenerator, RunEventBus } from './ports/system.js';
 import type { TranscriptStore } from './ports/transcript-store.js';
-import type { Workspace } from './ports/workspace.js';
+import type { TaskWorkspace, Workspace } from './ports/workspace.js';
 
 export interface RunBudget {
   readonly maxTokens: number;
@@ -26,12 +29,12 @@ export interface PhaseRunnerDeps {
   readonly transcripts: TranscriptStore;
   readonly workspace: Workspace;
   readonly agent: AgentRunner;
+  readonly checks: CheckRunner;
   readonly clock: Clock;
   readonly ids: IdGenerator;
   readonly bus: RunEventBus;
   readonly budget: RunBudget;
   readonly failurePolicy: FailurePolicy;
-  readonly loopThreshold: number;
   readonly baseRef: string;
   readonly systemPromptAppend: string;
 }
@@ -52,6 +55,9 @@ export class PhaseRunner {
     const app = this.appOf(ready);
     const phase = phaseAt(ready.lifecycle, ready.phaseIndex);
     const taskWorkspace = workspace.prepare(app.repoPath, app.id, ready.id, this.deps.baseRef);
+    const executor = phase.executor ?? 'agent';
+    if (executor === 'checks') return this.runChecks(ready, app, phase, taskWorkspace);
+    if (executor !== 'agent') throw new DomainError(`Phase ${phase.id} uses the ${executor} executor, which is not available yet`);
     const previousRun = runs.listByTask(ready.id).filter((run) => run.phaseIndex === ready.phaseIndex).at(-1);
     const resume = ready.status.mode === 'resume' && previousRun !== undefined;
     const sessionId = resume ? previousRun.sessionId : ids.uuid();
@@ -59,7 +65,7 @@ export class PhaseRunner {
 
     const runId = ids.next('run');
     let task = this.save(startRun(ready, runId));
-    let run: Run = { id: runId, taskId, phaseIndex: task.phaseIndex, sessionId, status: 'running', startedAt: clock.now(), endedAt: null, usage: null };
+    let run: Run = { id: runId, taskId, phaseIndex: task.phaseIndex, sessionId, status: 'running', startedAt: clock.now(), endedAt: null, usage: null, output: null };
     runs.save(run);
 
     const handle = agent.start({
@@ -72,7 +78,7 @@ export class PhaseRunner {
       skill: phase.skill ?? null,
       model: phase.model ?? null,
       maxTurns: budget.maxTurns,
-      outputSchema: phase.output === 'decisions' ? DECISIONS_OUTPUT_SCHEMA : null,
+      outputSchema: outputSchemaFor(phase),
     });
     const observation = await this.observe(taskId, runId, handle.events, () => handle.interrupt());
 
@@ -104,8 +110,35 @@ export class PhaseRunner {
       task = failRun(task, failure, this.deps.failurePolicy);
     }
 
-    run = { ...run, status, endedAt: clock.now(), usage: observation.usage };
+    run = { ...run, status, endedAt: clock.now(), usage: observation.usage, output: observation.finished?.structuredOutput ?? null };
     runs.save(run);
+    return this.save(task);
+  }
+
+  private async runChecks(ready: Task, app: App, phase: PhaseDefinition, taskWorkspace: TaskWorkspace): Promise<Task> {
+    const { runs, clock, ids } = this.deps;
+    const runId = ids.next('run');
+    let task = this.save(startRun(ready, runId));
+    const run: Run = { id: runId, taskId: task.id, phaseIndex: task.phaseIndex, sessionId: 'checks', status: 'running', startedAt: clock.now(), endedAt: null, usage: null, output: null };
+    runs.save(run);
+
+    const results = await this.deps.checks.run(taskWorkspace.path, app.verification);
+    for (const result of results) {
+      this.deps.transcripts.append(runId, result);
+      this.deps.bus.publish({ kind: 'check-result', runId, taskId: task.id, result });
+    }
+
+    const failed = results.find((result) => !result.ok);
+    if (failed) {
+      const failure = this.failure('check-failed', `check:${failed.name}`, `${failed.name} failed (\`${failed.command}\`, exit ${String(failed.exitCode)}):\n${failed.outputTail}`);
+      const fixPhase = phase.retryFrom ?? phaseAt(task.lifecycle, task.phaseIndex - 1).id;
+      task = rejectByChecks(task, failure, fixPhase, this.deps.failurePolicy);
+    } else {
+      const sequence = task.checkpoints.length + 1;
+      const ref = this.deps.workspace.checkpoint(taskWorkspace, sequence, phase.id);
+      task = passChecks(task, { sequence, phaseIndex: task.phaseIndex, ref, sessionId: null, takenAt: clock.now() });
+    }
+    runs.save({ ...run, status: failed ? 'failed' : 'succeeded', endedAt: clock.now(), output: results });
     return this.save(task);
   }
 
@@ -128,8 +161,8 @@ export class PhaseRunner {
       }
       if (event.type === 'tool-failure') {
         signatures.push(event.signature);
-        if (isLooping(signatures, this.deps.loopThreshold)) {
-          stop(this.failure('loop-detected', event.signature, `Same failure ${this.deps.loopThreshold} times in a row: ${event.summary}`));
+        if (isLooping(signatures, this.deps.failurePolicy.loopThreshold)) {
+          stop(this.failure('loop-detected', event.signature, `Same failure ${this.deps.failurePolicy.loopThreshold} times in a row: ${event.summary}`));
         }
       }
       if (event.type === 'finished') observation.finished = event;
@@ -166,4 +199,10 @@ export class PhaseRunner {
     this.deps.bus.publish({ kind: 'task-changed', task });
     return task;
   }
+}
+
+function outputSchemaFor(phase: PhaseDefinition): object | null {
+  if (phase.output === 'decisions') return DECISIONS_OUTPUT_SCHEMA;
+  if (phase.output === 'review') return REVIEW_OUTPUT_SCHEMA;
+  return null;
 }

@@ -55,5 +55,7 @@ function toPhase(phase: z.infer<typeof LifecycleFileSchema>['phases'][number]): 
     ...(phase.skill ? { skill: phase.skill } : {}),
     ...(phase.model ? { model: phase.model } : {}),
     ...(phase.output ? { output: phase.output } : {}),
+    ...(phase.executor ? { executor: phase.executor } : {}),
+    ...(phase.retryFrom ? { retryFrom: phase.retryFrom } : {}),
   };
 }

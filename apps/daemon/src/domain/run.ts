@@ -14,4 +14,5 @@ export interface Run {
   readonly startedAt: string;
   readonly endedAt: string | null;
   readonly usage: RunUsage | null;
+  readonly output: unknown;
 }

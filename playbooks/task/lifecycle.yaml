@@ -11,9 +11,12 @@ phases:
   - id: execute
     skill: execute-tdd
   - id: verify
-    skill: verify
+    executor: checks
+    retryFrom: execute
   - id: review
     skill: review
+    output: review
     gate: human-review
   - id: merge
+    executor: code-host
     gate: merge

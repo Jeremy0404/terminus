@@ -17,7 +17,7 @@ import {
   SqliteTaskRepository,
 } from './sqlite-repositories.js';
 
-const app: App = { id: 'terminus', name: 'terminus', repoPath: '/home/me/dev/terminus', createdAt: '2026-09-24T09:00:00Z' };
+const app: App = { id: 'terminus', name: 'terminus', repoPath: '/home/me/dev/terminus', verification: [{ name: 'test', command: 'pnpm test' }], createdAt: '2026-09-24T09:00:00Z' };
 const epic: Epic = { id: 'e-interface', appId: 'terminus', code: 'I', name: 'Interface', status: 'active', position: 3 };
 
 let directory: string;
@@ -61,6 +61,7 @@ describe('SqliteTaskRepository', () => {
       phaseIndex: 4,
       status: { kind: 'blocked', failure: failure() },
       failuresInPhase: [failure(), failure()],
+      checkFailures: [failure('check-failed', 'check:build')],
       checkpoints: [checkpoint(1, 0), checkpoint(2, 1)],
     });
 
@@ -111,8 +112,8 @@ describe('SqliteRunRepository and SqliteDecisionRepository', () => {
 
   it('round-trips runs with and without usage', () => {
     const runs = new SqliteRunRepository(db);
-    const running: Run = { id: 'r1', taskId: 't1', phaseIndex: 3, sessionId: 's1', status: 'running', startedAt: '2026-09-24T10:00:00Z', endedAt: null, usage: null };
-    const finished: Run = { ...running, status: 'succeeded', endedAt: '2026-09-24T10:14:00Z', usage: { inputTokens: 150_000, outputTokens: 32_000 } };
+    const running: Run = { id: 'r1', taskId: 't1', phaseIndex: 3, sessionId: 's1', status: 'running', startedAt: '2026-09-24T10:00:00Z', endedAt: null, usage: null, output: null };
+    const finished: Run = { ...running, status: 'succeeded', endedAt: '2026-09-24T10:14:00Z', usage: { inputTokens: 150_000, outputTokens: 32_000 }, output: { verdict: 'approve' } };
 
     runs.save(running);
     expect(runs.get('r1')).toEqual(running);

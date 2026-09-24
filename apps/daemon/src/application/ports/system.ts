@@ -1,5 +1,6 @@
 import type { Task } from '../../domain/task.js';
 import type { AgentEvent } from './agent-runner.js';
+import type { CheckResult } from './check-runner.js';
 
 export interface Clock {
   now(): string;
@@ -12,7 +13,8 @@ export interface IdGenerator {
 
 export type RunUpdate =
   | { readonly kind: 'task-changed'; readonly task: Task }
-  | { readonly kind: 'run-event'; readonly runId: string; readonly taskId: string; readonly event: AgentEvent };
+  | { readonly kind: 'run-event'; readonly runId: string; readonly taskId: string; readonly event: AgentEvent }
+  | { readonly kind: 'check-result'; readonly runId: string; readonly taskId: string; readonly result: CheckResult };
 
 export interface RunEventBus {
   publish(update: RunUpdate): void;
