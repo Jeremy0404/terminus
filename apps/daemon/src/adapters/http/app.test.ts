@@ -92,7 +92,7 @@ describe('HTTP API', () => {
     expect(json.app.name).toBe('demo');
     expect(json.epics.map((epic) => epic.code)).toEqual(['I']);
     expect(json.tasks).toEqual([
-      expect.objectContaining({ id: taskId, title: 'Zoom to platform', phaseIndex: 0, status: { kind: 'todo' }, phases: ['spec', 'grill', 'plan', 'execute', 'verify', 'review', 'merge'] }),
+      expect.objectContaining({ id: taskId, title: 'Zoom to platform', phaseIndex: 0, status: { kind: 'todo' }, phases: ['spec', 'grill', 'plan', 'execute', 'verify', 'review', 'sync', 'merge'] }),
     ]);
     expect(json.inbox).toEqual([]);
   });
@@ -143,7 +143,7 @@ describe('HTTP API', () => {
     const merged = await call<TaskSummaryDto>('POST', `/api/tasks/${taskId}/merge`);
     expect(merged.json.status).toEqual({ kind: 'done' });
     expect(codeHost.merged).toEqual([42]);
-    expect(detail.checkpoints.map((checkpoint) => checkpoint.phaseIndex)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(detail.checkpoints.map((checkpoint) => checkpoint.phaseIndex)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
   });
 
   it('serves a run transcript', async () => {

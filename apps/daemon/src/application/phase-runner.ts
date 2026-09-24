@@ -8,7 +8,7 @@ import { completePhase, failRun, passChecks, rejectByChecks, requestDecision, st
 import { DECISIONS_OUTPUT_SCHEMA, readProposedDecisions } from './decision-output.js';
 import { buildPhasePrompt } from './phase-prompt.js';
 import { REVIEW_OUTPUT_SCHEMA } from './review-output.js';
-import type { CheckRunner } from './ports/check-runner.js';
+import type { CheckProgress, CheckRunner } from './ports/check-runner.js';
 import type { CodeHost } from './ports/code-host.js';
 import { pullRequestBody, pullRequestTitle } from './pull-request-text.js';
 import type { AgentEvent, AgentRunner } from './ports/agent-runner.js';
@@ -17,7 +17,7 @@ import type { Clock, IdGenerator, RunEventBus } from './ports/system.js';
 import type { TranscriptStore } from './ports/transcript-store.js';
 import type { RepositoryInstructions } from './ports/repository-instructions.js';
 import type { TaskNotes } from './ports/task-notes.js';
-import type { TaskWorkspace, Workspace } from './ports/workspace.js';
+import type { SyncResult, TaskWorkspace, Workspace } from './ports/workspace.js';
 
 export interface RunBudget {
   readonly maxTokens: number;
@@ -46,6 +46,14 @@ export interface PhaseRunnerDeps {
   readonly systemPromptAppend: string;
 }
 
+interface AgentRunOptions {
+  readonly runId: string;
+  readonly sessionId: string;
+  readonly resume: boolean;
+  readonly outputSchema: object | null;
+  readonly promptSuffix?: string;
+}
+
 interface RunObservation {
   usage: RunUsage | null;
   finished: Extract<AgentEvent, { type: 'finished' }> | null;
@@ -66,7 +74,7 @@ export class PhaseRunner {
   }
 
   async run(taskId: string): Promise<Task> {
-    const { runs, workspace, agent, clock, ids, budget } = this.deps;
+    const { runs, workspace, clock, ids } = this.deps;
     const ready = this.load(taskId);
     if (ready.status.kind !== 'ready') throw new DomainError(`Task ${taskId} is ${ready.status.kind}, expected ready`);
     const app = this.appOf(ready);
@@ -74,39 +82,17 @@ export class PhaseRunner {
     const taskWorkspace = workspace.prepare(app.repoPath, app.id, ready.id, this.deps.baseRef);
     const executor = phase.executor ?? 'agent';
     if (executor === 'checks') return this.runChecks(ready, app, phase, taskWorkspace);
+    if (executor === 'sync') return this.runSync(ready, app, phase, taskWorkspace);
     if (executor === 'code-host') return this.publish(ready, phase, taskWorkspace);
     const previousRun = runs.listByTask(ready.id).filter((run) => run.phaseIndex === ready.phaseIndex).at(-1);
     const resume = ready.status.mode === 'resume' && previousRun !== undefined;
     const sessionId = resume ? previousRun.sessionId : ids.uuid();
-    const notesDir = this.deps.notes.directoryFor(ready.id);
-    const prompt = buildPhasePrompt(ready, phase, this.deps.decisions.listByTask(ready.id).filter((decision) => decision.answer), {
-      notesDir,
-      baseRef: this.deps.baseRef,
-      verification: app.verification,
-    });
 
     const runId = ids.next('run');
     let task = this.save(startRun(ready, runId));
     let run: Run = { id: runId, taskId, phaseIndex: task.phaseIndex, sessionId, status: 'running', startedAt: clock.now(), endedAt: null, usage: null, output: null };
     runs.save(run);
-
-    const handle = agent.start({
-      runId,
-      sessionId,
-      resume,
-      cwd: taskWorkspace.path,
-      notesDir,
-      prompt,
-      systemPromptAppend: [this.deps.systemPromptAppend, this.deps.instructions.localOnly(app.repoPath, taskWorkspace.path)].filter(Boolean).join('\n\n'),
-      skill: phase.skill ?? null,
-      model: phase.model ?? null,
-      maxTurns: budget.maxTurns,
-      outputSchema: outputSchemaFor(phase),
-    });
-    const control = { interrupt: () => handle.interrupt(), byUser: false };
-    this.active.set(taskId, control);
-    const observation = await this.observe(taskId, runId, handle.events, () => handle.interrupt()).finally(() => this.active.delete(taskId));
-    if (control.byUser && !observation.stopped) observation.stopped = this.failure('interrupted', 'user', 'Interrupted from Terminus');
+    const observation = await this.runAgent(ready, app, phase, taskWorkspace, { runId, sessionId, resume, outputSchema: outputSchemaFor(phase) });
 
     const finishedOk = !observation.stopped && observation.finished?.outcome === 'success';
     let status: RunStatus = 'succeeded';
@@ -141,18 +127,105 @@ export class PhaseRunner {
     return this.save(task);
   }
 
+  private async runAgent(ready: Task, app: App, phase: PhaseDefinition, taskWorkspace: TaskWorkspace, options: AgentRunOptions): Promise<RunObservation> {
+    const notesDir = this.deps.notes.directoryFor(ready.id);
+    const prompt = buildPhasePrompt(ready, phase, this.deps.decisions.listByTask(ready.id).filter((decision) => decision.answer), {
+      notesDir,
+      baseRef: this.deps.baseRef,
+      verification: app.verification,
+    });
+    const handle = this.deps.agent.start({
+      runId: options.runId,
+      sessionId: options.sessionId,
+      resume: options.resume,
+      cwd: taskWorkspace.path,
+      notesDir,
+      prompt: options.promptSuffix ? `${prompt}\n\n${options.promptSuffix}` : prompt,
+      systemPromptAppend: [this.deps.systemPromptAppend, this.deps.instructions.localOnly(app.repoPath, taskWorkspace.path)].filter(Boolean).join('\n\n'),
+      skill: phase.skill ?? null,
+      model: phase.model ?? null,
+      maxTurns: this.deps.budget.maxTurns,
+      outputSchema: options.outputSchema,
+    });
+    const control = { interrupt: () => handle.interrupt(), byUser: false };
+    this.active.set(ready.id, control);
+    const observation = await this.observe(ready.id, options.runId, handle.events, () => handle.interrupt()).finally(() => this.active.delete(ready.id));
+    if (control.byUser && !observation.stopped) observation.stopped = this.failure('interrupted', 'user', 'Interrupted from Terminus');
+    return observation;
+  }
+
+  private async runSync(ready: Task, app: App, phase: PhaseDefinition, taskWorkspace: TaskWorkspace): Promise<Task> {
+    const { runs, clock, ids, workspace } = this.deps;
+    const runId = ids.next('run');
+    const sessionId = ids.uuid();
+    let task = this.save(startRun(ready, runId));
+    let run: Run = { id: runId, taskId: task.id, phaseIndex: task.phaseIndex, sessionId, status: 'running', startedAt: clock.now(), endedAt: null, usage: null, output: null };
+    runs.save(run);
+    const finish = (next: Task, status: RunStatus, output: unknown = null): Task => {
+      runs.save({ ...run, status, endedAt: clock.now(), output });
+      return this.save(next);
+    };
+
+    let sync: SyncResult;
+    try {
+      sync = workspace.syncWithBase(taskWorkspace, this.deps.baseRef);
+    } catch (error) {
+      return finish(failRun(task, this.failure('sync-failed', 'sync', errorMessage(error)), this.deps.failurePolicy), 'failed');
+    }
+    this.note(runId, task.id, syncSummary(sync));
+
+    if (sync.state === 'conflicts') {
+      const observation = await this.runAgent(ready, app, phase, taskWorkspace, {
+        runId,
+        sessionId,
+        resume: false,
+        outputSchema: null,
+        promptSuffix: `Merging ${sync.base} into this branch stopped on conflicts in:\n${sync.conflicts.map((file) => `- ${file}`).join('\n')}`,
+      });
+      run = { ...run, usage: observation.usage };
+      if (observation.stopped || observation.finished?.outcome !== 'success') {
+        const status: RunStatus = observation.stopped || observation.finished?.outcome === 'interrupted' ? 'interrupted' : 'failed';
+        return finish(failRun(task, observation.stopped ?? this.failureFrom(observation.finished), this.deps.failurePolicy), status);
+      }
+      try {
+        sync = workspace.syncWithBase(taskWorkspace, this.deps.baseRef);
+      } catch (error) {
+        return finish(failRun(task, this.failure('sync-failed', 'sync', errorMessage(error)), this.deps.failurePolicy), 'failed');
+      }
+      if (sync.state === 'conflicts') {
+        const failure = this.failure('merge-conflict', `conflict:${sync.conflicts.join(',')}`, `Conflicts are still unresolved in: ${sync.conflicts.join(', ')}`);
+        return finish(failRun(task, failure, this.deps.failurePolicy), 'failed');
+      }
+      this.note(runId, task.id, syncSummary(sync));
+    }
+
+    const results = await this.deps.checks.run(taskWorkspace.path, app.verification, (progress) => this.reportCheckProgress(runId, task.id, progress));
+    const failed = results.find((result) => !result.ok);
+    if (failed) {
+      const failure = this.failure('check-failed', `check:${failed.name}`, `After syncing with ${sync.base}, ${failed.name} failed (\`${failed.command}\`, exit ${String(failed.exitCode)}):\n${failed.outputTail}`);
+      task = rejectByChecks(task, failure, phase.retryFrom ?? phaseAt(task.lifecycle, task.phaseIndex - 1).id, this.deps.failurePolicy);
+      return finish(task, 'failed', results);
+    }
+    const sequence = task.checkpoints.length + 1;
+    const ref = workspace.checkpoint(taskWorkspace, sequence, phase.id);
+    return finish(passChecks(task, { sequence, phaseIndex: task.phaseIndex, ref, sessionId: null, takenAt: clock.now() }), 'succeeded', results);
+  }
+
+  private note(runId: string, taskId: string, text: string): void {
+    const event: AgentEvent = { type: 'text', text };
+    this.deps.transcripts.append(runId, event);
+    this.deps.bus.publish({ kind: 'run-event', runId, taskId, event });
+  }
+
   private async runChecks(ready: Task, app: App, phase: PhaseDefinition, taskWorkspace: TaskWorkspace): Promise<Task> {
     const { runs, clock, ids } = this.deps;
     const runId = ids.next('run');
     let task = this.save(startRun(ready, runId));
-    const run: Run = { id: runId, taskId: task.id, phaseIndex: task.phaseIndex, sessionId: 'checks', status: 'running', startedAt: clock.now(), endedAt: null, usage: null, output: null };
+    const taskId = task.id;
+    const run: Run = { id: runId, taskId, phaseIndex: task.phaseIndex, sessionId: 'checks', status: 'running', startedAt: clock.now(), endedAt: null, usage: null, output: null };
     runs.save(run);
 
-    const results = await this.deps.checks.run(taskWorkspace.path, app.verification);
-    for (const result of results) {
-      this.deps.transcripts.append(runId, result);
-      this.deps.bus.publish({ kind: 'check-result', runId, taskId: task.id, result });
-    }
+    const results = await this.deps.checks.run(taskWorkspace.path, app.verification, (progress) => this.reportCheckProgress(runId, taskId, progress));
 
     const failed = results.find((result) => !result.ok);
     if (failed) {
@@ -185,6 +258,19 @@ export class PhaseRunner {
       runs.save({ ...run, status: 'failed', endedAt: clock.now() });
     }
     return this.save(task);
+  }
+
+  private reportCheckProgress(runId: string, taskId: string, progress: CheckProgress): void {
+    if (progress.kind === 'started') {
+      this.deps.transcripts.append(runId, { type: 'check-started', name: progress.name, command: progress.command });
+      this.deps.bus.publish({ kind: 'check-started', runId, taskId, name: progress.name, command: progress.command });
+    } else if (progress.kind === 'output') {
+      this.deps.transcripts.append(runId, { type: 'check-output', name: progress.name, command: progress.command, outputTail: progress.outputTail });
+      this.deps.bus.publish({ kind: 'check-output', runId, taskId, name: progress.name, command: progress.command, outputTail: progress.outputTail });
+    } else {
+      this.deps.transcripts.append(runId, progress.result);
+      this.deps.bus.publish({ kind: 'check-result', runId, taskId, result: progress.result });
+    }
   }
 
   private async observe(taskId: string, runId: string, events: AsyncIterable<AgentEvent>, interrupt: () => void): Promise<RunObservation> {
@@ -251,6 +337,12 @@ function outputSchemaFor(phase: PhaseDefinition): object | null {
   if (phase.output === 'decisions') return DECISIONS_OUTPUT_SCHEMA;
   if (phase.output === 'review') return REVIEW_OUTPUT_SCHEMA;
   return null;
+}
+
+function syncSummary(sync: SyncResult): string {
+  if (sync.state === 'up-to-date') return `Branch already contains ${sync.base}.`;
+  if (sync.state === 'merged') return `Merged ${sync.base} into the branch.`;
+  return `Merging ${sync.base} stopped on conflicts in: ${sync.conflicts.join(', ')}`;
 }
 
 function errorMessage(error: unknown): string {

@@ -5,6 +5,21 @@ import { AdoptionWizard } from './AdoptionWizard';
 let posted: { path: string; body: unknown }[];
 let responses: Record<string, unknown>;
 
+function respond(path: string): Response {
+  return Response.json(responses[path], { status: path.endsWith('cut-over') ? 201 : 200 });
+}
+
+function deferredFetch(deferPath: string): { fetchImpl: typeof fetch; resolve: () => void } {
+  let resolvePending!: (response: Response) => void;
+  const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const path = String(input);
+    posted.push({ path, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+    if (path === deferPath) return new Promise<Response>((resolve) => { resolvePending = resolve; });
+    return respond(path);
+  });
+  return { fetchImpl: fetchImpl as unknown as typeof fetch, resolve: () => resolvePending(respond(deferPath)) };
+}
+
 beforeEach(() => {
   posted = [];
   responses = {
@@ -29,7 +44,7 @@ beforeEach(() => {
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input);
       posted.push({ path, body: init?.body ? JSON.parse(String(init.body)) : undefined });
-      return Response.json(responses[path], { status: path.endsWith('cut-over') ? 201 : 200 });
+      return respond(path);
     }),
   );
 });
@@ -134,5 +149,89 @@ describe('AdoptionWizard', () => {
     const intro = await screen.findByText('Cocher une issue ou un TODO l’importe comme tâche ; les autres ne sont pas modifiés.');
     const issuesLegend = await screen.findByText('Issues GitHub ouvertes (2)');
     expect(intro.compareDocumentPosition(issuesLegend) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('disables the repo path input while scanning, then re-enables it', async () => {
+    const { fetchImpl, resolve } = deferredFetch('/api/adoption/scan');
+    vi.stubGlobal('fetch', fetchImpl);
+    render(<AdoptionWizard onCancel={() => {}} onAdopted={() => {}} />);
+    fireEvent.change(screen.getByLabelText('Chemin du repo'), { target: { value: '/dev/tiny-prm' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Scanner' }));
+
+    await waitFor(() => expect(screen.getByLabelText('Chemin du repo')).toBeDisabled());
+
+    resolve();
+    await waitFor(() => expect(screen.getByLabelText('Chemin du repo')).not.toBeDisabled());
+  });
+
+  it('disables the Back button while proposals load on entering the import station, then enables the import fields once loaded', async () => {
+    const { fetchImpl, resolve } = deferredFetch('/api/adoption/proposals');
+    vi.stubGlobal('fetch', fetchImpl);
+    render(<AdoptionWizard onCancel={() => {}} onAdopted={() => {}} />);
+
+    fireEvent.change(screen.getByLabelText('Chemin du repo'), { target: { value: '/dev/tiny-prm' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Scanner' }));
+    expect(await screen.findByText('CLAUDE.md')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Valider cette station' }));
+
+    expect(await screen.findByText('1 failing')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Valider cette station' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Retour' })).toBeDisabled());
+    expect(screen.queryByLabelText('#51 · i18n')).not.toBeInTheDocument();
+
+    resolve();
+    await waitFor(() => expect(screen.getByLabelText('#51 · i18n')).not.toBeDisabled());
+    expect(screen.getByLabelText(/vider le cache/)).not.toBeDisabled();
+    expect(screen.getByLabelText('Ligne qui les accueille')).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Retour' })).not.toBeDisabled();
+  });
+
+  it('disables the app-name input, close-issues checkbox and Back button while cutting over', async () => {
+    const { fetchImpl, resolve } = deferredFetch('/api/adoption/cut-over');
+    vi.stubGlobal('fetch', fetchImpl);
+    render(<AdoptionWizard onCancel={() => {}} onAdopted={() => {}} />);
+
+    fireEvent.change(screen.getByLabelText('Chemin du repo'), { target: { value: '/dev/tiny-prm' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Scanner' }));
+    expect(await screen.findByText('CLAUDE.md')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Valider cette station' }));
+
+    expect(await screen.findByText('1 failing')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Valider cette station' }));
+
+    fireEvent.click(await screen.findByLabelText('#51 · i18n'));
+    fireEvent.click(screen.getByRole('button', { name: 'Valider cette station' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Valider cette station' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Basculer' }));
+
+    await waitFor(() => expect(screen.getByLabelText('Nom de l’app')).toBeDisabled());
+    expect(screen.getByLabelText(/Fermer l.issue importée/)).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Retour' })).not.toBeInTheDocument();
+
+    resolve();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Ouvrir le réseau' })).toBeInTheDocument());
+  });
+
+  it('leaves the profile station fields enabled while idle', async () => {
+    render(<AdoptionWizard onCancel={() => {}} onAdopted={() => {}} />);
+
+    fireEvent.change(screen.getByLabelText('Chemin du repo'), { target: { value: '/dev/tiny-prm' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Scanner' }));
+    expect(await screen.findByText('CLAUDE.md')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Valider cette station' }));
+
+    expect(await screen.findByText('1 failing')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Valider cette station' }));
+
+    fireEvent.click(await screen.findByLabelText('#51 · i18n'));
+    fireEvent.click(screen.getByRole('button', { name: 'Valider cette station' }));
+
+    for (const input of screen.getAllByLabelText('Nom')) expect(input).not.toBeDisabled();
+    for (const input of screen.getAllByLabelText('Commande')) expect(input).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Retirer test' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Ajouter une commande' })).not.toBeDisabled();
   });
 });

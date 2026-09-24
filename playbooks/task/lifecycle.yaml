@@ -17,6 +17,10 @@ phases:
     skill: review
     output: review
     gate: human-review
+  - id: sync
+    executor: sync
+    skill: resolve-conflicts
+    retryFrom: execute
   - id: merge
     executor: code-host
     gate: merge

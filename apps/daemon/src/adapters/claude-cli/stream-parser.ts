@@ -57,7 +57,7 @@ export class ClaudeStreamParser {
         return [];
       }
       case 'result':
-        return [this.result(message)];
+        return this.result(message);
       default:
         return [];
     }
@@ -121,20 +121,27 @@ export class ClaudeStreamParser {
       });
   }
 
-  private result(message: Record<string, unknown>): AgentEvent {
+  private result(message: Record<string, unknown>): AgentEvent[] {
     this.finished = true;
+    const usage = message['usage'] as Usage | undefined;
+    const total: AgentEvent[] = usage
+      ? [{ type: 'usage', inputTokens: (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0), outputTokens: usage.output_tokens ?? 0 }]
+      : [];
     const subtype = String(message['subtype'] ?? '');
     let outcome: AgentOutcome = 'error';
     if (this.interrupted) outcome = 'interrupted';
     else if (this.quotaRejected || message['api_error_status'] === 429) outcome = 'quota-exhausted';
     else if (subtype === 'error_max_turns') outcome = 'max-turns';
     else if (subtype === 'success' && message['is_error'] !== true) outcome = 'success';
-    return {
-      type: 'finished',
-      outcome,
-      summary: typeof message['result'] === 'string' ? message['result'] : subtype,
-      structuredOutput: message['structured_output'] ?? null,
-    };
+    return [
+      ...total,
+      {
+        type: 'finished',
+        outcome,
+        summary: typeof message['result'] === 'string' ? message['result'] : subtype,
+        structuredOutput: message['structured_output'] ?? null,
+      },
+    ];
   }
 
   private totalUsage(): AgentEvent {

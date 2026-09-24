@@ -13,22 +13,32 @@ import { DEFAULT_FAILURE_POLICY } from '../domain/failure.js';
 import { createTask, type Task, type TaskStatus } from '../domain/task.js';
 import { TASK_LIFECYCLE } from '../domain/test-fixtures.js';
 import type { AgentEvent } from './ports/agent-runner.js';
-import type { CheckResult, CheckRunner } from './ports/check-runner.js';
+import type { CheckProgress, CheckResult, CheckRunner } from './ports/check-runner.js';
 import { PhaseRunner } from './phase-runner.js';
 
 class StubCheckRunner implements CheckRunner {
   readonly calls: { cwd: string; names: string[] }[] = [];
   outcomes: Record<string, boolean>[] = [];
+  outputsFor: Record<string, string> = {};
 
-  run(cwd: string, commands: readonly { name: string; command: string }[]): Promise<CheckResult[]> {
+  async run(
+    cwd: string,
+    commands: readonly { name: string; command: string }[],
+    onProgress?: (progress: CheckProgress) => void,
+  ): Promise<CheckResult[]> {
     this.calls.push({ cwd, names: commands.map((command) => command.name) });
     const outcome = this.outcomes.shift() ?? {};
-    return Promise.resolve(
-      commands.map(({ name, command }) => {
-        const ok = outcome[name] ?? true;
-        return { name, command, ok, exitCode: ok ? 0 : 1, outputTail: ok ? '' : `${name} exploded`, durationMs: 5 };
-      }),
-    );
+    const results: CheckResult[] = [];
+    for (const { name, command } of commands) {
+      onProgress?.({ kind: 'started', name, command });
+      const outputTail = this.outputsFor[name];
+      if (outputTail !== undefined) onProgress?.({ kind: 'output', name, command, outputTail });
+      const ok = outcome[name] ?? true;
+      const result: CheckResult = { name, command, ok, exitCode: ok ? 0 : 1, outputTail: ok ? '' : `${name} exploded`, durationMs: 5 };
+      onProgress?.({ kind: 'result', result });
+      results.push(result);
+    }
+    return results;
   }
 }
 
@@ -259,6 +269,31 @@ describe('PhaseRunner', () => {
     expect(bus.updates.filter((update) => update.kind === 'check-result')).toHaveLength(2);
   });
 
+  it('publishes each check as it starts and finishes, interleaved per command', async () => {
+    givenTask(4);
+
+    await runner(new ScriptedAgentRunner()).run('t1');
+
+    const checkUpdates = bus.updates.filter((update): update is Extract<typeof update, { kind: `check-${string}` }> => update.kind.startsWith('check-'));
+    expect(checkUpdates.map((update) => update.kind)).toEqual(['check-started', 'check-result', 'check-started', 'check-result']);
+    expect(checkUpdates.map((update) => ('name' in update ? update.name : update.result.name))).toEqual(['test', 'test', 'build', 'build']);
+  });
+
+  it('publishes a check-output update with the live tail before the check finishes', async () => {
+    givenTask(4);
+    checks.outputsFor = { test: 'partial tail…' };
+
+    await runner(new ScriptedAgentRunner()).run('t1');
+
+    const checkUpdates = bus.updates.filter((update): update is Extract<typeof update, { kind: `check-${string}` }> => update.kind.startsWith('check-'));
+    const outputIndex = checkUpdates.findIndex((update) => update.kind === 'check-output');
+    const resultIndex = checkUpdates.findIndex((update) => update.kind === 'check-result' && update.result.name === 'test');
+    expect(outputIndex).toBeGreaterThanOrEqual(0);
+    expect(outputIndex).toBeLessThan(resultIndex);
+    const output = checkUpdates[outputIndex];
+    expect(output).toMatchObject({ kind: 'check-output', name: 'test', outputTail: 'partial tail…' });
+  });
+
   it('sends a red verification back to execution with the failing output', async () => {
     givenTask(4);
     checks.outcomes = [{ build: false }];
@@ -334,5 +369,72 @@ describe('PhaseRunner', () => {
 
     expect(task.status).toEqual({ kind: 'ready', mode: 'retry' });
     expect(task.failuresInPhase[0]).toMatchObject({ kind: 'publish-failed', message: 'remote rejected' });
+  });
+
+  describe('sync phase', () => {
+    const WITH_SYNC = {
+      ...GRILL_LIFECYCLE,
+      phases: [
+        ...GRILL_LIFECYCLE.phases.slice(0, 6),
+        { id: 'sync', executor: 'sync' as const, skill: 'resolve-conflicts', retryFrom: 'execute' },
+        ...GRILL_LIFECYCLE.phases.slice(6),
+      ],
+    };
+    const atSync = (): Task => givenTask(6, { kind: 'ready', mode: 'fresh' }, { lifecycle: WITH_SYNC });
+
+    it('checks an up-to-date branch and moves on without an agent', async () => {
+      atSync();
+      const agent = new ScriptedAgentRunner();
+
+      const task = await runner(agent).run('t1');
+
+      expect(agent.requests).toEqual([]);
+      expect(checks.calls).toHaveLength(1);
+      expect(task.phaseIndex).toBe(7);
+      expect(workspace.checkpoints).toEqual(['1:sync']);
+    });
+
+    it('has an agent resolve conflicts, then verifies the merged branch', async () => {
+      atSync();
+      workspace.syncResults = [
+        { state: 'conflicts', base: 'origin/main', conflicts: ['apps/web/src/App.tsx'] },
+        { state: 'merged', base: 'origin/main', conflicts: [] },
+      ];
+      const agent = new ScriptedAgentRunner(script(success()));
+
+      const task = await runner(agent).run('t1');
+
+      expect(agent.requests[0]).toMatchObject({ skill: 'resolve-conflicts', outputSchema: null });
+      expect(agent.requests[0]?.prompt).toContain('stopped on conflicts in:\n- apps/web/src/App.tsx');
+      expect(checks.calls).toHaveLength(1);
+      expect(task.phaseIndex).toBe(7);
+      const transcript = transcripts.read(runs.listByTask('t1')[0]?.id ?? '');
+      expect(transcript[0]).toEqual({ type: 'text', text: 'Merging origin/main stopped on conflicts in: apps/web/src/App.tsx' });
+    });
+
+    it('fails the phase when conflicts remain after the agent', async () => {
+      atSync();
+      workspace.syncResults = [
+        { state: 'conflicts', base: 'origin/main', conflicts: ['a.ts'] },
+        { state: 'conflicts', base: 'origin/main', conflicts: ['a.ts'] },
+      ];
+
+      const task = await runner(new ScriptedAgentRunner(script(success()))).run('t1');
+
+      expect(task.status).toEqual({ kind: 'ready', mode: 'retry' });
+      expect(task.failuresInPhase[0]).toMatchObject({ kind: 'merge-conflict', message: 'Conflicts are still unresolved in: a.ts' });
+      expect(checks.calls).toEqual([]);
+    });
+
+    it('sends the task back to execution when the merged branch no longer passes', async () => {
+      atSync();
+      workspace.syncResults = [{ state: 'merged', base: 'origin/main', conflicts: [] }];
+      checks.outcomes = [{ build: false }];
+
+      const task = await runner(new ScriptedAgentRunner()).run('t1');
+
+      expect(task.phaseIndex).toBe(3);
+      expect(task.failuresInPhase[0]?.message).toContain('After syncing with origin/main, build failed');
+    });
   });
 });

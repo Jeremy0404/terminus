@@ -30,7 +30,7 @@ export function Platform({ network, taskId, onClose }: Props) {
         <button type="button" className="btn small" onClick={onClose} aria-label={t('platform.close')}>✕</button>
       </div>
       <StatusPill status={task.status} />
-      <ol className="phase-strip">
+      <ol className="phase-strip" style={{ gridTemplateColumns: `repeat(${task.phases.length}, 1fr)`, ['--n' as string]: task.phases.length }}>
         {task.phases.map((phase, index) => (
           <li key={phase} className={index < reached ? 'passed' : index === reached && task.status.kind !== 'todo' ? 'current' : ''}>
             <i />

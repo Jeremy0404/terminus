@@ -146,6 +146,8 @@ export interface TakeOverDto {
 export type ServerEventDto =
   | { readonly type: 'task-changed'; readonly task: TaskSummaryDto }
   | { readonly type: 'run-event'; readonly runId: string; readonly taskId: string; readonly event: unknown }
+  | { readonly type: 'check-started'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string }
+  | { readonly type: 'check-output'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string; readonly outputTail: string }
   | { readonly type: 'check-result'; readonly runId: string; readonly taskId: string; readonly result: unknown };
 
 const VerificationCommandSchema = z.object({ name: z.string().min(1), command: z.string().min(1) });

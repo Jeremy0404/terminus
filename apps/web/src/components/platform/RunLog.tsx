@@ -23,14 +23,51 @@ export function describeEvent(event: unknown, t: TFunction): LogLine | null {
       return { tone: 'muted', text: t('run.usage', { input: record['inputTokens'], output: record['outputTokens'] }) };
     case 'finished':
       return { tone: record['outcome'] === 'success' ? 'good' : 'accent', text: `■ ${String(record['outcome'])} · ${String(record['summary'])}` };
+    case 'check-started':
+      return { tone: 'muted', text: `▷ ${String(record['name'])} · ${String(record['command'])}` };
+    case 'check-output':
+      return { tone: 'muted', text: `▷ ${String(record['name'])} · ${String(record['outputTail'])}` };
     default:
       return null;
   }
 }
 
+function checkIdentity(event: unknown): string | null {
+  if (typeof event !== 'object' || event === null) return null;
+  const record = event as Record<string, unknown>;
+  const isCheckProgress = record['type'] === 'check-started' || record['type'] === 'check-output';
+  const isCheckResult = 'ok' in record && 'command' in record;
+  if (!isCheckProgress && !isCheckResult) return null;
+  return typeof record['name'] === 'string' ? record['name'] : null;
+}
+
+function foldLines(events: readonly unknown[], t: TFunction): LogLine[] {
+  const lines: LogLine[] = [];
+  const indexByName = new Map<string, number>();
+  for (const event of events) {
+    const line = describeEvent(event, t);
+    if (line === null) continue;
+    const name = checkIdentity(event);
+    if (name === null) {
+      lines.push(line);
+      continue;
+    }
+    const existingIndex = indexByName.get(name);
+    if (existingIndex === undefined) {
+      indexByName.set(name, lines.length);
+      lines.push(line);
+    } else {
+      lines[existingIndex] = line;
+    }
+    const record = event as Record<string, unknown>;
+    if ('ok' in record && 'command' in record) indexByName.delete(name);
+  }
+  return lines;
+}
+
 export function RunLog({ events, live = false }: { events: readonly unknown[]; live?: boolean }) {
   const { t } = useTranslation();
-  const lines = events.map((event) => describeEvent(event, t)).filter((line): line is LogLine => line !== null);
+  const lines = foldLines(events, t);
   return (
     <pre className="run-log" aria-live={live ? 'polite' : 'off'}>
       {lines.length === 0 && <span className="log-muted">{t('run.empty')}</span>}
