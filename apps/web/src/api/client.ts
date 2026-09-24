@@ -1,4 +1,16 @@
-import type { AppDto, EpicDto, NetworkDto, TakeOverDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type {
+  AppDto,
+  CheckResultDto,
+  CutOverResultDto,
+  EpicDto,
+  NetworkDto,
+  ProposalsDto,
+  RepoScanDto,
+  TakeOverDto,
+  TaskDetailDto,
+  TaskSummaryDto,
+  VerificationCommandDto,
+} from '@terminus/contracts';
 
 export class ApiError extends Error {
   constructor(
@@ -40,4 +52,16 @@ export const api = {
   takeOver: (taskId: string) => post<TakeOverDto>(`/tasks/${taskId}/take-over`),
   answer: (decisionId: string, answer: { kind: 'option'; index: number } | { kind: 'other'; text: string }) =>
     post<TaskSummaryDto>(`/decisions/${decisionId}/answer`, answer),
+  scanRepo: (repoPath: string) => post<RepoScanDto>('/adoption/scan', { repoPath }),
+  healthCheck: (repoPath: string, commands: readonly VerificationCommandDto[]) => post<CheckResultDto[]>('/adoption/health', { repoPath, commands }),
+  proposals: (repoPath: string) => post<ProposalsDto>('/adoption/proposals', { repoPath }),
+  cutOver: (plan: CutOverPlan) => post<CutOverResultDto>('/adoption/cut-over', plan),
 };
+
+export interface CutOverPlan {
+  readonly name: string;
+  readonly repoPath: string;
+  readonly verification: readonly VerificationCommandDto[];
+  readonly lines: readonly { readonly code: string; readonly name: string; readonly tasks: readonly { readonly title: string; readonly issueNumber?: number }[] }[];
+  readonly closeIssues: boolean;
+}

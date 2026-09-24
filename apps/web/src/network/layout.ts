@@ -7,6 +7,8 @@ export const TOP = 110;
 const RIGHT_MARGIN = 140;
 const BOTTOM_MARGIN = 70;
 const MIN_ZOOM_SHARE = 0.55;
+const MIN_WIDTH = 1000;
+const MIN_HEIGHT = 380;
 
 export interface StationPosition {
   readonly task: TaskSummaryDto;
@@ -66,7 +68,12 @@ export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSum
   );
 
   const maxX = Math.max(LEFT + STEP, ...lines.map((line) => line.endX));
-  return { lines, transfers, width: maxX + RIGHT_MARGIN, height: TOP + Math.max(orderedEpics.length - 1, 0) * ROW + BOTTOM_MARGIN };
+  return {
+    lines,
+    transfers,
+    width: Math.max(maxX + RIGHT_MARGIN, MIN_WIDTH),
+    height: Math.max(TOP + Math.max(orderedEpics.length - 1, 0) * ROW + BOTTOM_MARGIN, MIN_HEIGHT),
+  };
 }
 
 function rankTasks(tasks: readonly TaskSummaryDto[]): Map<string, number> {
