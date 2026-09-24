@@ -92,13 +92,14 @@ describe('SqliteTaskRepository', () => {
     expect(tasks.get('new')?.lifecycle).toEqual(newer);
   });
 
-  it('lists tasks by epic and by app', () => {
+  it('lists tasks by epic and by app in creation order, even after updates', () => {
     const tasks = new SqliteTaskRepository(db);
     tasks.save(task('b'));
     tasks.save(task('a'));
+    tasks.save(task('b', { title: 'renamed' }));
 
-    expect(tasks.listByEpic(epic.id).map((t) => t.id)).toEqual(['a', 'b']);
-    expect(tasks.listByApp('terminus').map((t) => t.id)).toEqual(['a', 'b']);
+    expect(tasks.listByEpic(epic.id).map((t) => t.id)).toEqual(['b', 'a']);
+    expect(tasks.listByApp('terminus').map((t) => t.id)).toEqual(['b', 'a']);
     expect(tasks.listByApp('other')).toEqual([]);
   });
 

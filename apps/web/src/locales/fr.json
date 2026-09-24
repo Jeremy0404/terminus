@@ -1,10 +1,82 @@
 {
   "app": {
     "name": "terminus",
+    "loading": "Chargement du réseau…",
     "daemon": {
-      "checking": "Connexion au démon…",
-      "online": "Démon connecté · version {{version}}",
       "offline": "Démon injoignable"
     }
+  },
+  "apps": {
+    "none": "Aucune app",
+    "empty": "Aucune app pour l’instant."
+  },
+  "map": {
+    "label": "Plan du réseau de {{app}}",
+    "line": "Ligne {{name}}",
+    "planned": "En projet",
+    "progress": "{{done}}/{{total}} mergées"
+  },
+  "trip": {
+    "label": "Où je suis",
+    "network": "Réseau {{app}}",
+    "hintNetwork": "Clique une ligne ou une station",
+    "hintEscape": "Échap remonte d’un niveau"
+  },
+  "summary": {
+    "eyebrow": "Réseau · {{app}}",
+    "lines": "lignes",
+    "merged": "stations mergées",
+    "running_one": "agent en route",
+    "running_other": "agents en route"
+  },
+  "line": {
+    "eyebrow": "Épique",
+    "progress": "{{done}} sur {{total}} stations mergées"
+  },
+  "inbox": {
+    "title": "À toi de jouer",
+    "scopeNetwork": "tout le réseau",
+    "scopeLine": "ligne {{code}}",
+    "empty": "Rien ne t’attend ici.",
+    "unblocks_one": "débloque {{count}} tâche",
+    "unblocks_other": "débloque {{count}} tâches"
+  },
+  "platform": {
+    "label": "Quai de {{title}}",
+    "eyebrow": "Quai · {{line}}",
+    "close": "Remonter à la ligne"
+  },
+  "phase": {
+    "spec": "Spec",
+    "grill": "Grill",
+    "plan": "Plan",
+    "execute": "Exécution",
+    "verify": "Vérification",
+    "review": "Review",
+    "merge": "Merge"
+  },
+  "status": {
+    "todo": "À faire",
+    "ready": "À quai",
+    "running": "Agent en route",
+    "awaiting-decision": "Attend ta réponse",
+    "blocked": "Besoin de toi",
+    "manual": "Entre tes mains",
+    "done": "Mergée",
+    "gate": {
+      "plan-approval": "Attend ta validation du plan",
+      "human-review": "Attend ta review",
+      "merge": "Prêt à merger",
+      "phase-approval": "Attend ta validation"
+    }
+  },
+  "phaseShort": {
+    "spec": "Spec",
+    "grill": "Grill",
+    "plan": "Plan",
+    "execute": "Exéc.",
+    "verify": "Vérif.",
+    "review": "Review",
+    "merge": "Merge"
   }
 }

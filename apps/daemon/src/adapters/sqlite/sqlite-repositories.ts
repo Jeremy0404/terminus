@@ -1,4 +1,4 @@
-import { asc, eq, inArray } from 'drizzle-orm';
+import { asc, eq, inArray, sql } from 'drizzle-orm';
 import type {
   AppRepository,
   DecisionRepository,
@@ -86,13 +86,13 @@ export class SqliteTaskRepository implements TaskRepository {
   }
 
   listByEpic(epicId: string): Task[] {
-    return this.db.select().from(tasks).where(eq(tasks.epicId, epicId)).orderBy(asc(tasks.id)).all().map((row) => this.hydrate(row));
+    return this.db.select().from(tasks).where(eq(tasks.epicId, epicId)).orderBy(sql`rowid`).all().map((row) => this.hydrate(row));
   }
 
   listByApp(appId: string): Task[] {
     const epicIds = this.db.select({ id: epics.id }).from(epics).where(eq(epics.appId, appId)).all().map((epic) => epic.id);
     if (epicIds.length === 0) return [];
-    return this.db.select().from(tasks).where(inArray(tasks.epicId, epicIds)).orderBy(asc(tasks.id)).all().map((row) => this.hydrate(row));
+    return this.db.select().from(tasks).where(inArray(tasks.epicId, epicIds)).orderBy(sql`rowid`).all().map((row) => this.hydrate(row));
   }
 
   private hydrate(row: typeof tasks.$inferSelect): Task {

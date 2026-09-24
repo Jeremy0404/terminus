@@ -1,23 +1,65 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { App } from './App';
+import { APP, detailOf, mockApi, NETWORK } from './test/fixtures';
 
+beforeEach(() => {
+  window.history.replaceState(null, '', '/');
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      mockApi({
+        '/apps': [APP],
+        '/apps/app-1/network': NETWORK,
+        ...Object.fromEntries(NETWORK.tasks.map((task) => [`/tasks/${task.id}`, detailOf(task)])),
+      }),
+    ),
+  );
+});
 afterEach(() => vi.unstubAllGlobals());
 
-describe('App', () => {
-  it('shows the daemon version once the health check answers', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ status: 'ok', version: '0.1.0' })));
-
+describe('the cockpit', () => {
+  it('opens on the network of the app, with every line and the full inbox', async () => {
     render(<App />);
 
-    expect(await screen.findByText('Démon connecté · version 0.1.0')).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: 'Plan du réseau de terminus' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ligne Moteur' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Spike CLI, Mergée' })).toBeInTheDocument();
+    const inbox = screen.getByRole('region', { name: 'À toi de jouer' });
+    expect(within(inbox).getByText('tout le réseau')).toBeInTheDocument();
+    expect(within(inbox).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      expect.stringContaining('Zoom'),
+      expect.stringContaining('Rendu SVG'),
+    ]);
   });
 
-  it('says the daemon is unreachable when the health check fails', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
-
+  it('zooms to a line: the rail lists its stations and the inbox narrows to it', async () => {
     render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ligne Moteur' }));
 
+    expect(window.location.search).toBe('?app=app-1&line=engine');
+    expect(screen.getByRole('navigation', { name: 'Où je suis' })).toHaveTextContent('Moteur');
+    expect(within(screen.getByRole('region', { name: 'À toi de jouer' })).getByText('Rien ne t’attend ici.')).toBeInTheDocument();
+  });
+
+  it('jumps from an inbox item straight to its platform, and Escape goes back up', async () => {
+    render(<App />);
+    const inbox = await screen.findByRole('region', { name: 'À toi de jouer' });
+    fireEvent.click(within(inbox).getByRole('button', { name: /Rendu SVG/ }));
+
+    const platform = await screen.findByRole('region', { name: 'Quai de Rendu SVG' });
+    expect(within(platform).getByText('Attend ta review')).toBeInTheDocument();
+    expect(window.location.search).toBe('?app=app-1&line=ui&task=i1');
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(window.location.search).toBe('?app=app-1&line=ui');
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(window.location.search).toBe('?app=app-1');
+  });
+
+  it('says so when the daemon cannot be reached', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    render(<App />);
     expect(await screen.findByText('Démon injoignable')).toBeInTheDocument();
   });
 });
