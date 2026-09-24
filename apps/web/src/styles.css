@@ -33,6 +33,7 @@ h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
 .btn:hover { border-color: var(--ink-3); }
 .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .btn.small { padding: 6px 10px; font-size: 13px; border-radius: 8px; }
+button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .top-bar { display: flex; align-items: center; gap: 14px; padding-block: 12px; border-bottom: 1px solid var(--rule); }
 .top-bar .spacer { flex: 1; }

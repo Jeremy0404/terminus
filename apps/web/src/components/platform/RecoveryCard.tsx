@@ -38,7 +38,7 @@ export function RecoveryCard({ taskId, failure, actions, checkpoints, phases }: 
       <pre className="diagnosis">{failure.message}</pre>
       <div className="options" role="radiogroup" aria-label={t('recovery.eyebrow')}>
         {options.map((option) => (
-          <button key={option.option} type="button" role="radio" aria-checked={choice === option.option} className="option" onClick={() => setChoice(option.option)}>
+          <button key={option.option} type="button" role="radio" aria-checked={choice === option.option} className="option" disabled={busy} onClick={() => setChoice(option.option)}>
             <b>
               {t(`recovery.option.${option.option}`)}
               {option.isDefault && <span className="tag good">{t('recovery.default')}</span>}
@@ -50,7 +50,7 @@ export function RecoveryCard({ taskId, failure, actions, checkpoints, phases }: 
       {choice === 'rewind' && checkpoints.length > 0 && (
         <label className="field">
           <span className="eyebrow">{t('recovery.rewindTo')}</span>
-          <select value={rewindTo ?? ''} onChange={(event) => setRewindTo(Number(event.target.value))}>
+          <select value={rewindTo ?? ''} onChange={(event) => setRewindTo(Number(event.target.value))} disabled={busy}>
             {checkpoints.map((checkpoint) => (
               <option key={checkpoint.sequence} value={checkpoint.sequence}>
                 {t('recovery.checkpoint', { sequence: checkpoint.sequence, phase: t(`phase.${phases[checkpoint.phaseIndex] ?? ''}`) })}

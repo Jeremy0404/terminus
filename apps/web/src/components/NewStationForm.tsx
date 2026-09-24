@@ -23,7 +23,7 @@ export function NewStationForm({ network, lineId, onDone }: { network: NetworkDt
     <form className="create-form" onSubmit={submit} aria-label={t('create.station.title')}>
       <label className="field">
         <span className="eyebrow">{t('create.station.name')}</span>
-        <input id="new-station-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder={t('create.station.placeholder')} required />
+        <input id="new-station-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder={t('create.station.placeholder')} required disabled={busy} />
       </label>
       {candidates.length > 0 && (
         <fieldset className="field">
@@ -35,6 +35,7 @@ export function NewStationForm({ network, lineId, onDone }: { network: NetworkDt
                 type="checkbox"
                 checked={dependsOn.includes(task.id)}
                 onChange={(event) => setDependsOn(event.target.checked ? [...dependsOn, task.id] : dependsOn.filter((id) => id !== task.id))}
+                disabled={busy}
               />
               {network.epics.find((epic) => epic.id === task.epicId)?.code} · {task.title}
             </label>
@@ -43,7 +44,7 @@ export function NewStationForm({ network, lineId, onDone }: { network: NetworkDt
       )}
       <div className="row">
         <button type="submit" className="btn primary" disabled={busy || !title.trim()}>{t('create.station.submit')}</button>
-        <button type="button" className="btn" onClick={onDone}>{t('create.cancel')}</button>
+        <button type="button" className="btn" onClick={onDone} disabled={busy}>{t('create.cancel')}</button>
       </div>
       {error && <p className="action-error" role="alert">{error}</p>}
     </form>

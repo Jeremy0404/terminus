@@ -38,6 +38,30 @@ describe('NewLineForm', () => {
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(calls).toEqual([{ path: '/api/apps/app-1/epics', body: { code: 'A', name: 'Adoption', status: 'planned' } }]);
   });
+
+  it('disables its fields and cancel button while the request is in flight', async () => {
+    let resolve!: (response: Response) => void;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Promise<Response>((r) => { resolve = r; })),
+    );
+    const onDone = vi.fn();
+    render(<NewLineForm network={NETWORK} onDone={onDone} />);
+    fireEvent.change(screen.getByLabelText('Nom de l’épique'), { target: { value: 'Adoption' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tracer la ligne' }));
+
+    await waitFor(() => expect(screen.getByLabelText('Nom de l’épique')).toBeDisabled());
+    expect(screen.getByLabelText('Code de ligne')).toBeDisabled();
+    expect(screen.getByLabelText('En projet (pas encore commencée)')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Annuler' })).toBeDisabled();
+
+    resolve(Response.json({}, { status: 201 }));
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(screen.getByLabelText('Nom de l’épique')).not.toBeDisabled();
+    expect(screen.getByLabelText('Code de ligne')).not.toBeDisabled();
+    expect(screen.getByLabelText('En projet (pas encore commencée)')).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Annuler' })).not.toBeDisabled();
+  });
 });
 
 describe('NewStationForm', () => {
@@ -51,6 +75,26 @@ describe('NewStationForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
 
     await waitFor(() => expect(calls).toEqual([{ path: '/api/epics/ui/tasks', body: { title: 'Notifications', dependsOn: ['m2'] } }]));
+  });
+
+  it('disables its fields and cancel button while the request is in flight', async () => {
+    let resolve!: (response: Response) => void;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Promise<Response>((r) => { resolve = r; })),
+    );
+    render(<NewStationForm network={NETWORK} lineId="ui" onDone={() => {}} />);
+    fireEvent.change(screen.getByLabelText('Tâche'), { target: { value: 'Notifications' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
+
+    await waitFor(() => expect(screen.getByLabelText('Tâche')).toBeDisabled());
+    expect(screen.getByLabelText('M · Adaptateur CLI')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Annuler' })).toBeDisabled();
+
+    resolve(Response.json({}, { status: 201 }));
+    await waitFor(() => expect(screen.getByLabelText('Tâche')).not.toBeDisabled());
+    expect(screen.getByLabelText('M · Adaptateur CLI')).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Annuler' })).not.toBeDisabled();
   });
 });
 

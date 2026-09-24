@@ -18,7 +18,7 @@ export function DecisionCard({ decision, position, total }: { decision: Decision
       <h3>{decision.question}</h3>
       <div className="options" role="radiogroup" aria-label={decision.question}>
         {decision.options.map((option, index) => (
-          <button key={option.label} type="button" role="radio" aria-checked={choice === index && !other.trim()} className="option"
+          <button key={option.label} type="button" role="radio" aria-checked={choice === index && !other.trim()} className="option" disabled={busy}
             onClick={() => {
               setChoice(index);
               setOther('');
@@ -32,7 +32,7 @@ export function DecisionCard({ decision, position, total }: { decision: Decision
         ))}
       </div>
       <label className="eyebrow" htmlFor={`other-${decision.id}`}>{t('decision.other')}</label>
-      <input id={`other-${decision.id}`} className="free-answer" value={other} onChange={(event) => setOther(event.target.value)} placeholder={t('decision.otherPlaceholder')} />
+      <input id={`other-${decision.id}`} className="free-answer" value={other} onChange={(event) => setOther(event.target.value)} placeholder={t('decision.otherPlaceholder')} disabled={busy} />
       <div className="row">
         <button type="button" className="btn primary" disabled={busy || answer === null} onClick={() => answer && void run(() => api.answer(decision.id, answer))}>
           {t('decision.submit')}

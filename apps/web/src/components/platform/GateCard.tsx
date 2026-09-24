@@ -69,7 +69,7 @@ export function GateCard({ task, gate, runs }: Props) {
         <button type="button" className="btn primary" disabled={busy} onClick={() => void run(() => api.act(task.id, 'approve'))}>{t('gate.approve')}</button>
         {earlier.length > 0 && (
           <>
-            <select aria-label={t('gate.sendBackTo')} value={target} onChange={(event) => setTarget(event.target.value)}>
+            <select aria-label={t('gate.sendBackTo')} value={target} onChange={(event) => setTarget(event.target.value)} disabled={busy}>
               {earlier.map((phase) => <option key={phase} value={phase}>{t(`phase.${phase}`)}</option>)}
             </select>
             <button type="button" className="btn" disabled={busy || !target} onClick={() => void run(() => api.sendBack(task.id, target))}>{t('gate.sendBack')}</button>
