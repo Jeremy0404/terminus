@@ -14,7 +14,7 @@ import {
 } from '../domain/task.js';
 import type { AppRepository, DecisionRepository, EpicRepository, RunRepository, TaskRepository } from './ports/repositories.js';
 import type { Clock, RunEventBus } from './ports/system.js';
-import type { CodeHost, PullRequest } from './ports/code-host.js';
+import type { ChecksState, CodeHost, PullRequest } from './ports/code-host.js';
 import type { Workspace } from './ports/workspace.js';
 
 export interface TaskActionsDeps {
@@ -88,6 +88,13 @@ export class TaskActions {
     const merged = this.save(approveGate(task));
     this.deps.workspace.remove(app.repoPath, this.workspaceOf(task));
     return merged;
+  }
+
+  checks(taskId: string): ChecksState {
+    const task = this.load(taskId);
+    const pullRequest = this.pullRequestOf(task);
+    const app = this.appOf(task);
+    return this.deps.codeHost.checks(app.repoPath, pullRequest.number);
   }
 
   sendBack(taskId: string, toPhaseId: string): Task {

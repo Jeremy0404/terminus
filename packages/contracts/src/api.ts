@@ -151,6 +151,12 @@ export interface TakeOverDto {
   readonly command: string;
 }
 
+export type ChecksStateDto = 'none' | 'pending' | 'success' | 'failure';
+
+export interface ChecksResponseDto {
+  readonly state: ChecksStateDto;
+}
+
 export type ServerEventDto =
   | { readonly type: 'task-changed'; readonly task: TaskSummaryDto }
   | { readonly type: 'run-event'; readonly runId: string; readonly taskId: string; readonly event: unknown }

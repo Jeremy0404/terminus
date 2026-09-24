@@ -140,10 +140,20 @@ describe('HTTP API', () => {
     expect(detail.task.status).toEqual({ kind: 'awaiting-gate', gate: 'merge' });
     expect(detail.actions).toEqual([{ kind: 'merge' }]);
 
+    expect((await call<{ state: string }>('GET', `/api/tasks/${taskId}/checks`)).json).toEqual({ state: 'success' });
+    codeHost.checksState = 'pending';
+    expect((await call<{ state: string }>('GET', `/api/tasks/${taskId}/checks`)).json).toEqual({ state: 'pending' });
+    codeHost.checksState = 'success';
+
     const merged = await call<TaskSummaryDto>('POST', `/api/tasks/${taskId}/merge`);
     expect(merged.json.status).toEqual({ kind: 'done' });
     expect(codeHost.merged).toEqual([42]);
     expect(detail.checkpoints.map((checkpoint) => checkpoint.phaseIndex)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+  });
+
+  it('refuses to read checks before a pull request is published', async () => {
+    const { taskId } = await givenTask();
+    expect((await call('GET', `/api/tasks/${taskId}/checks`)).status).toBe(409);
   });
 
   it('serves a run transcript', async () => {

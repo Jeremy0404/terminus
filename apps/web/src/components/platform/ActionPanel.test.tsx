@@ -125,18 +125,69 @@ describe('ActionPanel', () => {
     expect(await screen.findByText('cd /wt/t2 && claude --resume abc')).toBeInTheDocument();
   });
 
+  const atMerge = (): TaskDetailDto => ({
+    ...detailOf(task('t3', 'ui', 'Zoom', { kind: 'awaiting-gate', gate: 'merge' }, { phaseIndex: 6 })),
+    runs: [{ id: 'r', phaseIndex: 6, status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null, output: { pullRequest: { number: 42, url: 'https://github.com/o/r/pull/42' } } }],
+  });
+
   it('shows why a merge is refused', async () => {
-    reply = () => Response.json({ error: 'CI on pull request #42 is pending' }, { status: 409 });
-    const atMerge: TaskDetailDto = {
-      ...detailOf(task('t3', 'ui', 'Zoom', { kind: 'awaiting-gate', gate: 'merge' }, { phaseIndex: 6 })),
-      runs: [{ id: 'r', phaseIndex: 6, status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null, output: { pullRequest: { number: 42, url: 'https://github.com/o/r/pull/42' } } }],
-    };
-    render(<ActionPanel detail={atMerge} live={[]} />);
+    reply = (path) => (path.endsWith('/checks') ? Response.json({ state: 'success' }) : Response.json({ error: 'CI on pull request #42 is pending' }, { status: 409 }));
+    render(<ActionPanel detail={atMerge()} live={[]} />);
 
     expect(screen.getByRole('link', { name: 'Pull request #42' })).toHaveAttribute('href', 'https://github.com/o/r/pull/42');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Merger' })).not.toBeDisabled());
     fireEvent.click(screen.getByRole('button', { name: 'Merger' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('CI on pull request #42 is pending');
+  });
+
+  it('disables Merger and shows a pending badge while CI is running', async () => {
+    reply = () => Response.json({ state: 'pending' });
+    render(<ActionPanel detail={atMerge()} live={[]} />);
+
+    expect(await screen.findByText('CI en cours')).toBeInTheDocument();
+    expect(screen.getByText('CI en cours').className).toBe('tag');
+    expect(screen.getByRole('button', { name: 'Merger' })).toBeDisabled();
+  });
+
+  it('enables Merger and shows a passing badge once CI is green', async () => {
+    reply = () => Response.json({ state: 'success' });
+    render(<ActionPanel detail={atMerge()} live={[]} />);
+
+    expect(await screen.findByText('CI au vert')).toBeInTheDocument();
+    expect(screen.getByText('CI au vert').className).toBe('tag good');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Merger' })).not.toBeDisabled());
+  });
+
+  it('enables Merger and shows a neutral badge distinct from success when there is no CI', async () => {
+    reply = () => Response.json({ state: 'none' });
+    render(<ActionPanel detail={atMerge()} live={[]} />);
+
+    expect(await screen.findByText('Pas de CI configurée')).toBeInTheDocument();
+    const badgeClass = screen.getByText('Pas de CI configurée').className;
+    expect(badgeClass).toBe('tag muted');
+    expect(badgeClass).not.toBe('tag good');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Merger' })).not.toBeDisabled());
+  });
+
+  it('disables Merger and shows a failing badge when CI is red', async () => {
+    reply = () => Response.json({ state: 'failure' });
+    render(<ActionPanel detail={atMerge()} live={[]} />);
+
+    expect(await screen.findByText('CI en échec')).toBeInTheDocument();
+    expect(screen.getByText('CI en échec').className).toBe('tag bad');
+    expect(screen.getByRole('button', { name: 'Merger' })).toBeDisabled();
+  });
+
+  it('disables Merger and shows an error state distinct from failing when the checks fetch fails', async () => {
+    reply = () => Response.json({ error: 'gh: command not found' }, { status: 500 });
+    render(<ActionPanel detail={atMerge()} live={[]} />);
+
+    expect(await screen.findByText('État CI indisponible')).toBeInTheDocument();
+    const badgeClass = screen.getByText('État CI indisponible').className;
+    expect(badgeClass).toBe('tag warn');
+    expect(badgeClass).not.toBe('tag bad');
+    expect(screen.getByRole('button', { name: 'Merger' })).toBeDisabled();
   });
 
   it('shows the reviewer verdict and can send the task back to execution', async () => {
