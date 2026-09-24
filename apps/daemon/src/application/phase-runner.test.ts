@@ -13,11 +13,34 @@ import { DEFAULT_FAILURE_POLICY } from '../domain/failure.js';
 import { createTask, type Task, type TaskStatus } from '../domain/task.js';
 import { TASK_LIFECYCLE } from '../domain/test-fixtures.js';
 import type { AgentEvent } from './ports/agent-runner.js';
+import type { CheckResult, CheckRunner } from './ports/check-runner.js';
 import { PhaseRunner } from './phase-runner.js';
+
+class StubCheckRunner implements CheckRunner {
+  readonly calls: { cwd: string; names: string[] }[] = [];
+  outcomes: Record<string, boolean>[] = [];
+
+  run(cwd: string, commands: readonly { name: string; command: string }[]): Promise<CheckResult[]> {
+    this.calls.push({ cwd, names: commands.map((command) => command.name) });
+    const outcome = this.outcomes.shift() ?? {};
+    return Promise.resolve(
+      commands.map(({ name, command }) => {
+        const ok = outcome[name] ?? true;
+        return { name, command, ok, exitCode: ok ? 0 : 1, outputTail: ok ? '' : `${name} exploded`, durationMs: 5 };
+      }),
+    );
+  }
+}
 
 const GRILL_LIFECYCLE = {
   ...TASK_LIFECYCLE,
-  phases: TASK_LIFECYCLE.phases.map((phase) => (phase.id === 'grill' ? { ...phase, skill: 'grill', output: 'decisions' as const } : phase)),
+  phases: TASK_LIFECYCLE.phases.map((phase) => {
+    if (phase.id === 'grill') return { ...phase, skill: 'grill', output: 'decisions' as const };
+    if (phase.id === 'verify') return { ...phase, executor: 'checks' as const, retryFrom: 'execute' };
+    if (phase.id === 'review') return { ...phase, skill: 'review', output: 'review' as const };
+    if (phase.id === 'merge') return { ...phase, executor: 'code-host' as const };
+    return phase;
+  }),
 };
 
 const usage = (inputTokens: number, outputTokens: number): AgentEvent => ({ type: 'usage', inputTokens, outputTokens });
@@ -33,6 +56,7 @@ let decisions: InMemoryDecisionRepository;
 let transcripts: InMemoryTranscriptStore;
 let workspace: FakeWorkspace;
 let bus: RecordingBus;
+let checks: StubCheckRunner;
 
 beforeEach(() => {
   apps = new InMemoryAppRepository();
@@ -43,7 +67,8 @@ beforeEach(() => {
   transcripts = new InMemoryTranscriptStore();
   workspace = new FakeWorkspace();
   bus = new RecordingBus();
-  apps.save({ id: 'app', name: 'app', repoPath: '/repo', createdAt: '2026-09-24T09:00:00Z' });
+  checks = new StubCheckRunner();
+  apps.save({ id: 'app', name: 'app', repoPath: '/repo', verification: [{ name: 'test', command: 'pnpm test' }, { name: 'build', command: 'pnpm build' }], createdAt: '2026-09-24T09:00:00Z' });
   epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'Interface', status: 'active', position: 1 });
 });
 
@@ -59,7 +84,7 @@ function runner(agent: ScriptedAgentRunner, budget = { maxTokens: 400_000, maxTu
     clock: new FixedClock(),
     ids: new SequentialIds(),
     failurePolicy: DEFAULT_FAILURE_POLICY,
-    loopThreshold: 3,
+    checks,
     baseRef: 'main',
     systemPromptAppend: 'context pack',
   });
@@ -127,7 +152,7 @@ describe('PhaseRunner', () => {
   });
 
   it('interrupts a looping run, then blocks after the automatic retry loops again', async () => {
-    givenTask(4);
+    givenTask(3);
     const looping = script(toolFailure('zoom.spec.ts'), toolFailure('zoom.spec.ts'), toolFailure('zoom.spec.ts'), success());
     const agent = new ScriptedAgentRunner(looping, looping);
     const phases = runner(agent);
@@ -170,7 +195,7 @@ describe('PhaseRunner', () => {
 
   it('resumes the previous session of the same phase when asked to', async () => {
     givenTask(3, { kind: 'ready', mode: 'resume' });
-    runs.save({ id: 'old', taskId: 't1', phaseIndex: 3, sessionId: 'session-before', status: 'interrupted', startedAt: '2026-09-24T09:00:00Z', endedAt: '2026-09-24T09:10:00Z', usage: null });
+    runs.save({ id: 'old', taskId: 't1', phaseIndex: 3, sessionId: 'session-before', status: 'interrupted', startedAt: '2026-09-24T09:00:00Z', endedAt: '2026-09-24T09:10:00Z', usage: null, output: null });
     const agent = new ScriptedAgentRunner(script(success()));
 
     await runner(agent).run('t1');
@@ -201,5 +226,66 @@ describe('PhaseRunner', () => {
   it('refuses to run a task that is not ready', async () => {
     givenTask(3, { kind: 'todo' });
     await expect(runner(new ScriptedAgentRunner()).run('t1')).rejects.toThrow(/expected ready/);
+  });
+
+  it('passes verification when every check is green, with a checkpoint and no agent', async () => {
+    givenTask(4);
+    const agent = new ScriptedAgentRunner();
+
+    const task = await runner(agent).run('t1');
+
+    expect(agent.requests).toEqual([]);
+    expect(checks.calls).toEqual([{ cwd: '/worktrees/app/t1', names: ['test', 'build'] }]);
+    expect(task.phaseIndex).toBe(5);
+    expect(task.checkpoints.at(-1)).toMatchObject({ phaseIndex: 4, sessionId: null });
+    expect(runs.listByTask('t1')[0]).toMatchObject({ status: 'succeeded', sessionId: 'checks' });
+    expect(bus.updates.filter((update) => update.kind === 'check-result')).toHaveLength(2);
+  });
+
+  it('sends a red verification back to execution with the failing output', async () => {
+    givenTask(4);
+    checks.outcomes = [{ build: false }];
+
+    const task = await runner(new ScriptedAgentRunner()).run('t1');
+
+    expect(task.phaseIndex).toBe(3);
+    expect(task.status).toEqual({ kind: 'ready', mode: 'retry' });
+    expect(task.failuresInPhase[0]).toMatchObject({ kind: 'check-failed', signature: 'check:build' });
+    expect(task.failuresInPhase[0]?.message).toContain('build exploded');
+    expect(runs.listByTask('t1')[0]?.status).toBe('failed');
+    expect(workspace.checkpoints).toEqual([]);
+  });
+
+  it('blocks when the same check keeps failing across fix cycles', async () => {
+    givenTask(4);
+    checks.outcomes = [{ test: false }, { test: false }, { test: false }];
+    const agent = new ScriptedAgentRunner(script(success()), script(success()));
+    const phases = runner(agent);
+
+    await phases.run('t1');
+    await phases.run('t1');
+    await phases.run('t1');
+    await phases.run('t1');
+    const task = await phases.run('t1');
+
+    expect(task.status).toMatchObject({ kind: 'blocked', failure: { signature: 'check:test' } });
+    expect(task.checkFailures).toHaveLength(3);
+  });
+
+  it('asks the reviewer for a structured verdict and keeps it on the run', async () => {
+    givenTask(5);
+    const verdict = { verdict: 'changes-requested', summary: 'One gap', findings: [{ severity: 'major', file: 'zoom.ts', summary: 'No test for Esc' }] };
+    const agent = new ScriptedAgentRunner(script(success(verdict)));
+
+    const task = await runner(agent).run('t1');
+
+    expect(agent.requests[0]?.outputSchema).toMatchObject({ required: ['verdict', 'summary', 'findings'] });
+    expect(task.status).toEqual({ kind: 'awaiting-gate', gate: 'human-review' });
+    expect(runs.listByTask('t1')[0]?.output).toEqual(verdict);
+  });
+
+  it('refuses a phase whose executor is not available yet', async () => {
+    givenTask(6);
+    await expect(runner(new ScriptedAgentRunner()).run('t1')).rejects.toThrow(/code-host executor/);
   });
 });

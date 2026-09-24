@@ -33,7 +33,7 @@ beforeEach(() => {
   decisions = new InMemoryDecisionRepository();
   runs = new InMemoryRunRepository();
   workspace = new RewindRecordingWorkspace();
-  apps.save({ id: 'app', name: 'app', repoPath: '/repo', createdAt: '2026-09-24T09:00:00Z' });
+  apps.save({ id: 'app', name: 'app', repoPath: '/repo', verification: [], createdAt: '2026-09-24T09:00:00Z' });
   epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'Interface', status: 'active', position: 1 });
   actions = new TaskActions({ apps, epics, tasks, runs, decisions, workspace, clock: new FixedClock(), bus: new RecordingBus(), baseRef: 'main' });
 });
@@ -113,7 +113,7 @@ describe('TaskActions', () => {
 
   it('hands over with the command to resume the last session in a terminal', () => {
     givenTask('t1', { kind: 'blocked', failure: failure() });
-    runs.save({ id: 'r1', taskId: 't1', phaseIndex: 0, sessionId: 'abc-123', status: 'failed', startedAt: 'x', endedAt: 'y', usage: null });
+    runs.save({ id: 'r1', taskId: 't1', phaseIndex: 0, sessionId: 'abc-123', status: 'failed', startedAt: 'x', endedAt: 'y', usage: null, output: null });
 
     const { task, command } = actions.takeOver('t1');
 

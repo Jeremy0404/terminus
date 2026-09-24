@@ -11,6 +11,8 @@ import {
   openTask,
   recover,
   requestDecision,
+  passChecks,
+  rejectByChecks,
   resumeFromManual,
   sendBack,
   startRun,
@@ -153,5 +155,35 @@ describe('failures and recovery', () => {
     const manual = recover(blocked(), 'take-over');
     expect(manual.status).toEqual({ kind: 'manual' });
     expect(resumeFromManual(manual).status).toEqual({ kind: 'ready', mode: 'fresh' });
+  });
+});
+
+describe('verification cycles', () => {
+  const verifying = (extra: Partial<Task> = {}): Task => ({ ...newTask(), phaseIndex: 4, status: { kind: 'running', runId: 'r' }, ...extra });
+
+  it('sends a red verification back to the fix phase with the failure as diagnosis', () => {
+    const task = rejectByChecks(verifying(), failure('check-failed', 'check:test'), 'execute', DEFAULT_FAILURE_POLICY);
+    expect(currentPhaseId(task)).toBe('execute');
+    expect(task.status).toEqual({ kind: 'ready', mode: 'retry' });
+    expect(task.failuresInPhase).toEqual([failure('check-failed', 'check:test')]);
+    expect(task.checkFailures).toHaveLength(1);
+  });
+
+  it('blocks when the same check fails cycle after cycle', () => {
+    const seen = [failure('check-failed', 'check:test'), failure('check-failed', 'check:test')];
+    const task = rejectByChecks(verifying({ checkFailures: seen }), failure('check-failed', 'check:test'), 'execute', DEFAULT_FAILURE_POLICY);
+    expect(task.status.kind).toBe('blocked');
+  });
+
+  it('blocks after too many cycles even when the failing check changes', () => {
+    const seen = ['a', 'b', 'c'].map((name) => failure('check-failed', `check:${name}`));
+    const task = rejectByChecks(verifying({ checkFailures: seen }), failure('check-failed', 'check:d'), 'execute', DEFAULT_FAILURE_POLICY);
+    expect(task.status.kind).toBe('blocked');
+  });
+
+  it('forgets past cycles once verification passes', () => {
+    const task = passChecks(verifying({ checkFailures: [failure()] }), checkpoint(1, 4));
+    expect(task.checkFailures).toEqual([]);
+    expect(currentPhaseId(task)).toBe('review');
   });
 });

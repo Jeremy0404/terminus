@@ -18,7 +18,8 @@ export class SqliteAppRepository implements AppRepository {
   constructor(private readonly db: TerminusDatabase) {}
 
   save(app: App): void {
-    this.db.insert(apps).values(app).onConflictDoUpdate({ target: apps.id, set: app }).run();
+    const row = { ...app, verification: [...app.verification] };
+    this.db.insert(apps).values(row).onConflictDoUpdate({ target: apps.id, set: row }).run();
   }
 
   get(id: string): App | null {
@@ -60,6 +61,7 @@ export class SqliteTaskRepository implements TaskRepository {
       phaseIndex: task.phaseIndex,
       status: task.status,
       failuresInPhase: [...task.failuresInPhase],
+      checkFailures: [...task.checkFailures],
     };
     this.db.transaction((tx) => {
       tx.insert(playbookVersions)
@@ -125,6 +127,7 @@ export class SqliteTaskRepository implements TaskRepository {
       phaseIndex: row.phaseIndex,
       status: row.status,
       failuresInPhase: row.failuresInPhase,
+      checkFailures: row.checkFailures,
       checkpoints: taskCheckpoints,
     };
   }
@@ -144,6 +147,7 @@ export class SqliteRunRepository implements RunRepository {
       endedAt: run.endedAt,
       inputTokens: run.usage?.inputTokens ?? null,
       outputTokens: run.usage?.outputTokens ?? null,
+      output: run.output ?? null,
     };
     this.db.insert(runs).values(row).onConflictDoUpdate({ target: runs.id, set: row }).run();
   }
@@ -159,8 +163,8 @@ export class SqliteRunRepository implements RunRepository {
 }
 
 function toRun(row: typeof runs.$inferSelect): Run {
-  const { inputTokens, outputTokens, ...rest } = row;
-  return { ...rest, usage: inputTokens === null || outputTokens === null ? null : { inputTokens, outputTokens } };
+  const { inputTokens, outputTokens, output, ...rest } = row;
+  return { ...rest, output: output ?? null, usage: inputTokens === null || outputTokens === null ? null : { inputTokens, outputTokens } };
 }
 
 export class SqliteDecisionRepository implements DecisionRepository {
