@@ -3,10 +3,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { AdoptionWizard } from './AdoptionWizard';
 
 let posted: { path: string; body: unknown }[];
+let responses: Record<string, unknown>;
 
 beforeEach(() => {
   posted = [];
-  const responses: Record<string, unknown> = {
+  responses = {
     '/api/adoption/scan': {
       repoPath: '/dev/tiny-prm', name: 'tiny-prm', isGitRepo: true, hasOrigin: true, defaultBranch: 'main', packageManager: 'pnpm',
       ciWorkflows: ['ci.yml'], agentDocs: ['CLAUDE.md'],
@@ -72,5 +73,66 @@ describe('AdoptionWizard', () => {
   it('cannot leave the scan station before a scan succeeded', () => {
     render(<AdoptionWizard onCancel={() => {}} onAdopted={() => {}} />);
     expect(screen.getByRole('button', { name: 'Valider cette station' })).toBeDisabled();
+  });
+
+  const reachHealthStation = async (): Promise<void> => {
+    fireEvent.change(screen.getByLabelText('Chemin du repo'), { target: { value: '/dev/tiny-prm' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Scanner' }));
+    await screen.findByText('CLAUDE.md');
+    fireEvent.click(screen.getByRole('button', { name: 'Valider cette station' }));
+    await screen.findByText('1 failing');
+  };
+
+  it('shows a loading status while proposals are pending, then the import UI once they resolve', async () => {
+    render(<AdoptionWizard onCancel={() => {}} onAdopted={() => {}} />);
+    await reachHealthStation();
+
+    let resolveProposals: (response: Response) => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input);
+        posted.push({ path, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+        if (path === '/api/adoption/proposals') {
+          return new Promise<Response>((resolve) => {
+            resolveProposals = resolve;
+          });
+        }
+        return Response.json(responses[path], { status: 200 });
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Valider cette station' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Recherche des issues et des TODO…');
+    expect(screen.queryByText(/Issues GitHub ouvertes/)).not.toBeInTheDocument();
+
+    resolveProposals(Response.json(responses['/api/adoption/proposals'], { status: 200 }));
+
+    expect(await screen.findByText(/Issues GitHub ouvertes/)).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('shows an empty-state message when there is nothing to import, but keeps the line fields usable', async () => {
+    responses['/api/adoption/proposals'] = { issues: [], todos: [], warnings: [] };
+    render(<AdoptionWizard onCancel={() => {}} onAdopted={() => {}} />);
+    await reachHealthStation();
+    fireEvent.click(screen.getByRole('button', { name: 'Valider cette station' }));
+
+    expect(await screen.findByText('Aucune issue ni TODO à importer : vous pouvez valider pour continuer sans tâche.')).toBeInTheDocument();
+    expect(screen.queryByText(/Issues GitHub ouvertes/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/TODO du code/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Ligne qui les accueille')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Valider cette station' })).not.toBeDisabled();
+  });
+
+  it('explains what checking an issue or TODO does, before the checkbox lists', async () => {
+    render(<AdoptionWizard onCancel={() => {}} onAdopted={() => {}} />);
+    await reachHealthStation();
+    fireEvent.click(screen.getByRole('button', { name: 'Valider cette station' }));
+
+    const intro = await screen.findByText('Cocher une issue ou un TODO l’importe comme tâche ; les autres ne sont pas modifiés.');
+    const issuesLegend = await screen.findByText('Issues GitHub ouvertes (2)');
+    expect(intro.compareDocumentPosition(issuesLegend) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

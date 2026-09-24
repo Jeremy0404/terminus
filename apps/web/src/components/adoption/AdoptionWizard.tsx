@@ -117,41 +117,53 @@ export function AdoptionWizard({ onCancel, onAdopted }: Props) {
         </div>
       )}
 
-      {station === 'import' && proposals && (
+      {station === 'import' && (
         <div className="create-form">
-          {proposals.warnings.map((warning) => <p key={warning} className="action-error">{warning}</p>)}
-          <fieldset className="field">
-            <legend className="eyebrow">{t('adopt.import.issues', { count: proposals.issues.length })}</legend>
-            {proposals.issues.map((issue) => (
-              <label key={issue.number} className="check">
-                <input id={`issue-${issue.number}`} type="checkbox" checked={pickedIssues.includes(issue.number)}
-                  onChange={(event) => setPickedIssues(event.target.checked ? [...pickedIssues, issue.number] : pickedIssues.filter((n) => n !== issue.number))} />
-                #{issue.number} · {issue.title}
-              </label>
-            ))}
-          </fieldset>
-          {proposals.todos.length > 0 && (
-            <fieldset className="field">
-              <legend className="eyebrow">{t('adopt.import.todos', { count: proposals.todos.length })}</legend>
-              {proposals.todos.map((todo, todoIndex) => (
-                <label key={`${todo.file}:${todo.line}`} className="check">
-                  <input id={`todo-${todoIndex}`} type="checkbox" checked={pickedTodos.includes(todoIndex)}
-                    onChange={(event) => setPickedTodos(event.target.checked ? [...pickedTodos, todoIndex] : pickedTodos.filter((n) => n !== todoIndex))} />
-                  <code>{todo.file}:{todo.line}</code> {todo.text}
+          {busy && !proposals && <p role="status">{t('adopt.import.loading')}</p>}
+          {proposals && (
+            <>
+              {proposals.warnings.map((warning) => <p key={warning} className="action-error">{warning}</p>)}
+              {proposals.issues.length === 0 && proposals.todos.length === 0 ? (
+                <p className="muted">{t('adopt.import.empty')}</p>
+              ) : (
+                <>
+                  <p className="muted">{t('adopt.import.intro')}</p>
+                  <fieldset className="field">
+                    <legend className="eyebrow">{t('adopt.import.issues', { count: proposals.issues.length })}</legend>
+                    {proposals.issues.map((issue) => (
+                      <label key={issue.number} className="check">
+                        <input id={`issue-${issue.number}`} type="checkbox" checked={pickedIssues.includes(issue.number)}
+                          onChange={(event) => setPickedIssues(event.target.checked ? [...pickedIssues, issue.number] : pickedIssues.filter((n) => n !== issue.number))} />
+                        #{issue.number} · {issue.title}
+                      </label>
+                    ))}
+                  </fieldset>
+                  {proposals.todos.length > 0 && (
+                    <fieldset className="field">
+                      <legend className="eyebrow">{t('adopt.import.todos', { count: proposals.todos.length })}</legend>
+                      {proposals.todos.map((todo, todoIndex) => (
+                        <label key={`${todo.file}:${todo.line}`} className="check">
+                          <input id={`todo-${todoIndex}`} type="checkbox" checked={pickedTodos.includes(todoIndex)}
+                            onChange={(event) => setPickedTodos(event.target.checked ? [...pickedTodos, todoIndex] : pickedTodos.filter((n) => n !== todoIndex))} />
+                          <code>{todo.file}:{todo.line}</code> {todo.text}
+                        </label>
+                      ))}
+                    </fieldset>
+                  )}
+                </>
+              )}
+              <div className="row">
+                <label className="field grow">
+                  <span className="eyebrow">{t('adopt.import.lineName')}</span>
+                  <input id="adopt-line-name" value={line.name} onChange={(event) => setLine({ ...line, name: event.target.value })} />
                 </label>
-              ))}
-            </fieldset>
+                <label className="field">
+                  <span className="eyebrow">{t('create.line.code')}</span>
+                  <input id="adopt-line-code" value={line.code} maxLength={3} size={3} onChange={(event) => setLine({ ...line, code: event.target.value.toUpperCase() })} />
+                </label>
+              </div>
+            </>
           )}
-          <div className="row">
-            <label className="field grow">
-              <span className="eyebrow">{t('adopt.import.lineName')}</span>
-              <input id="adopt-line-name" value={line.name} onChange={(event) => setLine({ ...line, name: event.target.value })} />
-            </label>
-            <label className="field">
-              <span className="eyebrow">{t('create.line.code')}</span>
-              <input id="adopt-line-code" value={line.code} maxLength={3} size={3} onChange={(event) => setLine({ ...line, code: event.target.value.toUpperCase() })} />
-            </label>
-          </div>
         </div>
       )}
 
