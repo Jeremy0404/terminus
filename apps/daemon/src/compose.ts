@@ -1,11 +1,14 @@
 import type { Hono } from 'hono';
 import { EmitterBus } from './adapters/events/emitter-bus.js';
 import { createHttpApp } from './adapters/http/app.js';
+import { Adoption } from './application/adoption.js';
 import { Catalog } from './application/catalog.js';
 import { PhaseRunner, type RunBudget } from './application/phase-runner.js';
 import type { AgentRunner } from './application/ports/agent-runner.js';
 import type { CheckRunner } from './application/ports/check-runner.js';
 import type { CodeHost } from './application/ports/code-host.js';
+import type { IssueTracker } from './application/ports/issue-tracker.js';
+import type { RepoScanner } from './application/ports/repo-scanner.js';
 import type { PlaybookRegistry } from './application/ports/playbook-registry.js';
 import type {
   AppRepository,
@@ -33,6 +36,8 @@ export interface Adapters {
   readonly agent: AgentRunner;
   readonly checks: CheckRunner;
   readonly codeHost: CodeHost;
+  readonly scanner: RepoScanner;
+  readonly issues: IssueTracker;
   readonly playbooks: PlaybookRegistry;
   readonly clock: Clock;
   readonly ids: IdGenerator;
@@ -66,10 +71,12 @@ export function compose(adapters: Adapters, settings: Settings): Services {
     console.error(`run of ${taskId} crashed`, error);
   });
   const actions = new TaskActions({ ...adapters, bus, baseRef: settings.baseRef });
+  const catalog = new Catalog({ ...adapters, bus });
   const http = createHttpApp({
     version: settings.version,
     queries: new Queries(adapters),
-    catalog: new Catalog({ ...adapters, bus }),
+    catalog,
+    adoption: new Adoption(adapters.scanner, adapters.checks, adapters.issues, catalog, adapters.apps),
     actions,
     runs: phases,
     scheduler,

@@ -44,6 +44,8 @@ function start(...scripts: AgentScript[]): void {
       agent: new ScriptedAgentRunner(...scripts),
       checks: greenChecks,
       codeHost,
+      scanner: { scan: (repoPath) => ({ repoPath, name: 'demo', isGitRepo: true, hasOrigin: false, defaultBranch: 'main', packageManager: 'pnpm', ciWorkflows: [], agentDocs: [], suggestedVerification: [{ name: 'test', command: 'pnpm run test' }], todos: [] }) },
+      issues: { listOpen: () => [], close: () => {} },
       playbooks: new FsPlaybookRegistry(PLAYBOOKS),
       clock: new FixedClock(),
       ids: new SequentialIds(),
@@ -167,5 +169,25 @@ describe('HTTP API', () => {
 
     expect(response.headers.get('content-type')).toContain('text/event-stream');
     expect(received).toContain('"title":"Zoom to platform"');
+  });
+
+  it('adopts a repository through the adoption routes', async () => {
+    const scan = await call<{ suggestedVerification: unknown[] }>('POST', '/api/adoption/scan', { repoPath: '/elsewhere' });
+    expect(scan.json.suggestedVerification).toEqual([{ name: 'test', command: 'pnpm run test' }]);
+
+    const proposals = await call<{ warnings: string[] }>('POST', '/api/adoption/proposals', { repoPath: '/elsewhere' });
+    expect(proposals.json.warnings[0]).toMatch(/No origin remote/);
+
+    const health = await call<{ ok: boolean }[]>('POST', '/api/adoption/health', { repoPath: '/elsewhere', commands: [{ name: 'test', command: 'pnpm run test' }] });
+    expect(health.json).toEqual([expect.objectContaining({ name: 'test', ok: true })]);
+
+    const cutOver = await call<{ app: { id: string; name: string } }>('POST', '/api/adoption/cut-over', {
+      name: 'elsewhere', repoPath: '/elsewhere', verification: [], closeIssues: false,
+      lines: [{ code: 'A', name: 'Adopted', tasks: [{ title: 'First task', issueNumber: 3 }] }],
+    });
+    expect(cutOver.status).toBe(201);
+    const network = await call<NetworkDto>('GET', `/api/apps/${cutOver.json.app.id}/network`);
+    expect(network.json.tasks.map((task) => task.title)).toEqual(['First task']);
+    expect((await call('POST', '/api/adoption/scan', { repoPath: '/elsewhere' })).status).toBe(409);
   });
 });
