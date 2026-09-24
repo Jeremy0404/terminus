@@ -2,12 +2,17 @@ id: task
 phases:
   - id: spec
     skill: spec
+    skippable: true
   - id: grill
     skill: grill
     output: decisions
+    tracks: [standard]
+    skippable: true
   - id: plan
     skill: plan
     gate: plan-approval
+    tracks: [standard]
+    skippable: true
   - id: execute
     skill: execute-tdd
   - id: verify
@@ -17,6 +22,7 @@ phases:
     skill: review
     output: review
     gate: human-review
+    skippable: true
   - id: sync
     executor: sync
     skill: resolve-conflicts

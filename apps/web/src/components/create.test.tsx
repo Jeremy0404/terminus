@@ -74,7 +74,7 @@ describe('NewStationForm', () => {
     fireEvent.click(screen.getByLabelText('M · Adaptateur CLI'));
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
 
-    await waitFor(() => expect(calls).toEqual([{ path: '/api/epics/ui/tasks', body: { title: 'Notifications', dependsOn: ['m2'] } }]));
+    await waitFor(() => expect(calls).toEqual([{ path: '/api/epics/ui/tasks', body: { title: 'Notifications', dependsOn: ['m2'], track: 'standard' } }]));
   });
 
   it('disables its fields and cancel button while the request is in flight', async () => {

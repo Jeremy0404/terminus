@@ -4,6 +4,7 @@ import type { Network, TaskDetail } from '../../application/queries.js';
 import type { App } from '../../domain/app.js';
 import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
+import { appliesTo } from '../../domain/lifecycle.js';
 import type { InboxItem } from '../../domain/inbox.js';
 import type { Run } from '../../domain/run.js';
 import type { Task } from '../../domain/task.js';
@@ -17,7 +18,10 @@ export const toTaskSummaryDto = (task: Task): TaskSummaryDto => ({
   epicId: task.epicId,
   title: task.title,
   autonomy: task.autonomy,
+  track: task.track,
   phases: task.lifecycle.phases.map((phase) => phase.id),
+  phasesInTrack: task.lifecycle.phases.filter((phase) => appliesTo(phase, task.track)).map((phase) => phase.id),
+  skippablePhases: task.lifecycle.phases.filter((phase) => phase.skippable).map((phase) => phase.id),
   phaseIndex: task.phaseIndex,
   status: task.status,
   dependsOn: task.dependsOn,
@@ -27,7 +31,7 @@ const toInboxItemDto = (item: InboxItem): InboxItemDto => item;
 
 const toRunDto = ({ id, phaseIndex, status, startedAt, endedAt, usage, output }: Run): RunDto => ({ id, phaseIndex, status, startedAt, endedAt, usage, output });
 
-const toDecisionDto = ({ id, phaseIndex, question, options, answer }: Decision): DecisionDto => ({ id, phaseIndex, question, options, answer });
+const toDecisionDto = ({ id, kind, phaseIndex, question, options, answer }: Decision): DecisionDto => ({ id, kind, phaseIndex, question, options, answer });
 
 export const toNetworkDto = (network: Network): NetworkDto => ({
   app: toAppDto(network.app),

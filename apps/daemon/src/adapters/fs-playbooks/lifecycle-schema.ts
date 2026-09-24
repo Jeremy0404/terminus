@@ -10,6 +10,8 @@ const PhaseSchema = z.strictObject({
   output: z.enum(['decisions', 'review']).optional(),
   executor: z.enum(['agent', 'checks', 'sync', 'code-host']).optional(),
   retryFrom: z.string().regex(PHASE_ID).optional(),
+  tracks: z.array(z.enum(['standard', 'light'])).min(1).optional(),
+  skippable: z.boolean().optional(),
 });
 
 export const LifecycleFileSchema = z

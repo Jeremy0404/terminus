@@ -101,6 +101,7 @@ export class PhaseRunner {
       if (proposed.length > 0) {
         const saved = proposed.map((decision): Decision => ({
           id: ids.next('decision'),
+          kind: 'question',
           taskId,
           phaseIndex: task.phaseIndex,
           question: decision.question,

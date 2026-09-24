@@ -45,7 +45,7 @@ const pullRequestOf = (runs: readonly RunDto[]): { number: number; url: string }
 export function GateCard({ task, gate, runs }: Props) {
   const { t } = useTranslation();
   const { busy, error, run } = useAction();
-  const earlier = task.phases.slice(0, task.phaseIndex);
+  const earlier = task.phases.slice(0, task.phaseIndex).filter((phase) => task.phasesInTrack.includes(phase));
   const [target, setTarget] = useState(earlier.includes('execute') ? 'execute' : (earlier.at(-1) ?? ''));
   const [checks, setChecks] = useState<ChecksDisplayState>('loading');
   const review = [...runs].reverse().find((candidate) => isReview(candidate.output))?.output;

@@ -11,6 +11,7 @@ import type {
   TakeOverDto,
   TaskDetailDto,
   TaskSummaryDto,
+  TrackDto,
   VerificationCommandDto,
 } from '@terminus/contracts';
 
@@ -47,7 +48,9 @@ export const api = {
   transcript: (runId: string) => request<unknown[]>(`/runs/${runId}/transcript`),
   createApp: (body: { name: string; repoPath: string; verification: { name: string; command: string }[] }) => post<AppDto>('/apps', body),
   createEpic: (appId: string, body: { code: string; name: string; status?: 'planned' | 'active' }) => post<EpicDto>(`/apps/${appId}/epics`, body),
-  createTask: (epicId: string, body: { title: string; dependsOn?: string[] }) => post<TaskSummaryDto>(`/epics/${epicId}/tasks`, body),
+  createTask: (epicId: string, body: { title: string; dependsOn?: string[]; track?: TrackDto }) => post<TaskSummaryDto>(`/epics/${epicId}/tasks`, body),
+  skip: (taskId: string) => post<TaskSummaryDto>(`/tasks/${taskId}/skip`),
+  setTrack: (taskId: string, track: TrackDto) => post<TaskSummaryDto>(`/tasks/${taskId}/track`, { track }),
   act: (taskId: string, action: TaskAction) => post<TaskSummaryDto | null>(`/tasks/${taskId}/${action}`),
   sendBack: (taskId: string, toPhaseId: string) => post<TaskSummaryDto>(`/tasks/${taskId}/send-back`, { toPhaseId }),
   recover: (taskId: string, option: 'restart-from-checkpoint' | 'resume-session' | 'rewind', rewindTo?: number) =>

@@ -8,13 +8,14 @@ export function NewStationForm({ network, lineId, onDone }: { network: NetworkDt
   const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [dependsOn, setDependsOn] = useState<string[]>([]);
+  const [light, setLight] = useState(false);
   const { busy, error, run } = useAction();
   const candidates = network.tasks.filter((task) => task.epicId !== lineId && task.status.kind !== 'done');
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
     void run(async () => {
-      await api.createTask(lineId, { title: title.trim(), dependsOn });
+      await api.createTask(lineId, { title: title.trim(), dependsOn, track: light ? 'light' : 'standard' });
       onDone();
     });
   };
@@ -42,6 +43,10 @@ export function NewStationForm({ network, lineId, onDone }: { network: NetworkDt
           ))}
         </fieldset>
       )}
+      <label className="check">
+        <input id="new-station-light" type="checkbox" checked={light} onChange={(event) => setLight(event.target.checked)} />
+        {t('track.lightHint')}
+      </label>
       <div className="row">
         <button type="submit" className="btn primary" disabled={busy || !title.trim()}>{t('create.station.submit')}</button>
         <button type="button" className="btn" onClick={onDone} disabled={busy}>{t('create.cancel')}</button>

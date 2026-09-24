@@ -5,6 +5,9 @@ import {
   answerDecision,
   approveGate,
   closeTask,
+  setTrack,
+  skipPhase,
+  canSkipPhase,
   completePhase,
   createTask,
   currentPhaseId,
@@ -208,5 +211,51 @@ describe('closing without merge', () => {
     const abandoned = closeTask(newTask(), 'abandoned', '');
     expect(openTask(dependant, [doneElsewhere]).status).toEqual({ kind: 'ready', mode: 'fresh' });
     expect(() => openTask(dependant, [abandoned])).toThrow(/waits for t1/);
+  });
+});
+
+describe('tracks and skipped phases', () => {
+  const FLEXIBLE = {
+    ...TASK_LIFECYCLE,
+    phases: TASK_LIFECYCLE.phases.map((phase) =>
+      ['grill', 'plan'].includes(phase.id)
+        ? { ...phase, tracks: ['standard' as const], skippable: true }
+        : ['spec', 'review'].includes(phase.id)
+          ? { ...phase, skippable: true }
+          : phase,
+    ),
+  };
+  const flexible = (extra: Partial<Task> = {}): Task => ({ ...newTask({ lifecycle: FLEXIBLE }), ...extra });
+
+  it('walks the light track without grill and plan', () => {
+    let task = openTask(flexible({ track: 'light' }), []);
+    task = runPhase(task, 1);
+    expect(currentPhaseId(task)).toBe('execute');
+  });
+
+  it('switches track on the way, jumping over phases the new track drops', () => {
+    const atGrill = flexible({ phaseIndex: 1, status: { kind: 'ready', mode: 'fresh' } });
+    expect(currentPhaseId(setTrack(atGrill, 'light'))).toBe('execute');
+    const atExecute = flexible({ phaseIndex: 3, status: { kind: 'ready', mode: 'fresh' }, track: 'light' });
+    expect(currentPhaseId(setTrack(atExecute, 'standard'))).toBe('execute');
+    expect(setTrack(flexible(), 'light').status).toEqual({ kind: 'todo' });
+  });
+
+  it('refuses a track change while running or once finished', () => {
+    expect(() => setTrack(flexible({ status: { kind: 'running', runId: 'r' } }), 'light')).toThrow(DomainError);
+    expect(() => setTrack(flexible({ status: { kind: 'done' } }), 'light')).toThrow(DomainError);
+  });
+
+  it('skips only skippable phases, and not while running or before opening', () => {
+    expect(currentPhaseId(skipPhase(flexible({ phaseIndex: 5, status: { kind: 'awaiting-gate', gate: 'human-review' } })))).toBe('merge');
+    expect(() => skipPhase(flexible({ phaseIndex: 4, status: { kind: 'ready', mode: 'fresh' } }))).toThrow(/verify cannot be skipped/);
+    expect(() => skipPhase(flexible({ phaseIndex: 0, status: { kind: 'running', runId: 'r' } }))).toThrow(DomainError);
+    expect(canSkipPhase(flexible())).toBe(false);
+  });
+
+  it('never sends a light task back to a phase outside its track', () => {
+    const atReview = flexible({ track: 'light', phaseIndex: 5, status: { kind: 'awaiting-gate', gate: 'human-review' } });
+    expect(() => sendBack(atReview, 'plan')).toThrow(/not part of the light track/);
+    expect(currentPhaseId(sendBack(atReview, 'execute'))).toBe('execute');
   });
 });

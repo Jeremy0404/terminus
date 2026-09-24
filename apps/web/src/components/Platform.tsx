@@ -3,7 +3,7 @@ import type { NetworkDto } from '@terminus/contracts';
 import { lineColor } from '../network/line-colors';
 import { useTask } from '../state/resources';
 import { ActionPanel } from './platform/ActionPanel';
-import { CloseTask } from './platform/CloseTask';
+import { TaskDeviations } from './platform/TaskDeviations';
 import { RunHistory } from './platform/RunHistory';
 import { StatusPill } from './StatusPill';
 
@@ -30,10 +30,13 @@ export function Platform({ network, taskId, onClose }: Props) {
         </div>
         <button type="button" className="btn small" onClick={onClose} aria-label={t('platform.close')}>✕</button>
       </div>
-      <StatusPill status={task.status} />
+      <div className="row">
+        <StatusPill status={task.status} />
+        <span className="track-chip">{t(`track.${task.track}`)}</span>
+      </div>
       <ol className="phase-strip" style={{ gridTemplateColumns: `repeat(${task.phases.length}, 1fr)`, ['--n' as string]: task.phases.length }}>
         {task.phases.map((phase, index) => (
-          <li key={phase} className={index < reached ? 'passed' : index === reached && task.status.kind !== 'todo' ? 'current' : ''}>
+          <li key={phase} className={`${index < reached ? 'passed' : index === reached && task.status.kind !== 'todo' ? 'current' : ''} ${task.phasesInTrack.includes(phase) ? '' : 'off'}`}>
             <i />
             <span title={t(`phase.${phase}`)}>{t(`phaseShort.${phase}`)}</span>
           </li>
@@ -42,7 +45,7 @@ export function Platform({ network, taskId, onClose }: Props) {
       {data && data.task.id === taskId && (
         <>
           <ActionPanel detail={data} live={live} />
-          {!['running', 'done', 'closed'].includes(data.task.status.kind) && <CloseTask key={data.task.id} taskId={data.task.id} />}
+          <TaskDeviations detail={data} />
           <RunHistory runs={data.runs} checkpoints={data.checkpoints} phases={data.task.phases} />
         </>
       )}

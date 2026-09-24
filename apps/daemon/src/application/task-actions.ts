@@ -8,12 +8,15 @@ import {
   recover,
   resumeFromManual,
   sendBack,
+  setTrack,
+  skipPhase,
   type CloseReason,
   type RecoveryOption,
   type Task,
 } from '../domain/task.js';
 import type { AppRepository, DecisionRepository, EpicRepository, RunRepository, TaskRepository } from './ports/repositories.js';
-import type { Clock, RunEventBus } from './ports/system.js';
+import type { Clock, IdGenerator, RunEventBus } from './ports/system.js';
+import { phaseAt, type Track } from '../domain/lifecycle.js';
 import type { ChecksState, CodeHost, PullRequest } from './ports/code-host.js';
 import type { Workspace } from './ports/workspace.js';
 
@@ -26,6 +29,7 @@ export interface TaskActionsDeps {
   readonly workspace: Workspace;
   readonly codeHost: CodeHost;
   readonly clock: Clock;
+  readonly ids: IdGenerator;
   readonly bus: RunEventBus;
   readonly baseRef: string;
 }
@@ -142,8 +146,38 @@ export class TaskActions {
     return { task: closed, warnings };
   }
 
+  changeTrack(taskId: string, track: Track): Task {
+    const task = this.load(taskId);
+    if (task.track === track) return task;
+    const changed = this.save(setTrack(task, track));
+    this.recordDeviation(changed, `Track changed from ${task.track} to ${track}`);
+    return changed;
+  }
+
+  skip(taskId: string): Task {
+    const task = this.load(taskId);
+    const skipped = this.save(skipPhase(task));
+    this.recordDeviation(skipped, `Phase ${phaseAt(task.lifecycle, task.phaseIndex).id} skipped`);
+    return skipped;
+  }
+
   resumeFromManual(taskId: string): Task {
     return this.save(resumeFromManual(this.load(taskId)));
+  }
+
+  private recordDeviation(task: Task, what: string): void {
+    const now = this.deps.clock.now();
+    this.deps.decisions.save({
+      id: this.deps.ids.next('decision'),
+      kind: 'deviation',
+      taskId: task.id,
+      phaseIndex: task.phaseIndex,
+      question: what,
+      options: [],
+      answer: { kind: 'other', text: 'Decided by the human' },
+      createdAt: now,
+      answeredAt: now,
+    });
   }
 
   private workspaceOf(task: Task) {

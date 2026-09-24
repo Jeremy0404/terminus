@@ -12,6 +12,7 @@ import {
   CreateTaskBody,
   RecoverBody,
   SendBackBody,
+  TrackBody,
   type ChecksResponseDto,
   type HealthResponse,
 } from '@terminus/contracts';
@@ -98,6 +99,15 @@ export function createHttpApp(deps: HttpDeps): Hono {
     const { task, warnings } = actions.close(taskId, reason, evidence);
     act(taskId, () => task);
     return c.json({ task: toTaskSummaryDto(task), warnings });
+  });
+  app.post('/api/tasks/:taskId/skip', (c) => {
+    const taskId = c.req.param('taskId');
+    return c.json(toTaskSummaryDto(act(taskId, () => actions.skip(taskId)) as ReturnType<TaskActions['skip']>));
+  });
+  app.post('/api/tasks/:taskId/track', async (c) => {
+    const taskId = c.req.param('taskId');
+    const { track } = await body(c, TrackBody);
+    return c.json(toTaskSummaryDto(act(taskId, () => actions.changeTrack(taskId, track)) as ReturnType<TaskActions['changeTrack']>));
   });
   app.post('/api/tasks/:taskId/take-over', (c) => {
     const { task, command } = actions.takeOver(c.req.param('taskId'));
