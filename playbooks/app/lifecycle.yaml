@@ -1,0 +1,12 @@
+id: app
+phases:
+  - id: idea
+  - id: framing
+    gate: plan-approval
+  - id: stack-and-architecture
+    gate: plan-approval
+  - id: scaffold
+  - id: build
+  - id: production
+    gate: merge
+  - id: operations

@@ -1,0 +1,18 @@
+id: task
+phases:
+  - id: spec
+    skill: spec
+  - id: grill
+    skill: grill
+  - id: plan
+    skill: plan
+    gate: plan-approval
+  - id: execute
+    skill: execute-tdd
+  - id: verify
+    skill: verify
+  - id: review
+    skill: review
+    gate: human-review
+  - id: merge
+    gate: merge
