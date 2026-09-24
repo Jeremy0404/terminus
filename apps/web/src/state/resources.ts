@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AppDto, NetworkDto, TaskDetailDto } from '@terminus/contracts';
+import type { AppDto, NetworkDto, ServerEventDto, TaskDetailDto } from '@terminus/contracts';
 import { api } from '../api/client';
 import { useServerEvents } from '../api/events';
 
@@ -63,17 +63,56 @@ export function useNetwork(appId: string | null): Resource<NetworkDto> {
   return resource;
 }
 
+function liveItem(event: Extract<ServerEventDto, { runId: string; taskId: string }>): unknown {
+  switch (event.type) {
+    case 'run-event':
+      return event.event;
+    case 'check-result':
+      return event.result;
+    case 'check-started':
+      return { type: 'check-started', name: event.name, command: event.command };
+    case 'check-output':
+      return { type: 'check-output', name: event.name, command: event.command, outputTail: event.outputTail };
+  }
+}
+
 export function useTask(taskId: string | null): Resource<TaskDetailDto> & { readonly live: readonly unknown[] } {
   const resource = useResource(taskId ? () => api.task(taskId) : null, `task:${taskId}`);
   const refresh = useDebounced(resource.reload);
   const [live, setLive] = useState<{ readonly runId: string | null; readonly events: readonly unknown[] }>({ runId: null, events: [] });
-  useServerEvents((event) => {
+  const connected = useServerEvents((event) => {
     if (event.type === 'task-changed' && event.task.id === taskId) refresh();
-    if ((event.type === 'run-event' || event.type === 'check-result') && event.taskId === taskId) {
-      const item = event.type === 'run-event' ? event.event : event.result;
+    if ((event.type === 'run-event' || event.type === 'check-result' || event.type === 'check-started' || event.type === 'check-output') && event.taskId === taskId) {
+      const item = liveItem(event);
       setLive((current) => (current.runId === event.runId ? { runId: event.runId, events: [...current.events, item] } : { runId: event.runId, events: [item] }));
     }
   });
   const running = resource.data?.task.status.kind === 'running' ? resource.data.task.status.runId : null;
+
+  useEffect(() => {
+    if (!running) return;
+    let cancelled = false;
+    api.transcript(running).then((events) => {
+      if (!cancelled) setLive({ runId: running, events });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [running]);
+
+  const wasConnected = useRef(connected);
+  useEffect(() => {
+    const justConnected = connected && !wasConnected.current;
+    wasConnected.current = connected;
+    if (!justConnected || !running) return;
+    let cancelled = false;
+    api.transcript(running).then((events) => {
+      if (!cancelled) setLive({ runId: running, events });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [connected, running]);
+
   return { ...resource, live: live.runId !== null && live.runId === running ? live.events : [] };
 }

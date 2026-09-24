@@ -8,7 +8,7 @@ import { completePhase, failRun, passChecks, rejectByChecks, requestDecision, st
 import { DECISIONS_OUTPUT_SCHEMA, readProposedDecisions } from './decision-output.js';
 import { buildPhasePrompt } from './phase-prompt.js';
 import { REVIEW_OUTPUT_SCHEMA } from './review-output.js';
-import type { CheckRunner } from './ports/check-runner.js';
+import type { CheckProgress, CheckRunner } from './ports/check-runner.js';
 import type { CodeHost } from './ports/code-host.js';
 import { pullRequestBody, pullRequestTitle } from './pull-request-text.js';
 import type { AgentEvent, AgentRunner } from './ports/agent-runner.js';
@@ -145,14 +145,11 @@ export class PhaseRunner {
     const { runs, clock, ids } = this.deps;
     const runId = ids.next('run');
     let task = this.save(startRun(ready, runId));
-    const run: Run = { id: runId, taskId: task.id, phaseIndex: task.phaseIndex, sessionId: 'checks', status: 'running', startedAt: clock.now(), endedAt: null, usage: null, output: null };
+    const taskId = task.id;
+    const run: Run = { id: runId, taskId, phaseIndex: task.phaseIndex, sessionId: 'checks', status: 'running', startedAt: clock.now(), endedAt: null, usage: null, output: null };
     runs.save(run);
 
-    const results = await this.deps.checks.run(taskWorkspace.path, app.verification);
-    for (const result of results) {
-      this.deps.transcripts.append(runId, result);
-      this.deps.bus.publish({ kind: 'check-result', runId, taskId: task.id, result });
-    }
+    const results = await this.deps.checks.run(taskWorkspace.path, app.verification, (progress) => this.reportCheckProgress(runId, taskId, progress));
 
     const failed = results.find((result) => !result.ok);
     if (failed) {
@@ -185,6 +182,19 @@ export class PhaseRunner {
       runs.save({ ...run, status: 'failed', endedAt: clock.now() });
     }
     return this.save(task);
+  }
+
+  private reportCheckProgress(runId: string, taskId: string, progress: CheckProgress): void {
+    if (progress.kind === 'started') {
+      this.deps.transcripts.append(runId, { type: 'check-started', name: progress.name, command: progress.command });
+      this.deps.bus.publish({ kind: 'check-started', runId, taskId, name: progress.name, command: progress.command });
+    } else if (progress.kind === 'output') {
+      this.deps.transcripts.append(runId, { type: 'check-output', name: progress.name, command: progress.command, outputTail: progress.outputTail });
+      this.deps.bus.publish({ kind: 'check-output', runId, taskId, name: progress.name, command: progress.command, outputTail: progress.outputTail });
+    } else {
+      this.deps.transcripts.append(runId, progress.result);
+      this.deps.bus.publish({ kind: 'check-result', runId, taskId, result: progress.result });
+    }
   }
 
   private async observe(taskId: string, runId: string, events: AsyncIterable<AgentEvent>, interrupt: () => void): Promise<RunObservation> {
