@@ -1,0 +1,9 @@
+id: epic
+phases:
+  - id: framing
+    gate: plan-approval
+  - id: breakdown
+    gate: plan-approval
+  - id: in-progress
+  - id: validated
+    gate: human-review

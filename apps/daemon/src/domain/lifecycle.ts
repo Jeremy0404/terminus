@@ -7,6 +7,8 @@ export type GateKind = 'plan-approval' | 'human-review' | 'merge';
 export interface PhaseDefinition {
   readonly id: string;
   readonly gate?: GateKind;
+  readonly skill?: string;
+  readonly model?: string;
 }
 
 export interface LifecycleDefinition {
