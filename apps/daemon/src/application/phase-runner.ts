@@ -4,10 +4,11 @@ import { isLooping, type Failure, type FailurePolicy } from '../domain/failure.j
 import type { App } from '../domain/app.js';
 import { phaseAt, type PhaseDefinition } from '../domain/lifecycle.js';
 import type { Run, RunStatus, RunUsage } from '../domain/run.js';
-import { completePhase, failRun, passChecks, rejectByChecks, requestDecision, startRun, type Task } from '../domain/task.js';
+import { completePhase, failRun, holdForProposal, passChecks, rejectByChecks, requestDecision, startRun, type Task } from '../domain/task.js';
 import { DECISIONS_OUTPUT_SCHEMA, readProposedDecisions } from './decision-output.js';
 import { buildPhasePrompt } from './phase-prompt.js';
 import { REVIEW_OUTPUT_SCHEMA } from './review-output.js';
+import { readVerdict, VERDICT_OUTPUT_SCHEMA } from './verdict-output.js';
 import type { CheckProgress, CheckRunner } from './ports/check-runner.js';
 import type { CodeHost } from './ports/code-host.js';
 import { pullRequestBody, pullRequestTitle } from './pull-request-text.js';
@@ -116,6 +117,26 @@ export class PhaseRunner {
         const sequence = task.checkpoints.length + 1;
         const ref = workspace.checkpoint(taskWorkspace, sequence, phase.id);
         task = completePhase(task, { sequence, phaseIndex: task.phaseIndex, ref, sessionId, takenAt: clock.now() });
+        const verdict = phase.output === 'verdict' ? readVerdict(observation.finished?.structuredOutput) : null;
+        if (verdict?.proposal && task.status.kind === 'ready') {
+          const proposal: Decision = {
+            id: ids.next('decision'),
+            kind: 'proposal',
+            taskId,
+            phaseIndex: task.phaseIndex,
+            question: verdict.reason,
+            options: [
+              { label: 'Accept the proposal', description: verdict.reason, recommended: true },
+              { label: 'Continue as planned', description: 'Keep the current task and track', recommended: false },
+            ],
+            answer: null,
+            createdAt: clock.now(),
+            answeredAt: null,
+            proposal: verdict.proposal,
+          };
+          this.deps.decisions.save(proposal);
+          task = holdForProposal(task, proposal.id);
+        }
       }
     } else {
       const failure = observation.stopped ?? this.failureFrom(observation.finished);
@@ -337,6 +358,7 @@ export class PhaseRunner {
 function outputSchemaFor(phase: PhaseDefinition): object | null {
   if (phase.output === 'decisions') return DECISIONS_OUTPUT_SCHEMA;
   if (phase.output === 'review') return REVIEW_OUTPUT_SCHEMA;
+  if (phase.output === 'verdict') return VERDICT_OUTPUT_SCHEMA;
   return null;
 }
 

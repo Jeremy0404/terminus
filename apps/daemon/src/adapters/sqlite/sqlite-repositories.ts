@@ -173,15 +173,22 @@ export class SqliteDecisionRepository implements DecisionRepository {
   constructor(private readonly db: TerminusDatabase) {}
 
   save(decision: Decision): void {
-    const row = { ...decision, options: [...decision.options] };
+    const row = { ...decision, options: [...decision.options], proposal: decision.proposal ?? null };
     this.db.insert(decisions).values(row).onConflictDoUpdate({ target: decisions.id, set: row }).run();
   }
 
   get(id: string): Decision | null {
-    return this.db.select().from(decisions).where(eq(decisions.id, id)).get() ?? null;
+    const row = this.db.select().from(decisions).where(eq(decisions.id, id)).get();
+    return row ? toDecision(row) : null;
   }
 
   listByTask(taskId: string): Decision[] {
-    return this.db.select().from(decisions).where(eq(decisions.taskId, taskId)).orderBy(asc(decisions.createdAt)).all();
+    return this.db.select().from(decisions).where(eq(decisions.taskId, taskId)).orderBy(asc(decisions.createdAt)).all().map(toDecision);
   }
 }
+
+function toDecision(row: typeof decisions.$inferSelect): Decision {
+  const { proposal, ...rest } = row;
+  return proposal ? { ...rest, proposal } : rest;
+}
+

@@ -13,7 +13,7 @@ export interface PhaseDefinition {
   readonly gate?: GateKind;
   readonly skill?: string;
   readonly model?: string;
-  readonly output?: 'decisions' | 'review';
+  readonly output?: 'decisions' | 'review' | 'verdict';
   readonly executor?: PhaseExecutorKind;
   readonly retryFrom?: string;
   readonly tracks?: readonly Track[];

@@ -27,6 +27,7 @@ const grilling: TaskDetailDto = {
     {
       id: 'd1',
       kind: 'question',
+      proposal: null,
       phaseIndex: 1,
       question: 'Où vivent les phases ?',
       options: [

@@ -98,6 +98,16 @@ export function requestDecision(task: Task, decisionId: string): Task {
   return { ...task, status: { kind: 'awaiting-decision', decisionId } };
 }
 
+export function holdForProposal(task: Task, decisionId: string): Task {
+  expectStatus(task, 'ready');
+  return { ...task, status: { kind: 'awaiting-decision', decisionId } };
+}
+
+export function releaseProposal(task: Task): Task {
+  expectStatus(task, 'awaiting-decision');
+  return { ...task, status: { kind: 'ready', mode: 'fresh' } };
+}
+
 export function answerDecision(task: Task, nextDecisionId: string | null): Task {
   expectStatus(task, 'awaiting-decision');
   if (nextDecisionId) return { ...task, status: { kind: 'awaiting-decision', decisionId: nextDecisionId } };

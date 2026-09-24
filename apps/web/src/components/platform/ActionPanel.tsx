@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { TaskDetailDto } from '@terminus/contracts';
 import { api } from '../../api/client';
 import { DecisionCard } from './DecisionCard';
+import { ProposalCard } from './ProposalCard';
 import { GateCard } from './GateCard';
 import { RecoveryCard } from './RecoveryCard';
 import { RunLog } from './RunLog';
@@ -15,7 +16,9 @@ export function ActionPanel({ detail, live }: { detail: TaskDetailDto; live: rea
 
   switch (status.kind) {
     case 'awaiting-decision': {
-      const open = detail.decisions.filter((decision) => decision.phaseIndex === task.phaseIndex);
+      const waiting = detail.decisions.find((candidate) => candidate.id === status.decisionId);
+      if (waiting?.proposal) return <ProposalCard key={waiting.id} decisionId={waiting.id} reason={waiting.question} proposal={waiting.proposal} />;
+      const open = detail.decisions.filter((decision) => decision.kind === 'question' && decision.phaseIndex === task.phaseIndex);
       const decision = open.find((candidate) => candidate.id === status.decisionId);
       return decision ? <DecisionCard key={decision.id} decision={decision} position={open.indexOf(decision) + 1} total={open.length} /> : null;
     }

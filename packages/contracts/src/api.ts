@@ -139,9 +139,15 @@ export interface RunDto {
   readonly output: unknown;
 }
 
+export type ProposalDto =
+  | { readonly kind: 'close'; readonly reason: 'already-done' | 'obsolete' | 'duplicate'; readonly evidence: string }
+  | { readonly kind: 'split'; readonly stations: readonly { readonly title: string; readonly why: string }[] }
+  | { readonly kind: 'lighten' };
+
 export interface DecisionDto {
   readonly id: string;
   readonly kind: 'question' | 'deviation' | 'proposal';
+  readonly proposal: ProposalDto | null;
   readonly phaseIndex: number;
   readonly question: string;
   readonly options: readonly { readonly label: string; readonly description: string; readonly recommended: boolean }[];

@@ -1,8 +1,10 @@
-import type { DecisionAnswer } from '../domain/decision.js';
+import type { DecisionAnswer, Proposal } from '../domain/decision.js';
 import { DomainError } from '../domain/errors.js';
 import {
   answerDecision,
   closeTask,
+  createTask,
+  releaseProposal,
   approveGate,
   openTask,
   recover,
@@ -62,10 +64,35 @@ export class TaskActions {
     }
     if (answer.kind === 'option' && !decision.options[answer.index]) throw new DomainError(`Decision ${decisionId} has no option ${answer.index}`);
     this.deps.decisions.save({ ...decision, answer, answeredAt: this.deps.clock.now() });
+    if (decision.proposal) {
+      const accepted = answer.kind === 'option' && answer.index === 0;
+      return accepted ? this.applyProposal(task, decision.proposal) : this.save(releaseProposal(task));
+    }
     const next = this.deps.decisions
       .listByTask(task.id)
       .find((candidate) => candidate.phaseIndex === task.phaseIndex && candidate.answer === null && candidate.id !== decisionId);
     return this.save(answerDecision(task, next?.id ?? null));
+  }
+
+  private applyProposal(task: Task, proposal: Proposal): Task {
+    switch (proposal.kind) {
+      case 'close':
+        return this.close(task.id, proposal.reason, proposal.evidence).task;
+      case 'lighten':
+        return this.changeTrack(task.id, 'light');
+      case 'split': {
+        const created = proposal.stations.map((station) =>
+          createTask({ id: this.deps.ids.next('task'), epicId: task.epicId, title: station.title, lifecycle: task.lifecycle, autonomy: task.autonomy, track: task.track }),
+        );
+        for (const station of created) this.save(station);
+        const epic = this.deps.epics.get(task.epicId);
+        const siblings = epic ? this.deps.tasks.listByApp(epic.appId) : [];
+        for (const dependant of siblings.filter((candidate) => candidate.dependsOn.includes(task.id))) {
+          this.save({ ...dependant, dependsOn: [...dependant.dependsOn.filter((id) => id !== task.id), ...created.map((station) => station.id)] });
+        }
+        return this.close(task.id, 'obsolete', `Split into: ${created.map((station) => station.title).join(' · ')}`).task;
+      }
+    }
   }
 
   approve(taskId: string): Task {
