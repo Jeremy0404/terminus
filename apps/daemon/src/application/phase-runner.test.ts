@@ -45,6 +45,7 @@ class StubCheckRunner implements CheckRunner {
 const GRILL_LIFECYCLE = {
   ...TASK_LIFECYCLE,
   phases: TASK_LIFECYCLE.phases.map((phase) => {
+    if (phase.id === 'spec') return { ...phase, skill: 'spec', output: 'verdict' as const };
     if (phase.id === 'grill') return { ...phase, skill: 'grill', output: 'decisions' as const };
     if (phase.id === 'verify') return { ...phase, executor: 'checks' as const, retryFrom: 'execute' };
     if (phase.id === 'review') return { ...phase, skill: 'review', output: 'review' as const };
@@ -435,6 +436,32 @@ describe('PhaseRunner', () => {
 
       expect(task.phaseIndex).toBe(3);
       expect(task.failuresInPhase[0]?.message).toContain('After syncing with origin/main, build failed');
+    });
+  });
+
+  describe('spec verdicts', () => {
+    const verdict = (fields: Record<string, unknown>) => success({ summary: 'spec written', verdict: fields });
+
+    it('carries on when the spec agent says continue', async () => {
+      givenTask(0);
+      const task = await runner(new ScriptedAgentRunner(script(verdict({ kind: 'continue', reason: 'worth doing' })))).run('t1');
+      expect(task.status).toEqual({ kind: 'ready', mode: 'fresh' });
+      expect(task.phaseIndex).toBe(1);
+      expect(decisions.listByTask('t1')).toEqual([]);
+    });
+
+    it('turns a proposal into a decision card and holds the task until the human answers', async () => {
+      givenTask(0);
+      const agent = new ScriptedAgentRunner(script(verdict({ kind: 'close', reason: 'Already merged in PR #26', closeReason: 'already-done', evidence: 'PR #26' })));
+
+      const task = await runner(agent).run('t1');
+
+      expect(agent.requests[0]?.outputSchema).toMatchObject({ required: ['summary', 'verdict'] });
+      const [card] = decisions.listByTask('t1');
+      expect(card).toMatchObject({ kind: 'proposal', question: 'Already merged in PR #26', proposal: { kind: 'close', reason: 'already-done', evidence: 'PR #26' } });
+      expect(task.status).toEqual({ kind: 'awaiting-decision', decisionId: card?.id });
+      expect(task.phaseIndex).toBe(1);
+      expect(workspace.checkpoints).toEqual(['1:spec']);
     });
   });
 });

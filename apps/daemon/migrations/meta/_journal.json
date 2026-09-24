@@ -22,6 +22,13 @@
       "when": 1790278365919,
       "tag": "0002_tracks",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790278662506,
+      "tag": "0003_proposals",
+      "breakpoints": true
     }
   ]
 }

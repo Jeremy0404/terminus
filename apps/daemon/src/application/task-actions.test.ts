@@ -260,4 +260,54 @@ describe('TaskActions', () => {
       expect(() => actions.skip('t2')).toThrow(/Phase verify cannot be skipped/);
     });
   });
+
+  describe('proposals', () => {
+    const FLEXIBLE = {
+      ...TASK_LIFECYCLE,
+      phases: TASK_LIFECYCLE.phases.map((phase) => (['grill', 'plan'].includes(phase.id) ? { ...phase, tracks: ['standard' as const] } : phase)),
+    };
+    const proposing = (proposal: NonNullable<Decision['proposal']>, extra: Partial<Task> = {}): void => {
+      decisions.save({
+        id: 'p1', kind: 'proposal', taskId: 't1', phaseIndex: 1, question: 'Because', proposal,
+        options: [{ label: 'Accept the proposal', description: 'Because', recommended: true }, { label: 'Continue as planned', description: '', recommended: false }],
+        answer: null, createdAt: 'x', answeredAt: null,
+      });
+      givenTask('t1', { kind: 'awaiting-decision', decisionId: 'p1' }, { phaseIndex: 1, lifecycle: FLEXIBLE, ...extra });
+    };
+
+    it('closes the task when the human accepts a close proposal', () => {
+      proposing({ kind: 'close', reason: 'already-done', evidence: 'PR #26' });
+      const task = actions.answer('p1', { kind: 'option', index: 0 });
+      expect(task.status).toEqual({ kind: 'closed', reason: 'already-done', evidence: 'PR #26' });
+      expect(workspace.removed).toEqual(['t1']);
+    });
+
+    it('switches to the light track when the human accepts a lighter track', () => {
+      proposing({ kind: 'lighten' });
+      const task = actions.answer('p1', { kind: 'option', index: 0 });
+      expect(task).toMatchObject({ track: 'light', phaseIndex: 3, status: { kind: 'ready', mode: 'fresh' } });
+    });
+
+    it('splits the task into new stations, rewires its dependants and closes it', () => {
+      proposing({ kind: 'split', stations: [{ title: 'Part A', why: 'a' }, { title: 'Part B', why: 'b' }] });
+      givenTask('t9', { kind: 'todo' }, { dependsOn: ['t1'] });
+
+      const task = actions.answer('p1', { kind: 'option', index: 0 });
+
+      expect(task.status).toEqual({ kind: 'closed', reason: 'obsolete', evidence: 'Split into: Part A · Part B' });
+      const created = tasks.listByEpic('epic').filter((candidate) => ['Part A', 'Part B'].includes(candidate.title));
+      expect(created.map((candidate) => [candidate.title, candidate.status.kind, candidate.lifecycle])).toEqual([
+        ['Part A', 'todo', FLEXIBLE],
+        ['Part B', 'todo', FLEXIBLE],
+      ]);
+      expect(tasks.get('t9')?.dependsOn).toEqual(created.map((candidate) => candidate.id));
+    });
+
+    it('carries on as planned when the human declines', () => {
+      proposing({ kind: 'close', reason: 'obsolete', evidence: '' });
+      const task = actions.answer('p1', { kind: 'option', index: 1 });
+      expect(task).toMatchObject({ phaseIndex: 1, status: { kind: 'ready', mode: 'fresh' } });
+      expect(decisions.get('p1')?.answer).toEqual({ kind: 'option', index: 1 });
+    });
+  });
 });

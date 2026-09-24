@@ -300,5 +300,18 @@
   "deviation": {
     "skip": "Passer « {{phase}} »",
     "switchTrack": "Passer en {{track}}"
+  },
+  "proposal": {
+    "eyebrow": "Proposition de l’agent",
+    "close": "Clôturer : {{reason}}",
+    "split_one": "Découper en {{count}} station",
+    "split_other": "Découper en {{count}} stations",
+    "lighten": "Passer en parcours léger",
+    "accept": {
+      "close": "Clôturer la tâche",
+      "split": "Créer ces stations",
+      "lighten": "Passer en parcours léger"
+    },
+    "continue": "Continuer comme prévu"
   }
 }

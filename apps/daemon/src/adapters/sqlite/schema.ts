@@ -1,6 +1,6 @@
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { VerificationCommand } from '../../domain/app.js';
-import type { DecisionAnswer, DecisionOption } from '../../domain/decision.js';
+import type { DecisionAnswer, DecisionOption, Proposal } from '../../domain/decision.js';
 import type { Failure } from '../../domain/failure.js';
 import type { PhaseDefinition } from '../../domain/lifecycle.js';
 import type { TaskStatus } from '../../domain/task.js';
@@ -105,6 +105,7 @@ export const decisions = sqliteTable(
     answer: text('answer', { mode: 'json' }).$type<DecisionAnswer>(),
     createdAt: text('created_at').notNull(),
     answeredAt: text('answered_at'),
+    proposal: text('proposal', { mode: 'json' }).$type<Proposal>(),
   },
   (table) => [index('decisions_task_idx').on(table.taskId)],
 );

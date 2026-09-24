@@ -8,6 +8,11 @@ export type DecisionAnswer = { readonly kind: 'option'; readonly index: number }
 
 export type DecisionKind = 'question' | 'deviation' | 'proposal';
 
+export type Proposal =
+  | { readonly kind: 'close'; readonly reason: 'already-done' | 'obsolete' | 'duplicate'; readonly evidence: string }
+  | { readonly kind: 'split'; readonly stations: readonly { readonly title: string; readonly why: string }[] }
+  | { readonly kind: 'lighten' };
+
 export interface Decision {
   readonly id: string;
   readonly kind: DecisionKind;
@@ -18,4 +23,5 @@ export interface Decision {
   readonly answer: DecisionAnswer | null;
   readonly createdAt: string;
   readonly answeredAt: string | null;
+  readonly proposal?: Proposal;
 }

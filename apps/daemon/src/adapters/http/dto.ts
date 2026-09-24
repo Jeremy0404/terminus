@@ -31,7 +31,7 @@ const toInboxItemDto = (item: InboxItem): InboxItemDto => item;
 
 const toRunDto = ({ id, phaseIndex, status, startedAt, endedAt, usage, output }: Run): RunDto => ({ id, phaseIndex, status, startedAt, endedAt, usage, output });
 
-const toDecisionDto = ({ id, kind, phaseIndex, question, options, answer }: Decision): DecisionDto => ({ id, kind, phaseIndex, question, options, answer });
+const toDecisionDto = ({ id, kind, phaseIndex, question, options, answer, proposal }: Decision): DecisionDto => ({ id, kind, proposal: proposal ?? null, phaseIndex, question, options, answer });
 
 export const toNetworkDto = (network: Network): NetworkDto => ({
   app: toAppDto(network.app),

@@ -2,6 +2,7 @@ id: task
 phases:
   - id: spec
     skill: spec
+    output: verdict
     skippable: true
   - id: grill
     skill: grill
