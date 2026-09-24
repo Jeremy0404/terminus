@@ -1,0 +1,79 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { AppDto, NetworkDto, TaskDetailDto } from '@terminus/contracts';
+import { api } from '../api/client';
+import { useServerEvents } from '../api/events';
+
+const REFRESH_DEBOUNCE_MS = 120;
+
+export interface Resource<T> {
+  readonly data: T | null;
+  readonly error: Error | null;
+  readonly reload: () => void;
+}
+
+interface Loaded<T> {
+  readonly key: string;
+  readonly data: T | null;
+  readonly error: Error | null;
+}
+
+function useResource<T>(load: (() => Promise<T>) | null, key: string): Resource<T> {
+  const [loaded, setLoaded] = useState<Loaded<T>>({ key: '', data: null, error: null });
+  const [version, setVersion] = useState(0);
+  const reload = useCallback(() => setVersion((current) => current + 1), []);
+
+  useEffect(() => {
+    if (!load) return;
+    let cancelled = false;
+    load()
+      .then((data) => {
+        if (!cancelled) setLoaded({ key, data, error: null });
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) setLoaded((previous) => ({ ...previous, key, error: cause instanceof Error ? cause : new Error(String(cause)) }));
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, version]);
+
+  const current = load !== null && loaded.key === key;
+  return { data: current ? loaded.data : null, error: current ? loaded.error : null, reload };
+}
+
+function useDebounced(callback: () => void): () => void {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  return useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(callback, REFRESH_DEBOUNCE_MS);
+  }, [callback]);
+}
+
+export function useApps(): Resource<AppDto[]> {
+  return useResource(api.apps, 'apps');
+}
+
+export function useNetwork(appId: string | null): Resource<NetworkDto> {
+  const resource = useResource(appId ? () => api.network(appId) : null, `network:${appId}`);
+  const refresh = useDebounced(resource.reload);
+  useServerEvents((event) => {
+    if (event.type === 'task-changed') refresh();
+  });
+  return resource;
+}
+
+export function useTask(taskId: string | null): Resource<TaskDetailDto> & { readonly live: readonly unknown[] } {
+  const resource = useResource(taskId ? () => api.task(taskId) : null, `task:${taskId}`);
+  const refresh = useDebounced(resource.reload);
+  const [live, setLive] = useState<{ readonly runId: string | null; readonly events: readonly unknown[] }>({ runId: null, events: [] });
+  useServerEvents((event) => {
+    if (event.type === 'task-changed' && event.task.id === taskId) refresh();
+    if ((event.type === 'run-event' || event.type === 'check-result') && event.taskId === taskId) {
+      const item = event.type === 'run-event' ? event.event : event.result;
+      setLive((current) => (current.runId === event.runId ? { runId: event.runId, events: [...current.events, item] } : { runId: event.runId, events: [item] }));
+    }
+  });
+  const running = resource.data?.task.status.kind === 'running' ? resource.data.task.status.runId : null;
+  return { ...resource, live: live.runId !== null && live.runId === running ? live.events : [] };
+}
