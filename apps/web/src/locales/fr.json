@@ -246,6 +246,9 @@
     },
     "import": {
       "defaultLine": "Backlog importé",
+      "loading": "Recherche des issues et des TODO…",
+      "intro": "Cocher une issue ou un TODO l’importe comme tâche ; les autres ne sont pas modifiés.",
+      "empty": "Aucune issue ni TODO à importer : vous pouvez valider pour continuer sans tâche.",
       "issues": "Issues GitHub ouvertes ({{count}})",
       "todos": "TODO du code ({{count}})",
       "lineName": "Ligne qui les accueille"
