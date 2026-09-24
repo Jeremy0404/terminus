@@ -56,6 +56,20 @@ describe('ActionPanel', () => {
     await waitFor(() => expect(calls[0]?.body).toEqual({ kind: 'other', text: 'Les deux' }));
   });
 
+  it('disables the other option and the free-answer input while the answer is submitting', async () => {
+    let resolve!: (response: Response) => void;
+    reply = () => new Promise<Response>((r) => { resolve = r; }) as unknown as Response;
+    render(<ActionPanel detail={grilling} live={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Valider la décision' }));
+
+    await waitFor(() => expect(screen.getByRole('radio', { name: /SQLite/ })).toBeDisabled());
+    expect(screen.getByLabelText('Autre réponse')).toBeDisabled();
+
+    resolve(Response.json({}));
+    await waitFor(() => expect(screen.getByRole('radio', { name: /SQLite/ })).not.toBeDisabled());
+    expect(screen.getByLabelText('Autre réponse')).not.toBeDisabled();
+  });
+
   const blocked: TaskDetailDto = {
     ...detailOf(task('t2', 'ui', 'Zoom', { kind: 'blocked', failure: { kind: 'loop-detected', signature: 'zoom.spec.ts', message: 'Same failure 3 times in a row', at: 'x' } }, { phaseIndex: 3 })),
     checkpoints: [{ sequence: 1, phaseIndex: 0, ref: 'refs/terminus/checkpoints/t2/1', takenAt: 'x' }],
@@ -85,6 +99,21 @@ describe('ActionPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Appliquer' }));
 
     await waitFor(() => expect(calls[0]?.body).toEqual({ option: 'rewind', rewindTo: 1 }));
+  });
+
+  it('disables the other recovery options and the rewind-to select while applying', async () => {
+    let resolve!: (response: Response) => void;
+    reply = () => new Promise<Response>((r) => { resolve = r; }) as unknown as Response;
+    render(<ActionPanel detail={blocked} live={[]} />);
+    fireEvent.click(screen.getByRole('radio', { name: /Revenir en arrière/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Appliquer' }));
+
+    await waitFor(() => expect(screen.getByRole('radio', { name: /Reprendre la main/ })).toBeDisabled());
+    expect(screen.getByRole('combobox')).toBeDisabled();
+
+    resolve(Response.json({}));
+    await waitFor(() => expect(screen.getByRole('radio', { name: /Reprendre la main/ })).not.toBeDisabled());
+    expect(screen.getByRole('combobox')).not.toBeDisabled();
   });
 
   it('shows the terminal command when taking over', async () => {
@@ -123,6 +152,23 @@ describe('ActionPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Renvoyer' }));
 
     await waitFor(() => expect(calls[0]).toEqual({ method: 'POST', path: '/api/tasks/t4/send-back', body: { toPhaseId: 'execute' } }));
+  });
+
+  it('disables the send-back-to select while sending the task back', async () => {
+    let resolve!: (response: Response) => void;
+    reply = () => new Promise<Response>((r) => { resolve = r; }) as unknown as Response;
+    const atReview: TaskDetailDto = {
+      ...detailOf(task('t4', 'ui', 'Zoom', { kind: 'awaiting-gate', gate: 'human-review' }, { phaseIndex: 5 })),
+      runs: [{ id: 'r', phaseIndex: 5, status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null,
+        output: { verdict: 'changes-requested', summary: 'Un manque', findings: [] } }],
+    };
+    render(<ActionPanel detail={atReview} live={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Renvoyer' }));
+
+    await waitFor(() => expect(screen.getByRole('combobox')).toBeDisabled());
+
+    resolve(Response.json({}));
+    await waitFor(() => expect(screen.getByRole('combobox')).not.toBeDisabled());
   });
 
   it('streams the live run and lets the human interrupt it', async () => {

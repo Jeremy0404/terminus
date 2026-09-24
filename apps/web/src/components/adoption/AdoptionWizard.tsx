@@ -83,7 +83,7 @@ export function AdoptionWizard({ onCancel, onAdopted }: Props) {
         <form className="create-form" onSubmit={runScan}>
           <label className="field">
             <span className="eyebrow">{t('adopt.scan.path')}</span>
-            <input id="adopt-repo-path" value={repoPath} onChange={(event) => setRepoPath(event.target.value)} placeholder="/home/…/dev/projects/mon-app" required />
+            <input id="adopt-repo-path" value={repoPath} onChange={(event) => setRepoPath(event.target.value)} placeholder="/home/…/dev/projects/mon-app" required disabled={busy} />
           </label>
           <div className="row"><button type="submit" className="btn" disabled={busy || !repoPath.trim()}>{t('adopt.scan.run')}</button></div>
           {scan && (
@@ -125,7 +125,7 @@ export function AdoptionWizard({ onCancel, onAdopted }: Props) {
             {proposals.issues.map((issue) => (
               <label key={issue.number} className="check">
                 <input id={`issue-${issue.number}`} type="checkbox" checked={pickedIssues.includes(issue.number)}
-                  onChange={(event) => setPickedIssues(event.target.checked ? [...pickedIssues, issue.number] : pickedIssues.filter((n) => n !== issue.number))} />
+                  onChange={(event) => setPickedIssues(event.target.checked ? [...pickedIssues, issue.number] : pickedIssues.filter((n) => n !== issue.number))} disabled={busy} />
                 #{issue.number} · {issue.title}
               </label>
             ))}
@@ -136,7 +136,7 @@ export function AdoptionWizard({ onCancel, onAdopted }: Props) {
               {proposals.todos.map((todo, todoIndex) => (
                 <label key={`${todo.file}:${todo.line}`} className="check">
                   <input id={`todo-${todoIndex}`} type="checkbox" checked={pickedTodos.includes(todoIndex)}
-                    onChange={(event) => setPickedTodos(event.target.checked ? [...pickedTodos, todoIndex] : pickedTodos.filter((n) => n !== todoIndex))} />
+                    onChange={(event) => setPickedTodos(event.target.checked ? [...pickedTodos, todoIndex] : pickedTodos.filter((n) => n !== todoIndex))} disabled={busy} />
                   <code>{todo.file}:{todo.line}</code> {todo.text}
                 </label>
               ))}
@@ -145,11 +145,11 @@ export function AdoptionWizard({ onCancel, onAdopted }: Props) {
           <div className="row">
             <label className="field grow">
               <span className="eyebrow">{t('adopt.import.lineName')}</span>
-              <input id="adopt-line-name" value={line.name} onChange={(event) => setLine({ ...line, name: event.target.value })} />
+              <input id="adopt-line-name" value={line.name} onChange={(event) => setLine({ ...line, name: event.target.value })} disabled={busy} />
             </label>
             <label className="field">
               <span className="eyebrow">{t('create.line.code')}</span>
-              <input id="adopt-line-code" value={line.code} maxLength={3} size={3} onChange={(event) => setLine({ ...line, code: event.target.value.toUpperCase() })} />
+              <input id="adopt-line-code" value={line.code} maxLength={3} size={3} onChange={(event) => setLine({ ...line, code: event.target.value.toUpperCase() })} disabled={busy} />
             </label>
           </div>
         </div>
@@ -160,18 +160,18 @@ export function AdoptionWizard({ onCancel, onAdopted }: Props) {
           <p className="muted">{t('adopt.profile.intro')}</p>
           {commands.map((command, commandIndex) => (
             <div key={commandIndex} className="row command-row">
-              <input aria-label={t('adopt.profile.name')} value={command.name} size={10}
+              <input aria-label={t('adopt.profile.name')} value={command.name} size={10} disabled={busy}
                 onChange={(event) => setCommands(commands.map((c, i) => (i === commandIndex ? { ...c, name: event.target.value } : c)))} />
-              <input aria-label={t('adopt.profile.command')} className="grow" value={command.command}
+              <input aria-label={t('adopt.profile.command')} className="grow" value={command.command} disabled={busy}
                 onChange={(event) => setCommands(commands.map((c, i) => (i === commandIndex ? { ...c, command: event.target.value } : c)))} />
               {health?.find((check) => check.name === command.name) && (
                 <span className={health.find((check) => check.name === command.name)?.ok ? 'good' : 'bad'}>{health.find((check) => check.name === command.name)?.ok ? '✓' : '✗'}</span>
               )}
-              <button type="button" className="btn small" aria-label={t('adopt.profile.remove', { name: command.name })} onClick={() => setCommands(commands.filter((_, i) => i !== commandIndex))}>✕</button>
+              <button type="button" className="btn small" aria-label={t('adopt.profile.remove', { name: command.name })} disabled={busy} onClick={() => setCommands(commands.filter((_, i) => i !== commandIndex))}>✕</button>
             </div>
           ))}
           <div className="row">
-            <button type="button" className="btn small" onClick={() => setCommands([...commands, { name: '', command: '' }])}>{t('adopt.profile.add')}</button>
+            <button type="button" className="btn small" disabled={busy} onClick={() => setCommands([...commands, { name: '', command: '' }])}>{t('adopt.profile.add')}</button>
             {commands.length === 0 && <span className="action-error">{t('adopt.profile.empty')}</span>}
           </div>
         </div>
@@ -183,12 +183,12 @@ export function AdoptionWizard({ onCancel, onAdopted }: Props) {
             <>
               <label className="field">
                 <span className="eyebrow">{t('adopt.cutover.name')}</span>
-                <input id="adopt-app-name" value={name} onChange={(event) => setName(event.target.value)} />
+                <input id="adopt-app-name" value={name} onChange={(event) => setName(event.target.value)} disabled={busy} />
               </label>
               <p className="muted">{t('adopt.cutover.summary', { stations: tasks.length, line: line.name, checks: commands.length })}</p>
               {pickedIssues.length > 0 && (
                 <label className="check">
-                  <input id="adopt-close-issues" type="checkbox" checked={closeIssues} onChange={(event) => setCloseIssues(event.target.checked)} />
+                  <input id="adopt-close-issues" type="checkbox" checked={closeIssues} onChange={(event) => setCloseIssues(event.target.checked)} disabled={busy} />
                   {t('adopt.cutover.close', { count: pickedIssues.length })}
                 </label>
               )}
@@ -209,7 +209,7 @@ export function AdoptionWizard({ onCancel, onAdopted }: Props) {
       {error && <p className="action-error" role="alert">{error}</p>}
       {station !== 'cutover' && (
         <div className="row wizard-nav">
-          {index > 0 && <button type="button" className="btn" onClick={() => setStation(STATIONS[index - 1] ?? 'scan')}>{t('adopt.back')}</button>}
+          {index > 0 && <button type="button" className="btn" disabled={busy} onClick={() => setStation(STATIONS[index - 1] ?? 'scan')}>{t('adopt.back')}</button>}
           <button type="button" className="btn primary" disabled={busy || (station === 'scan' && !scan) || (station === 'import' && !proposals)} onClick={next}>
             {t('adopt.validate')}
           </button>

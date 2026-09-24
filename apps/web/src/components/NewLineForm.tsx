@@ -33,19 +33,19 @@ export function NewLineForm({ network, onDone }: { network: NetworkDto; onDone: 
     <form className="create-form" onSubmit={submit} aria-label={t('create.line.title')}>
       <label className="field">
         <span className="eyebrow">{t('create.line.name')}</span>
-        <input id="new-line-name" value={name} onChange={(event) => setName(event.target.value)} required />
+        <input id="new-line-name" value={name} onChange={(event) => setName(event.target.value)} required disabled={busy} />
       </label>
       <label className="field">
         <span className="eyebrow">{t('create.line.code')}</span>
-        <input id="new-line-code" value={effectiveCode} maxLength={3} onChange={(event) => setCode(event.target.value.toUpperCase())} required />
+        <input id="new-line-code" value={effectiveCode} maxLength={3} onChange={(event) => setCode(event.target.value.toUpperCase())} required disabled={busy} />
       </label>
       <label className="check">
-        <input id="new-line-planned" type="checkbox" checked={planned} onChange={(event) => setPlanned(event.target.checked)} />
+        <input id="new-line-planned" type="checkbox" checked={planned} onChange={(event) => setPlanned(event.target.checked)} disabled={busy} />
         {t('create.line.planned')}
       </label>
       <div className="row">
         <button type="submit" className="btn primary" disabled={busy || !name.trim() || !effectiveCode}>{t('create.line.submit')}</button>
-        <button type="button" className="btn" onClick={onDone}>{t('create.cancel')}</button>
+        <button type="button" className="btn" onClick={onDone} disabled={busy}>{t('create.cancel')}</button>
       </div>
       {error && <p className="action-error" role="alert">{error}</p>}
     </form>
