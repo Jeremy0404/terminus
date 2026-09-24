@@ -42,6 +42,7 @@ function start(...scripts: AgentScript[]): void {
       transcripts: new InMemoryTranscriptStore(),
       workspace: new FakeWorkspace(),
       notes: new FakeTaskNotes(),
+      instructions: { localOnly: () => '' },
       agent: new ScriptedAgentRunner(...scripts),
       checks: greenChecks,
       codeHost,
