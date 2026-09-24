@@ -181,5 +181,30 @@
   "done": {
     "eyebrow": "Mergée",
     "body": "Toutes les barrières sont passées et la PR est mergée."
+  },
+  "create": {
+    "cancel": "Annuler",
+    "line": {
+      "open": "Nouvelle ligne",
+      "title": "Nouvelle ligne",
+      "name": "Nom de l’épique",
+      "code": "Code de ligne",
+      "planned": "En projet (pas encore commencée)",
+      "submit": "Tracer la ligne"
+    },
+    "station": {
+      "open": "Ajouter une station",
+      "title": "Nouvelle station",
+      "name": "Tâche",
+      "placeholder": "Ex. : Détection de boucle",
+      "dependsOn": "Correspondances (attend ces tâches)",
+      "submit": "Ajouter"
+    }
+  },
+  "notify": {
+    "enable": "Activer les notifications",
+    "blocked": "Besoin de toi",
+    "decision": "Une décision t’attend",
+    "gate": "Une validation t’attend"
   }
 }
