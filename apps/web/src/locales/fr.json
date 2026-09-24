@@ -101,7 +101,8 @@
       "quota-exhausted": "Quota de l’abonnement épuisé",
       "agent-crashed": "L’agent s’est arrêté sans résultat",
       "publish-failed": "La publication de la PR a échoué",
-      "interrupted": "Run interrompu"
+      "interrupted": "Run interrompu",
+      "isolation-breach": "Configuration de l’agent inattendue, run arrêté"
     },
     "option": {
       "restart-from-checkpoint": "Repartir du checkpoint avec résumé",

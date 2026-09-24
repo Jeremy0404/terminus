@@ -13,6 +13,7 @@ describe('ClaudeStreamParser on recorded runs', () => {
     const events = replay('tool-failure');
 
     expect(events.filter((event) => event.type !== 'usage')).toEqual([
+      { type: 'text', text: 'Agent setup — skills: none · MCP: none · plugins: none' },
       { type: 'tool-call', tool: 'Bash', summary: 'false' },
       { type: 'tool-failure', tool: 'Bash', signature: 'Bash:Exit code 1', summary: 'Exit code 1' },
       { type: 'text', text: 'done' },
@@ -53,5 +54,33 @@ describe('ClaudeStreamParser outcomes', () => {
   it('keeps unparseable output as text and ignores blank lines', () => {
     expect(new ClaudeStreamParser().push('Error: not logged in')).toEqual([{ type: 'text', text: 'Error: not logged in' }]);
     expect(new ClaudeStreamParser().push('  ')).toEqual([]);
+  });
+});
+
+describe('ClaudeStreamParser isolation audit', () => {
+  const init = (fields: Record<string, unknown>): string =>
+    JSON.stringify({ type: 'system', subtype: 'init', skills: ['spec', 'plan'], mcp_servers: [], plugins: [{ name: 'agents-md', path: 'builtin' }], ...fields });
+  const expected = { skills: ['spec', 'plan'], mcpServers: ['graph'], plugins: ['agents-md', 'telemetry'] };
+
+  it('reports what the agent loaded and lets a clean run continue', () => {
+    const parser = new ClaudeStreamParser(expected);
+    expect(parser.push(init({}))).toEqual([{ type: 'text', text: 'Agent setup — skills: spec, plan · MCP: none · plugins: agents-md' }]);
+    expect(parser.hasBreached).toBe(false);
+  });
+
+  it('stops the run on any unexpected skill, MCP server or plugin', () => {
+    const parser = new ClaudeStreamParser(expected);
+    const events = parser.push(init({ skills: ['spec', 'brain-access'], mcp_servers: [{ name: 'gmail', status: 'connected' }], plugins: [{ name: 'mattpocock-skills' }] }));
+    expect(events.at(-1)).toMatchObject({
+      type: 'finished',
+      outcome: 'isolation-breach',
+      summary: expect.stringContaining('skill brain-access, MCP server gmail, plugin mattpocock-skills'),
+    });
+    expect(parser.hasBreached).toBe(true);
+    expect(parser.hasFinished).toBe(true);
+  });
+
+  it('does not audit when no profile is expected', () => {
+    expect(new ClaudeStreamParser().push(init({ skills: ['anything'] }))).toHaveLength(1);
   });
 });

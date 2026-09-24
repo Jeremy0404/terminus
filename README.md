@@ -35,8 +35,20 @@ Terminus drives the Claude Code CLI headless, isolated from your own Claude Code
 
 3. Start the daemon with `pnpm --filter @terminus/daemon start` (after `pnpm run build`).
 
-Agent runs use `~/.terminus/agent-home` as their Claude Code configuration folder, so they load
-Terminus's playbook skills and none of yours. Task worktrees live in `~/.terminus/worktrees`, task
+Agent runs use `~/.terminus/agent-home` as their Claude Code configuration folder, rebuilt at each
+daemon start: Terminus's playbook skills, plus only what you allow in `~/.terminus/agent.json`:
+
+```json
+{
+  "skills": ["~/.claude/skills/graphify"],
+  "mcpServers": { "my-server": { "command": "my-mcp-server" } }
+}
+```
+
+Bundled Claude Code skills, auto memory, a repository's `.claude/settings.json` (hooks included),
+its `.claude/skills` and unlisted MCP servers are left out; the repository's `CLAUDE.md` is still
+read. At the start of every run Terminus checks what the agent actually loaded; anything unexpected
+stops the run before its first action and blocks the task with the details. Task worktrees live in `~/.terminus/worktrees`, task
 notes (spec, plan) in `~/.terminus/tasks`, and the database in `~/.terminus/terminus.db`.
 
 Other modes:

@@ -23,8 +23,9 @@ describe('decideAfterFailure', () => {
     expect(decideAfterFailure([failure('loop-detected')], DEFAULT_FAILURE_POLICY)).toBe('retry');
   });
 
-  it('never retries when the quota is exhausted or the human interrupted the run', () => {
+  it('never retries an exhausted quota, a human interruption or an isolation breach', () => {
     expect(decideAfterFailure([failure('quota-exhausted')], DEFAULT_FAILURE_POLICY)).toBe('block');
     expect(decideAfterFailure([failure('interrupted')], DEFAULT_FAILURE_POLICY)).toBe('block');
+    expect(decideAfterFailure([failure('isolation-breach')], DEFAULT_FAILURE_POLICY)).toBe('block');
   });
 });

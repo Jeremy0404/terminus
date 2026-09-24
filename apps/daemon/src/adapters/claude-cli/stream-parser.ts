@@ -2,6 +2,12 @@ import type { AgentEvent, AgentOutcome } from '../../application/ports/agent-run
 
 const SUMMARY_CHARS = 200;
 
+export interface ExpectedAgentSetup {
+  readonly skills: readonly string[];
+  readonly mcpServers: readonly string[];
+  readonly plugins: readonly string[];
+}
+
 interface Usage {
   readonly input_tokens?: number;
   readonly cache_creation_input_tokens?: number;
@@ -14,6 +20,13 @@ export class ClaudeStreamParser {
   private quotaRejected = false;
   private interrupted = false;
   private finished = false;
+  private breached = false;
+
+  constructor(private readonly expected: ExpectedAgentSetup | null = null) {}
+
+  get hasBreached(): boolean {
+    return this.breached;
+  }
 
   markInterrupted(): void {
     this.interrupted = true;
@@ -32,6 +45,8 @@ export class ClaudeStreamParser {
       return [{ type: 'text', text: line }];
     }
     switch (message['type']) {
+      case 'system':
+        return message['subtype'] === 'init' ? this.audit(message) : [];
       case 'assistant':
         return this.assistant(message);
       case 'user':
@@ -46,6 +61,31 @@ export class ClaudeStreamParser {
       default:
         return [];
     }
+  }
+
+  private audit(init: Record<string, unknown>): AgentEvent[] {
+    const skills = names(init['skills']);
+    const mcpServers = names(init['mcp_servers']);
+    const plugins = names(init['plugins']);
+    const loaded: AgentEvent = { type: 'text', text: `Agent setup — skills: ${list(skills)} · MCP: ${list(mcpServers)} · plugins: ${list(plugins)}` };
+    if (!this.expected) return [loaded];
+    const unexpected = [
+      ...skills.filter((name) => !this.expected?.skills.includes(name)).map((name) => `skill ${name}`),
+      ...mcpServers.filter((name) => !this.expected?.mcpServers.includes(name)).map((name) => `MCP server ${name}`),
+      ...plugins.filter((name) => !this.expected?.plugins.includes(name)).map((name) => `plugin ${name}`),
+    ];
+    if (unexpected.length === 0) return [loaded];
+    this.breached = true;
+    this.finished = true;
+    return [
+      loaded,
+      {
+        type: 'finished',
+        outcome: 'isolation-breach',
+        summary: `The run was stopped before its first action: unexpected ${unexpected.join(', ')} loaded. Allow it in the agent profile or remove it from the repository.`,
+        structuredOutput: null,
+      },
+    ];
   }
 
   private assistant(message: Record<string, unknown>): AgentEvent[] {
@@ -106,6 +146,15 @@ export class ClaudeStreamParser {
     }
     return { type: 'usage', inputTokens, outputTokens };
   }
+}
+
+function names(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => (typeof item === 'string' ? item : typeof item === 'object' && item !== null && 'name' in item ? String(item.name) : String(item)));
+}
+
+function list(values: readonly string[]): string {
+  return values.length > 0 ? values.join(', ') : 'none';
 }
 
 function summarize(input: unknown): string {
