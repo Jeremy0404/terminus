@@ -70,7 +70,7 @@ export function AdoptionWizard({ onCancel, onAdopted }: Props) {
         </div>
         <button type="button" className="btn small" onClick={onCancel}>{t('create.cancel')}</button>
       </div>
-      <ol className="phase-strip adoption-line" style={{ gridTemplateColumns: `repeat(${STATIONS.length}, 1fr)`, ['--lc' as string]: 'var(--l4)' }}>
+      <ol className="phase-strip adoption-line" style={{ gridTemplateColumns: `repeat(${STATIONS.length}, 1fr)`, ['--n' as string]: STATIONS.length, ['--lc' as string]: 'var(--l4)' }}>
         {STATIONS.map((candidate, candidateIndex) => (
           <li key={candidate} className={candidateIndex < index ? 'passed' : candidateIndex === index ? 'current' : ''} aria-current={candidate === station ? 'step' : undefined}>
             <i />

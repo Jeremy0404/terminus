@@ -151,6 +151,27 @@ describe('TaskActions', () => {
       expect(codeHost.merged).toEqual([]);
     });
 
+    it('sends a branch that fell behind the base back to sync instead of merging', () => {
+      const withSync = { ...TASK_LIFECYCLE, phases: [...TASK_LIFECYCLE.phases.slice(0, 6), { id: 'sync', executor: 'sync' as const }, ...TASK_LIFECYCLE.phases.slice(6)] };
+      givenTask('t1', { kind: 'awaiting-gate', gate: 'merge' }, { phaseIndex: 7, lifecycle: withSync });
+      runs.save({ id: 'publish', taskId: 't1', phaseIndex: 7, sessionId: 'code-host', status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null, output: { pullRequest: { number: 42, url: 'u' } } });
+      workspace.behind = true;
+
+      const task = actions.merge('t1');
+
+      expect(task.phaseIndex).toBe(6);
+      expect(task.status).toEqual({ kind: 'ready', mode: 'fresh' });
+      expect(codeHost.merged).toEqual([]);
+    });
+
+    it('explains a merge GitHub refuses instead of failing with an internal error', () => {
+      atMergeGate();
+      codeHost.merge = () => {
+        throw Object.assign(new Error('Command failed'), { stderr: 'the merge commit cannot be cleanly created' });
+      };
+      expect(() => actions.merge('t1')).toThrow('GitHub refused to merge pull request #42: the merge commit cannot be cleanly created');
+    });
+
     it('does not let a plain approval skip the merge', () => {
       atMergeGate();
       expect(() => actions.approve('t1')).toThrow(/merged with merge/);

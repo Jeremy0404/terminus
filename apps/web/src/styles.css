@@ -134,8 +134,8 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .inbox-empty { padding: 14px 16px; color: var(--ink-3); font-size: 14px; }
 
 .platform-head { display: flex; justify-content: space-between; gap: 10px; align-items: start; margin-bottom: 8px; }
-.phase-strip { list-style: none; margin: 14px 0 4px; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); position: relative; }
-.phase-strip::before { content: ''; position: absolute; left: calc(100% / 14); right: calc(100% / 14); top: 9px; height: 6px; border-radius: 3px; background: var(--rule); }
+.phase-strip { --n: 7; list-style: none; margin: 14px 0 4px; padding: 0; display: grid; grid-template-columns: repeat(var(--n), 1fr); position: relative; }
+.phase-strip::before { content: ''; position: absolute; left: calc(100% / (2 * var(--n))); right: calc(100% / (2 * var(--n))); top: 9px; height: 6px; border-radius: 3px; background: var(--rule); }
 .phase-strip li { display: grid; justify-items: center; gap: 5px; position: relative; font-family: var(--display); font-weight: 800; font-size: 9.5px; text-transform: uppercase; color: var(--ink-3); text-align: center; }
 .phase-strip li i { width: 24px; height: 24px; border-radius: 50%; background: var(--station); border: 5px solid var(--rule); z-index: 1; }
 .phase-strip li.passed i { background: var(--lc); border-color: var(--lc); }

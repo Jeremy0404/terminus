@@ -68,9 +68,16 @@ export class TaskActions {
     if (task.status.kind !== 'awaiting-gate' || task.status.gate !== 'merge') throw new DomainError(`Task ${taskId} is not waiting at the merge gate`);
     const pullRequest = this.pullRequestOf(task);
     const app = this.appOf(task);
+    const syncPhase = task.lifecycle.phases.find((phase) => phase.executor === 'sync');
+    if (syncPhase && this.deps.workspace.isBehindBase(this.workspaceOf(task), this.deps.baseRef)) return this.save(sendBack(task, syncPhase.id));
     const checks = this.deps.codeHost.checks(app.repoPath, pullRequest.number);
     if (checks === 'pending' || checks === 'failure') throw new DomainError(`CI on pull request #${pullRequest.number} is ${checks}`);
-    this.deps.codeHost.merge(app.repoPath, pullRequest.number);
+    try {
+      this.deps.codeHost.merge(app.repoPath, pullRequest.number);
+    } catch (error) {
+      const stderr = (error as { stderr?: unknown }).stderr;
+      throw new DomainError(`GitHub refused to merge pull request #${pullRequest.number}: ${typeof stderr === 'string' && stderr.trim() ? stderr.trim() : String(error)}`);
+    }
     const merged = this.save(approveGate(task));
     this.deps.workspace.remove(app.repoPath, this.workspaceOf(task));
     return merged;

@@ -1,7 +1,7 @@
 import type { Clock, IdGenerator, RunEventBus, RunUpdate } from '../../application/ports/system.js';
 import type { ChecksState, CodeHost, PullRequest } from '../../application/ports/code-host.js';
 import type { TaskNotes } from '../../application/ports/task-notes.js';
-import type { TaskWorkspace, Workspace } from '../../application/ports/workspace.js';
+import type { SyncResult, TaskWorkspace, Workspace } from '../../application/ports/workspace.js';
 
 export class FixedClock implements Clock {
   constructor(private readonly instant = '2026-09-24T10:00:00.000Z') {}
@@ -35,6 +35,16 @@ export class RecordingBus implements RunEventBus {
 
 export class FakeWorkspace implements Workspace {
   readonly checkpoints: string[] = [];
+  syncResults: SyncResult[] = [];
+  behind = false;
+
+  syncWithBase(): SyncResult {
+    return this.syncResults.shift() ?? { state: 'up-to-date', base: 'origin/main', conflicts: [] };
+  }
+
+  isBehindBase(): boolean {
+    return this.behind;
+  }
 
   prepare(_repoPath: string, appId: string, taskId: string): TaskWorkspace {
     return { taskId, path: `/worktrees/${appId}/${taskId}`, branch: `terminus/${taskId}` };
