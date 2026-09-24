@@ -1,12 +1,171 @@
-import { describe, expect, it } from 'vitest';
+import { fileURLToPath } from 'node:url';
+import { beforeEach, describe, expect, it } from 'vitest';
+import type { NetworkDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
 import { HealthResponse } from '@terminus/contracts';
-import { createHttpApp } from './app.js';
+import type { AgentEvent } from '../../application/ports/agent-runner.js';
+import type { CheckResult, CheckRunner } from '../../application/ports/check-runner.js';
+import { compose, type Services } from '../../compose.js';
+import { FsPlaybookRegistry } from '../fs-playbooks/fs-playbook-registry.js';
+import { FakeCodeHost, FakeWorkspace, FixedClock, SequentialIds } from '../in-memory/fakes.js';
+import {
+  InMemoryAppRepository,
+  InMemoryDecisionRepository,
+  InMemoryEpicRepository,
+  InMemoryRunRepository,
+  InMemoryTaskRepository,
+  InMemoryTranscriptStore,
+} from '../in-memory/in-memory-repositories.js';
+import { ScriptedAgentRunner, type AgentScript } from '../in-memory/scripted-agent-runner.js';
 
-describe('GET /api/health', () => {
-  it('answers with a valid health payload', async () => {
-    const response = await createHttpApp('1.2.3').request('/api/health');
+const PLAYBOOKS = fileURLToPath(new URL('../../../../../playbooks', import.meta.url));
 
-    expect(response.status).toBe(200);
-    expect(HealthResponse.parse(await response.json())).toEqual({ status: 'ok', version: '1.2.3' });
+const finish = (structuredOutput: unknown = null): AgentScript => () =>
+  [{ type: 'usage', inputTokens: 100, outputTokens: 20 }, { type: 'finished', outcome: 'success', summary: 'ok', structuredOutput }] satisfies AgentEvent[];
+
+const greenChecks: CheckRunner = {
+  run: (_cwd, commands) => Promise.resolve(commands.map((c): CheckResult => ({ ...c, ok: true, exitCode: 0, outputTail: '', durationMs: 1 }))),
+};
+
+let services: Services;
+let codeHost: FakeCodeHost;
+
+function start(...scripts: AgentScript[]): void {
+  const epics = new InMemoryEpicRepository();
+  codeHost = new FakeCodeHost();
+  services = compose(
+    {
+      apps: new InMemoryAppRepository(),
+      epics,
+      tasks: new InMemoryTaskRepository(epics),
+      runs: new InMemoryRunRepository(),
+      decisions: new InMemoryDecisionRepository(),
+      transcripts: new InMemoryTranscriptStore(),
+      workspace: new FakeWorkspace(),
+      agent: new ScriptedAgentRunner(...scripts),
+      checks: greenChecks,
+      codeHost,
+      playbooks: new FsPlaybookRegistry(PLAYBOOKS),
+      clock: new FixedClock(),
+      ids: new SequentialIds(),
+    },
+    { version: '9.9.9', baseRef: 'main', concurrency: 2, budget: { maxTokens: 400_000, maxTurns: 80 }, systemPromptAppend: '' },
+  );
+}
+
+async function call<T>(method: string, path: string, body?: unknown): Promise<{ status: number; json: T }> {
+  const init: RequestInit = { method, headers: { 'content-type': 'application/json' } };
+  if (body !== undefined) init.body = JSON.stringify(body);
+  const response = await services.http.request(path, init);
+  const text = await response.text();
+  return { status: response.status, json: (text ? JSON.parse(text) : null) as T };
+}
+
+async function settle(): Promise<void> {
+  await services.scheduler.idle();
+}
+
+async function givenTask(): Promise<{ appId: string; taskId: string }> {
+  const app = await call<{ id: string }>('POST', '/api/apps', { name: 'demo', repoPath: '/repo', verification: [{ name: 'test', command: 'pnpm test' }] });
+  const epic = await call<{ id: string }>('POST', `/api/apps/${app.json.id}/epics`, { code: 'I', name: 'Interface' });
+  const task = await call<TaskSummaryDto>('POST', `/api/epics/${epic.json.id}/tasks`, { title: 'Zoom to platform' });
+  return { appId: app.json.id, taskId: task.json.id };
+}
+
+describe('HTTP API', () => {
+  beforeEach(() => start());
+
+  it('answers the health check', async () => {
+    const { status, json } = await call<unknown>('GET', '/api/health');
+    expect(status).toBe(200);
+    expect(HealthResponse.parse(json)).toEqual({ status: 'ok', version: '9.9.9' });
+  });
+
+  it('creates an app, a line and a station, and draws the network', async () => {
+    const { appId, taskId } = await givenTask();
+
+    const { json } = await call<NetworkDto>('GET', `/api/apps/${appId}/network`);
+
+    expect(json.app.name).toBe('demo');
+    expect(json.epics.map((epic) => epic.code)).toEqual(['I']);
+    expect(json.tasks).toEqual([
+      expect.objectContaining({ id: taskId, title: 'Zoom to platform', phaseIndex: 0, status: { kind: 'todo' }, phases: ['spec', 'grill', 'plan', 'execute', 'verify', 'review', 'merge'] }),
+    ]);
+    expect(json.inbox).toEqual([]);
+  });
+
+  it('rejects invalid bodies with 400, unknown ids with 404 and wrong transitions with 409', async () => {
+    const { taskId } = await givenTask();
+    expect((await call('POST', '/api/apps', { name: '' })).status).toBe(400);
+    expect((await call('GET', '/api/tasks/missing')).status).toBe(404);
+    expect((await call('POST', `/api/tasks/${taskId}/approve`)).status).toBe(409);
+  });
+
+  it('refuses a duplicate line code and a dependency cycle', async () => {
+    const { appId } = await givenTask();
+    expect((await call('POST', `/api/apps/${appId}/epics`, { code: 'I', name: 'Again' })).status).toBe(409);
+    expect((await call('POST', '/api/epics/epic-2/tasks', { title: 'x', dependsOn: ['ghost'] })).status).toBe(409);
+  });
+
+  it('drives a task through every phase to the merge', async () => {
+    const grill = { decisions: [{ question: 'Where do phases live?', options: [{ label: 'YAML', description: 'files', recommended: true }, { label: 'SQLite', description: 'rows', recommended: false }] }] };
+    start(finish(), finish(grill), finish({ decisions: [] }), finish(), finish(), finish({ verdict: 'approve', summary: 'good', findings: [] }));
+    const { appId, taskId } = await givenTask();
+
+    await call('POST', `/api/tasks/${taskId}/open`);
+    await settle();
+    let detail = (await call<TaskDetailDto>('GET', `/api/tasks/${taskId}`)).json;
+    expect(detail.task.status).toMatchObject({ kind: 'awaiting-decision' });
+    expect(detail.actions).toEqual([{ kind: 'answer-decision', decisionId: detail.decisions[0]?.id }]);
+    const network = (await call<NetworkDto>('GET', `/api/apps/${appId}/network`)).json;
+    expect(network.inbox).toEqual([expect.objectContaining({ taskId, reason: { kind: 'decision', decisionId: detail.decisions[0]?.id } })]);
+
+    await call('POST', `/api/decisions/${detail.decisions[0]?.id}/answer`, { kind: 'option', index: 0 });
+    await settle();
+    detail = (await call<TaskDetailDto>('GET', `/api/tasks/${taskId}`)).json;
+    expect(detail.task.status).toEqual({ kind: 'awaiting-gate', gate: 'plan-approval' });
+
+    await call('POST', `/api/tasks/${taskId}/approve`);
+    await settle();
+    detail = (await call<TaskDetailDto>('GET', `/api/tasks/${taskId}`)).json;
+    expect(detail.task.status).toEqual({ kind: 'awaiting-gate', gate: 'human-review' });
+    expect(detail.runs.at(-1)?.output).toEqual({ verdict: 'approve', summary: 'good', findings: [] });
+
+    await call('POST', `/api/tasks/${taskId}/approve`);
+    await settle();
+    detail = (await call<TaskDetailDto>('GET', `/api/tasks/${taskId}`)).json;
+    expect(detail.task.status).toEqual({ kind: 'awaiting-gate', gate: 'merge' });
+    expect(detail.actions).toEqual([{ kind: 'merge' }]);
+
+    const merged = await call<TaskSummaryDto>('POST', `/api/tasks/${taskId}/merge`);
+    expect(merged.json.status).toEqual({ kind: 'done' });
+    expect(codeHost.merged).toEqual([42]);
+    expect(detail.checkpoints.map((checkpoint) => checkpoint.phaseIndex)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it('serves a run transcript', async () => {
+    start(finish());
+    const { taskId } = await givenTask();
+    await call('POST', `/api/tasks/${taskId}/open`);
+    await settle();
+    const runId = (await call<TaskDetailDto>('GET', `/api/tasks/${taskId}`)).json.runs[0]?.id;
+
+    const { json } = await call<unknown[]>('GET', `/api/runs/${runId}/transcript`);
+
+    expect(json).toHaveLength(2);
+  });
+
+  it('streams task changes as server-sent events', async () => {
+    const response = await services.http.request('/api/events');
+    const reader = (response.body as ReadableStream<Uint8Array>).getReader();
+    const decoder = new TextDecoder();
+    await reader.read();
+
+    await givenTask();
+    let received = '';
+    while (!received.includes('task-changed')) received += decoder.decode((await reader.read()).value);
+    await reader.cancel();
+
+    expect(response.headers.get('content-type')).toContain('text/event-stream');
+    expect(received).toContain('"title":"Zoom to platform"');
   });
 });

@@ -1,4 +1,4 @@
-export type FailureKind = 'check-failed' | 'loop-detected' | 'budget-exceeded' | 'agent-crashed' | 'quota-exhausted' | 'publish-failed';
+export type FailureKind = 'check-failed' | 'loop-detected' | 'budget-exceeded' | 'agent-crashed' | 'quota-exhausted' | 'publish-failed' | 'interrupted';
 
 export interface Failure {
   readonly kind: FailureKind;
@@ -23,6 +23,6 @@ export function isLooping(signatures: readonly string[], threshold: number): boo
 
 export function decideAfterFailure(failuresInPhase: readonly Failure[], policy: FailurePolicy): 'retry' | 'block' {
   const latest = failuresInPhase.at(-1);
-  if (!latest || latest.kind === 'quota-exhausted') return 'block';
+  if (!latest || latest.kind === 'quota-exhausted' || latest.kind === 'interrupted') return 'block';
   return failuresInPhase.length <= policy.maxAutoRetries ? 'retry' : 'block';
 }

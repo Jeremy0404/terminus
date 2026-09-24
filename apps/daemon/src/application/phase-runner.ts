@@ -49,7 +49,17 @@ interface RunObservation {
 }
 
 export class PhaseRunner {
+  private readonly active = new Map<string, { readonly interrupt: () => void; byUser: boolean }>();
+
   constructor(private readonly deps: PhaseRunnerDeps) {}
+
+  interrupt(taskId: string): boolean {
+    const run = this.active.get(taskId);
+    if (!run) return false;
+    run.byUser = true;
+    run.interrupt();
+    return true;
+  }
 
   async run(taskId: string): Promise<Task> {
     const { runs, workspace, agent, clock, ids, budget } = this.deps;
@@ -83,7 +93,10 @@ export class PhaseRunner {
       maxTurns: budget.maxTurns,
       outputSchema: outputSchemaFor(phase),
     });
-    const observation = await this.observe(taskId, runId, handle.events, () => handle.interrupt());
+    const control = { interrupt: () => handle.interrupt(), byUser: false };
+    this.active.set(taskId, control);
+    const observation = await this.observe(taskId, runId, handle.events, () => handle.interrupt()).finally(() => this.active.delete(taskId));
+    if (control.byUser && !observation.stopped) observation.stopped = this.failure('interrupted', 'user', 'Interrupted from Terminus');
 
     const finishedOk = !observation.stopped && observation.finished?.outcome === 'success';
     let status: RunStatus = 'succeeded';
