@@ -12,6 +12,7 @@ import {
 } from '../domain/task.js';
 import type { AppRepository, DecisionRepository, EpicRepository, RunRepository, TaskRepository } from './ports/repositories.js';
 import type { Clock, RunEventBus } from './ports/system.js';
+import type { CodeHost, PullRequest } from './ports/code-host.js';
 import type { Workspace } from './ports/workspace.js';
 
 export interface TaskActionsDeps {
@@ -21,6 +22,7 @@ export interface TaskActionsDeps {
   readonly runs: RunRepository;
   readonly decisions: DecisionRepository;
   readonly workspace: Workspace;
+  readonly codeHost: CodeHost;
   readonly clock: Clock;
   readonly bus: RunEventBus;
   readonly baseRef: string;
@@ -56,7 +58,22 @@ export class TaskActions {
   }
 
   approve(taskId: string): Task {
-    return this.save(approveGate(this.load(taskId)));
+    const task = this.load(taskId);
+    if (task.status.kind === 'awaiting-gate' && task.status.gate === 'merge') throw new DomainError(`Task ${taskId} is merged with merge, not approve`);
+    return this.save(approveGate(task));
+  }
+
+  merge(taskId: string): Task {
+    const task = this.load(taskId);
+    if (task.status.kind !== 'awaiting-gate' || task.status.gate !== 'merge') throw new DomainError(`Task ${taskId} is not waiting at the merge gate`);
+    const pullRequest = this.pullRequestOf(task);
+    const app = this.appOf(task);
+    const checks = this.deps.codeHost.checks(app.repoPath, pullRequest.number);
+    if (checks === 'pending' || checks === 'failure') throw new DomainError(`CI on pull request #${pullRequest.number} is ${checks}`);
+    this.deps.codeHost.merge(app.repoPath, pullRequest.number);
+    const merged = this.save(approveGate(task));
+    this.deps.workspace.remove(app.repoPath, this.workspaceOf(task));
+    return merged;
   }
 
   sendBack(taskId: string, toPhaseId: string): Task {
@@ -88,10 +105,26 @@ export class TaskActions {
   }
 
   private workspaceOf(task: Task) {
+    const app = this.appOf(task);
+    return this.deps.workspace.prepare(app.repoPath, app.id, task.id, this.deps.baseRef);
+  }
+
+  private appOf(task: Task) {
     const epic = this.deps.epics.get(task.epicId);
     const app = epic && this.deps.apps.get(epic.appId);
     if (!app) throw new DomainError(`Task ${task.id} has no app`);
-    return this.deps.workspace.prepare(app.repoPath, app.id, task.id, this.deps.baseRef);
+    return app;
+  }
+
+  private pullRequestOf(task: Task): PullRequest {
+    const published = this.deps.runs
+      .listByTask(task.id)
+      .filter((run) => run.phaseIndex === task.phaseIndex)
+      .map((run) => run.output)
+      .reverse()
+      .find((output): output is { pullRequest: PullRequest } => typeof output === 'object' && output !== null && 'pullRequest' in output);
+    if (!published) throw new DomainError(`Task ${task.id} has no pull request`);
+    return published.pullRequest;
   }
 
   private load(taskId: string): Task {

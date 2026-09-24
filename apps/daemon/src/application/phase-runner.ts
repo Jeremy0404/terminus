@@ -9,6 +9,8 @@ import { DECISIONS_OUTPUT_SCHEMA, readProposedDecisions } from './decision-outpu
 import { buildPhasePrompt } from './phase-prompt.js';
 import { REVIEW_OUTPUT_SCHEMA } from './review-output.js';
 import type { CheckRunner } from './ports/check-runner.js';
+import type { CodeHost } from './ports/code-host.js';
+import { pullRequestBody, pullRequestTitle } from './pull-request-text.js';
 import type { AgentEvent, AgentRunner } from './ports/agent-runner.js';
 import type { AppRepository, DecisionRepository, EpicRepository, RunRepository, TaskRepository } from './ports/repositories.js';
 import type { Clock, IdGenerator, RunEventBus } from './ports/system.js';
@@ -30,6 +32,7 @@ export interface PhaseRunnerDeps {
   readonly workspace: Workspace;
   readonly agent: AgentRunner;
   readonly checks: CheckRunner;
+  readonly codeHost: CodeHost;
   readonly clock: Clock;
   readonly ids: IdGenerator;
   readonly bus: RunEventBus;
@@ -57,7 +60,7 @@ export class PhaseRunner {
     const taskWorkspace = workspace.prepare(app.repoPath, app.id, ready.id, this.deps.baseRef);
     const executor = phase.executor ?? 'agent';
     if (executor === 'checks') return this.runChecks(ready, app, phase, taskWorkspace);
-    if (executor !== 'agent') throw new DomainError(`Phase ${phase.id} uses the ${executor} executor, which is not available yet`);
+    if (executor === 'code-host') return this.publish(ready, phase, taskWorkspace);
     const previousRun = runs.listByTask(ready.id).filter((run) => run.phaseIndex === ready.phaseIndex).at(-1);
     const resume = ready.status.mode === 'resume' && previousRun !== undefined;
     const sessionId = resume ? previousRun.sessionId : ids.uuid();
@@ -142,6 +145,25 @@ export class PhaseRunner {
     return this.save(task);
   }
 
+  private publish(ready: Task, phase: PhaseDefinition, taskWorkspace: TaskWorkspace): Task {
+    const { runs, clock, ids } = this.deps;
+    const runId = ids.next('run');
+    let task = this.save(startRun(ready, runId));
+    const run: Run = { id: runId, taskId: task.id, phaseIndex: task.phaseIndex, sessionId: 'code-host', status: 'running', startedAt: clock.now(), endedAt: null, usage: null, output: null };
+    runs.save(run);
+    try {
+      const sequence = task.checkpoints.length + 1;
+      const ref = this.deps.workspace.checkpoint(taskWorkspace, sequence, phase.id);
+      const pullRequest = this.deps.codeHost.publish(taskWorkspace, this.deps.baseRef, pullRequestTitle(task), pullRequestBody(task, runs.listByTask(task.id)));
+      task = completePhase(task, { sequence, phaseIndex: task.phaseIndex, ref, sessionId: null, takenAt: clock.now() });
+      runs.save({ ...run, status: 'succeeded', endedAt: clock.now(), output: { pullRequest } });
+    } catch (error) {
+      task = failRun(task, this.failure('publish-failed', 'publish', errorMessage(error)), this.deps.failurePolicy);
+      runs.save({ ...run, status: 'failed', endedAt: clock.now() });
+    }
+    return this.save(task);
+  }
+
   private async observe(taskId: string, runId: string, events: AsyncIterable<AgentEvent>, interrupt: () => void): Promise<RunObservation> {
     const observation: RunObservation = { usage: null, finished: null, stopped: null };
     const signatures: string[] = [];
@@ -205,4 +227,10 @@ function outputSchemaFor(phase: PhaseDefinition): object | null {
   if (phase.output === 'decisions') return DECISIONS_OUTPUT_SCHEMA;
   if (phase.output === 'review') return REVIEW_OUTPUT_SCHEMA;
   return null;
+}
+
+function errorMessage(error: unknown): string {
+  const stderr = (error as { stderr?: unknown }).stderr;
+  if (typeof stderr === 'string' && stderr.trim()) return stderr.trim();
+  return error instanceof Error ? error.message : String(error);
 }

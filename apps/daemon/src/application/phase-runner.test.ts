@@ -7,7 +7,7 @@ import {
   InMemoryTaskRepository,
   InMemoryTranscriptStore,
 } from '../adapters/in-memory/in-memory-repositories.js';
-import { FakeWorkspace, FixedClock, RecordingBus, SequentialIds } from '../adapters/in-memory/fakes.js';
+import { FakeCodeHost, FakeWorkspace, FixedClock, RecordingBus, SequentialIds } from '../adapters/in-memory/fakes.js';
 import { ScriptedAgentRunner, type AgentScript } from '../adapters/in-memory/scripted-agent-runner.js';
 import { DEFAULT_FAILURE_POLICY } from '../domain/failure.js';
 import { createTask, type Task, type TaskStatus } from '../domain/task.js';
@@ -57,6 +57,7 @@ let transcripts: InMemoryTranscriptStore;
 let workspace: FakeWorkspace;
 let bus: RecordingBus;
 let checks: StubCheckRunner;
+let codeHost: FakeCodeHost;
 
 beforeEach(() => {
   apps = new InMemoryAppRepository();
@@ -68,6 +69,7 @@ beforeEach(() => {
   workspace = new FakeWorkspace();
   bus = new RecordingBus();
   checks = new StubCheckRunner();
+  codeHost = new FakeCodeHost();
   apps.save({ id: 'app', name: 'app', repoPath: '/repo', verification: [{ name: 'test', command: 'pnpm test' }, { name: 'build', command: 'pnpm build' }], createdAt: '2026-09-24T09:00:00Z' });
   epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'Interface', status: 'active', position: 1 });
 });
@@ -85,6 +87,7 @@ function runner(agent: ScriptedAgentRunner, budget = { maxTokens: 400_000, maxTu
     ids: new SequentialIds(),
     failurePolicy: DEFAULT_FAILURE_POLICY,
     checks,
+    codeHost,
     baseRef: 'main',
     systemPromptAppend: 'context pack',
   });
@@ -284,8 +287,38 @@ describe('PhaseRunner', () => {
     expect(runs.listByTask('t1')[0]?.output).toEqual(verdict);
   });
 
-  it('refuses a phase whose executor is not available yet', async () => {
+  it('publishes the branch as a pull request and waits at the merge gate', async () => {
+    givenTask(6, { kind: 'ready', mode: 'fresh' }, { title: 'Zoom to platform' });
+    runs.save({ id: 'review-run', taskId: 't1', phaseIndex: 5, sessionId: 's', status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null,
+      output: { verdict: 'approve', summary: 'Looks right', findings: [{ severity: 'minor', file: 'zoom.ts', summary: 'Rename var' }] } });
+    const agent = new ScriptedAgentRunner();
+
+    const task = await runner(agent).run('t1');
+
+    expect(agent.requests).toEqual([]);
+    expect(task.status).toEqual({ kind: 'awaiting-gate', gate: 'merge' });
+    expect(workspace.checkpoints).toEqual(['1:merge']);
+    expect(codeHost.published).toEqual([{
+      branch: 'terminus/t1',
+      title: 'feat: zoom to platform',
+      body: 'Task: Zoom to platform\n\nPhases completed: 0 of 7.\n\nReview: approve — Looks right\n- [minor] zoom.ts: Rename var',
+    }]);
+    expect(runs.listByTask('t1').at(-1)?.output).toEqual({ pullRequest: { number: 42, url: 'https://github.com/o/r/pull/42' } });
+  });
+
+  it('keeps a conventional task title as the pull request title', async () => {
+    givenTask(6, { kind: 'ready', mode: 'fresh' }, { title: 'fix: keep Esc working in the platform' });
+    await runner(new ScriptedAgentRunner()).run('t1');
+    expect(codeHost.published[0]?.title).toBe('fix: keep Esc working in the platform');
+  });
+
+  it('records a failed publication as a retryable failure', async () => {
     givenTask(6);
-    await expect(runner(new ScriptedAgentRunner()).run('t1')).rejects.toThrow(/code-host executor/);
+    codeHost.failPublish = Object.assign(new Error('Command failed'), { stderr: 'remote rejected' });
+
+    const task = await runner(new ScriptedAgentRunner()).run('t1');
+
+    expect(task.status).toEqual({ kind: 'ready', mode: 'retry' });
+    expect(task.failuresInPhase[0]).toMatchObject({ kind: 'publish-failed', message: 'remote rejected' });
   });
 });

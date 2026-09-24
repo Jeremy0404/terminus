@@ -1,4 +1,5 @@
 import type { Clock, IdGenerator, RunEventBus, RunUpdate } from '../../application/ports/system.js';
+import type { ChecksState, CodeHost, PullRequest } from '../../application/ports/code-host.js';
 import type { TaskWorkspace, Workspace } from '../../application/ports/workspace.js';
 
 export class FixedClock implements Clock {
@@ -50,4 +51,25 @@ export class FakeWorkspace implements Workspace {
   }
 
   remove(): void {}
+}
+
+export class FakeCodeHost implements CodeHost {
+  readonly published: { branch: string; title: string; body: string }[] = [];
+  readonly merged: number[] = [];
+  checksState: ChecksState = 'success';
+  failPublish: Error | null = null;
+
+  publish(workspace: TaskWorkspace, _baseBranch: string, title: string, body: string): PullRequest {
+    if (this.failPublish) throw this.failPublish;
+    this.published.push({ branch: workspace.branch, title, body });
+    return { number: 42, url: 'https://github.com/o/r/pull/42' };
+  }
+
+  checks(): ChecksState {
+    return this.checksState;
+  }
+
+  merge(_repoPath: string, pullRequest: number): void {
+    this.merged.push(pullRequest);
+  }
 }
