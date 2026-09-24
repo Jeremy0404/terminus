@@ -1,3 +1,4 @@
+import type { Epic } from '../../domain/epic.js';
 import type { Task } from '../../domain/task.js';
 import type { AgentEvent } from './agent-runner.js';
 import type { CheckResult } from './check-runner.js';
@@ -13,6 +14,7 @@ export interface IdGenerator {
 
 export type RunUpdate =
   | { readonly kind: 'task-changed'; readonly task: Task }
+  | { readonly kind: 'epic-changed'; readonly epic: Epic }
   | { readonly kind: 'run-event'; readonly runId: string; readonly taskId: string; readonly event: AgentEvent }
   | { readonly kind: 'check-started'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string }
   | { readonly kind: 'check-output'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string; readonly outputTail: string }

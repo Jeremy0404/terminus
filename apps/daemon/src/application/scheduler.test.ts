@@ -9,7 +9,7 @@ function setup(statuses: Record<string, TaskStatus>) {
   const epics = new InMemoryEpicRepository();
   const tasks = new InMemoryTaskRepository(epics);
   apps.save({ id: 'app', name: 'app', repoPath: '/repo', verification: [], createdAt: 'x' });
-  epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'I', status: 'active', position: 1 });
+  epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'I', status: 'active', position: 1, description: '', breakdown: { status: 'idle' } });
   for (const [id, status] of Object.entries(statuses)) {
     tasks.save({ ...createTask({ id, epicId: 'epic', title: id, lifecycle: TASK_LIFECYCLE }), status });
   }

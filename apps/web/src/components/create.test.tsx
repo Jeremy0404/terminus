@@ -36,7 +36,7 @@ describe('NewLineForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tracer la ligne' }));
 
     await waitFor(() => expect(onDone).toHaveBeenCalled());
-    expect(calls).toEqual([{ path: '/api/apps/app-1/epics', body: { code: 'A', name: 'Adoption', status: 'planned' } }]);
+    expect(calls).toEqual([{ path: '/api/apps/app-1/epics', body: { code: 'A', name: 'Adoption', status: 'planned', description: '' } }]);
   });
 
   it('disables its fields and cancel button while the request is in flight', async () => {

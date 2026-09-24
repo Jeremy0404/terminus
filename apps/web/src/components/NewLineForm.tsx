@@ -18,13 +18,15 @@ export function NewLineForm({ network, onDone }: { network: NetworkDto; onDone: 
   const [name, setName] = useState('');
   const [code, setCode] = useState<string | null>(null);
   const [planned, setPlanned] = useState(false);
+  const [goal, setGoal] = useState('');
   const { busy, error, run } = useAction();
   const effectiveCode = code ?? suggestCode(name, taken);
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
     void run(async () => {
-      await api.createEpic(network.app.id, { code: effectiveCode, name: name.trim(), status: planned ? 'planned' : 'active' });
+      const epic = await api.createEpic(network.app.id, { code: effectiveCode, name: name.trim(), status: planned ? 'planned' : 'active', description: goal.trim() });
+      if (goal.trim()) await api.startBreakdown(epic.id, goal.trim());
       onDone();
     });
   };
@@ -38,6 +40,10 @@ export function NewLineForm({ network, onDone }: { network: NetworkDto; onDone: 
       <label className="field">
         <span className="eyebrow">{t('create.line.code')}</span>
         <input id="new-line-code" value={effectiveCode} maxLength={3} onChange={(event) => setCode(event.target.value.toUpperCase())} required disabled={busy} />
+      </label>
+      <label className="field">
+        <span className="eyebrow">{t('create.line.goal')}</span>
+        <textarea id="new-line-goal" className="free-answer brief" value={goal} onChange={(event) => setGoal(event.target.value)} placeholder={t('create.line.goalHint')} disabled={busy} />
       </label>
       <label className="check">
         <input id="new-line-planned" type="checkbox" checked={planned} onChange={(event) => setPlanned(event.target.checked)} disabled={busy} />

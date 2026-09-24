@@ -18,5 +18,5 @@ export interface Workspace {
   diff(workspace: TaskWorkspace, baseRef: string): string;
   syncWithBase(workspace: TaskWorkspace, baseRef: string): SyncResult;
   isBehindBase(workspace: TaskWorkspace, baseRef: string): boolean;
-  remove(repoPath: string, workspace: TaskWorkspace): void;
+  remove(repoPath: string, workspace: TaskWorkspace, options?: { readonly deleteBranch: boolean }): void;
 }

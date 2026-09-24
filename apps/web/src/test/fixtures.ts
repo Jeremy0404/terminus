@@ -22,8 +22,8 @@ export const task = (id: string, epicId: string, title: string, status: TaskSumm
 export const NETWORK: NetworkDto = {
   app: APP,
   epics: [
-    { id: 'engine', appId: 'app-1', code: 'M', name: 'Moteur', status: 'active', position: 1 },
-    { id: 'ui', appId: 'app-1', code: 'I', name: 'Interface', status: 'active', position: 2 },
+    { id: 'engine', appId: 'app-1', code: 'M', name: 'Moteur', status: 'active', position: 1, description: '', breakdown: { status: 'idle' } },
+    { id: 'ui', appId: 'app-1', code: 'I', name: 'Interface', status: 'active', position: 2, description: '', breakdown: { status: 'idle' } },
   ],
   tasks: [
     task('m1', 'engine', 'Spike CLI', { kind: 'done' }),

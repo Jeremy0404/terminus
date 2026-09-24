@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
 import { layoutNetwork, LEFT, lineViewBox, ROW, STEP, TOP } from './layout';
 
-const epic = (id: string, position: number): EpicDto => ({ id, appId: 'app', code: id.toUpperCase(), name: id, status: 'active', position });
+const epic = (id: string, position: number): EpicDto => ({ id, appId: 'app', code: id.toUpperCase(), name: id, status: 'active', position, description: '', breakdown: { status: 'idle' } });
 const task = (id: string, epicId: string, dependsOn: string[] = []): TaskSummaryDto => ({
   id,
   epicId,

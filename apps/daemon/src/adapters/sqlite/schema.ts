@@ -1,5 +1,6 @@
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { VerificationCommand } from '../../domain/app.js';
+import type { Breakdown } from '../../domain/epic.js';
 import type { DecisionAnswer, DecisionOption, Proposal } from '../../domain/decision.js';
 import type { Failure } from '../../domain/failure.js';
 import type { PhaseDefinition } from '../../domain/lifecycle.js';
@@ -22,6 +23,8 @@ export const epics = sqliteTable(
     name: text('name').notNull(),
     status: text('status', { enum: ['planned', 'active', 'delivered'] }).notNull(),
     position: integer('position').notNull(),
+    description: text('description').notNull().default(''),
+    breakdown: text('breakdown', { mode: 'json' }).$type<Breakdown>().notNull().default({ status: 'idle' }),
   },
   (table) => [index('epics_app_idx').on(table.appId)],
 );

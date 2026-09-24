@@ -2,7 +2,9 @@ import { Hono, type Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { ZodError, type ZodType } from 'zod';
 import {
+  AcceptBreakdownBody,
   AnswerBody,
+  BreakdownBody,
   CloseBody,
   CreateAppBody,
   CutOverBody,
@@ -18,6 +20,7 @@ import {
 } from '@terminus/contracts';
 import type { Adoption } from '../../application/adoption.js';
 import type { Catalog } from '../../application/catalog.js';
+import type { EpicPlanner } from '../../application/epic-planner.js';
 import type { RunUpdate } from '../../application/ports/system.js';
 import { NotFound, type Queries } from '../../application/queries.js';
 import type { TaskActions } from '../../application/task-actions.js';
@@ -31,6 +34,7 @@ export interface HttpDeps {
   readonly queries: Queries;
   readonly catalog: Catalog;
   readonly adoption: Adoption;
+  readonly planner: EpicPlanner;
   readonly actions: TaskActions;
   readonly runs: { interrupt(taskId: string): boolean };
   readonly scheduler: { tick(): unknown; release(taskId: string): void };
@@ -62,6 +66,16 @@ export function createHttpApp(deps: HttpDeps): Hono {
   app.post('/api/apps', async (c) => c.json(toAppDto(catalog.createApp(await body(c, CreateAppBody))), 201));
   app.get('/api/apps/:appId/network', (c) => c.json(toNetworkDto(queries.network(c.req.param('appId')))));
   app.post('/api/apps/:appId/epics', async (c) => c.json(toEpicDto(catalog.createEpic(c.req.param('appId'), await body(c, CreateEpicBody))), 201));
+  app.post('/api/epics/:epicId/breakdown', async (c) => {
+    const { brief } = await body(c, BreakdownBody);
+    return c.json(toEpicDto(deps.planner.start(c.req.param('epicId'), brief)), 202);
+  });
+  app.post('/api/epics/:epicId/breakdown/accept', async (c) => {
+    const created = deps.planner.accept(c.req.param('epicId'), await body(c, AcceptBreakdownBody));
+    deps.scheduler.tick();
+    return c.json(created.map(toTaskSummaryDto), 201);
+  });
+  app.post('/api/epics/:epicId/breakdown/dismiss', (c) => c.json(toEpicDto(deps.planner.dismiss(c.req.param('epicId')))));
   app.post('/api/epics/:epicId/tasks', async (c) => {
     const task = catalog.createTask(c.req.param('epicId'), await body(c, CreateTaskBody));
     return c.json(toTaskSummaryDto(task), 201);

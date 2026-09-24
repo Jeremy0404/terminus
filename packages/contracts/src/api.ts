@@ -17,6 +17,15 @@ export const CreateEpicBody = z.object({
   code: z.string().regex(/^[A-Z0-9]{1,3}$/),
   name: z.string().min(1),
   status: z.enum(['planned', 'active', 'delivered']).default('active'),
+  description: z.string().max(4000).default(''),
+});
+
+export const BreakdownBody = z.object({ brief: z.string().max(4000).default('') });
+
+export const AcceptBreakdownBody = z.object({
+  description: z.string().max(4000),
+  stations: z.array(z.object({ title: z.string().min(1), dependsOn: z.array(z.number().int().min(0)).default([]) })).min(1),
+  track: z.enum(['standard', 'light']).default('standard'),
 });
 
 export const CreateTaskBody = z.object({
@@ -72,6 +81,18 @@ export interface AppDto {
   readonly repoPath: string;
 }
 
+export interface ProposedStationDto {
+  readonly title: string;
+  readonly why: string;
+  readonly dependsOn: readonly number[];
+}
+
+export type BreakdownDto =
+  | { readonly status: 'idle' }
+  | { readonly status: 'running'; readonly brief: string; readonly runId: string }
+  | { readonly status: 'ready'; readonly brief: string; readonly proposal: { readonly description: string; readonly stations: readonly ProposedStationDto[] } }
+  | { readonly status: 'failed'; readonly brief: string; readonly error: string };
+
 export interface EpicDto {
   readonly id: string;
   readonly appId: string;
@@ -79,6 +100,8 @@ export interface EpicDto {
   readonly name: string;
   readonly status: 'planned' | 'active' | 'delivered';
   readonly position: number;
+  readonly description: string;
+  readonly breakdown: BreakdownDto;
 }
 
 export interface TaskSummaryDto {
@@ -176,6 +199,7 @@ export interface ChecksResponseDto {
 
 export type ServerEventDto =
   | { readonly type: 'task-changed'; readonly task: TaskSummaryDto }
+  | { readonly type: 'epic-changed'; readonly epic: EpicDto }
   | { readonly type: 'run-event'; readonly runId: string; readonly taskId: string; readonly event: unknown }
   | { readonly type: 'check-started'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string }
   | { readonly type: 'check-output'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string; readonly outputTail: string }

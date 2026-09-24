@@ -3,6 +3,7 @@ import { EmitterBus } from './adapters/events/emitter-bus.js';
 import { createHttpApp } from './adapters/http/app.js';
 import { Adoption } from './application/adoption.js';
 import { Catalog } from './application/catalog.js';
+import { EpicPlanner } from './application/epic-planner.js';
 import { PhaseRunner, type RunBudget } from './application/phase-runner.js';
 import type { AgentRunner } from './application/ports/agent-runner.js';
 import type { CheckRunner } from './application/ports/check-runner.js';
@@ -57,6 +58,7 @@ export interface Settings {
 
 export interface Services {
   readonly http: Hono;
+  readonly planner: EpicPlanner;
   readonly scheduler: Scheduler;
   readonly bus: EmitterBus;
 }
@@ -76,15 +78,17 @@ export function compose(adapters: Adapters, settings: Settings): Services {
   });
   const actions = new TaskActions({ ...adapters, bus, baseRef: settings.baseRef });
   const catalog = new Catalog({ ...adapters, bus });
+  const planner = new EpicPlanner({ ...adapters, catalog, bus, budget: settings.budget, baseRef: settings.baseRef });
   const http = createHttpApp({
     version: settings.version,
     queries: new Queries(adapters),
     catalog,
     adoption: new Adoption(adapters.scanner, adapters.checks, adapters.issues, catalog, adapters.apps),
+    planner,
     actions,
     runs: phases,
     scheduler,
     events: bus,
   });
-  return { http, scheduler, bus };
+  return { http, planner, scheduler, bus };
 }

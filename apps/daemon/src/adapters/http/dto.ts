@@ -11,7 +11,7 @@ import type { Task } from '../../domain/task.js';
 
 export const toAppDto = ({ id, name, repoPath }: App): AppDto => ({ id, name, repoPath });
 
-export const toEpicDto = ({ id, appId, code, name, status, position }: Epic): EpicDto => ({ id, appId, code, name, status, position });
+export const toEpicDto = ({ id, appId, code, name, status, position, description, breakdown }: Epic): EpicDto => ({ id, appId, code, name, status, position, description, breakdown });
 
 export const toTaskSummaryDto = (task: Task): TaskSummaryDto => ({
   id: task.id,
@@ -53,6 +53,8 @@ export const toServerEventDto = (update: RunUpdate): ServerEventDto => {
   switch (update.kind) {
     case 'task-changed':
       return { type: 'task-changed', task: toTaskSummaryDto(update.task) };
+    case 'epic-changed':
+      return { type: 'epic-changed', epic: toEpicDto(update.epic) };
     case 'run-event':
       return { type: 'run-event', runId: update.runId, taskId: update.taskId, event: update.event };
     case 'check-started':

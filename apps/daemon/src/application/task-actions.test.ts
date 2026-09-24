@@ -38,7 +38,7 @@ beforeEach(() => {
   codeHost = new FakeCodeHost();
   bus = new RecordingBus();
   apps.save({ id: 'app', name: 'app', repoPath: '/repo', verification: [], createdAt: '2026-09-24T09:00:00Z' });
-  epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'Interface', status: 'active', position: 1 });
+  epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'Interface', status: 'active', position: 1, description: '', breakdown: { status: 'idle' } });
   actions = new TaskActions({ apps, epics, tasks, runs, decisions, workspace, codeHost, clock: new FixedClock(), ids: new SequentialIds(), bus, baseRef: 'main' });
 });
 

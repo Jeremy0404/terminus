@@ -3,6 +3,7 @@ phases:
   - id: framing
     gate: plan-approval
   - id: breakdown
+    skill: epic-breakdown
     gate: plan-approval
   - id: in-progress
   - id: validated

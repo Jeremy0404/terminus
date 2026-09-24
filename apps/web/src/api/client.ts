@@ -47,7 +47,11 @@ export const api = {
   checks: (taskId: string) => request<ChecksResponseDto>(`/tasks/${taskId}/checks`),
   transcript: (runId: string) => request<unknown[]>(`/runs/${runId}/transcript`),
   createApp: (body: { name: string; repoPath: string; verification: { name: string; command: string }[] }) => post<AppDto>('/apps', body),
-  createEpic: (appId: string, body: { code: string; name: string; status?: 'planned' | 'active' }) => post<EpicDto>(`/apps/${appId}/epics`, body),
+  createEpic: (appId: string, body: { code: string; name: string; status?: 'planned' | 'active'; description?: string }) => post<EpicDto>(`/apps/${appId}/epics`, body),
+  startBreakdown: (epicId: string, brief: string) => post<EpicDto>(`/epics/${epicId}/breakdown`, { brief }),
+  acceptBreakdown: (epicId: string, body: { description: string; stations: { title: string; dependsOn: number[] }[]; track: TrackDto }) =>
+    post<TaskSummaryDto[]>(`/epics/${epicId}/breakdown/accept`, body),
+  dismissBreakdown: (epicId: string) => post<EpicDto>(`/epics/${epicId}/breakdown/dismiss`),
   createTask: (epicId: string, body: { title: string; dependsOn?: string[]; track?: TrackDto }) => post<TaskSummaryDto>(`/epics/${epicId}/tasks`, body),
   skip: (taskId: string) => post<TaskSummaryDto>(`/tasks/${taskId}/skip`),
   setTrack: (taskId: string, track: TrackDto) => post<TaskSummaryDto>(`/tasks/${taskId}/track`, { track }),
