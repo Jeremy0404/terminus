@@ -6,7 +6,7 @@ import type { AgentEvent } from '../../application/ports/agent-runner.js';
 import type { CheckResult, CheckRunner } from '../../application/ports/check-runner.js';
 import { compose, type Services } from '../../compose.js';
 import { FsPlaybookRegistry } from '../fs-playbooks/fs-playbook-registry.js';
-import { FakeCodeHost, FakeWorkspace, FixedClock, SequentialIds } from '../in-memory/fakes.js';
+import { FakeCodeHost, FakeTaskNotes, FakeWorkspace, FixedClock, SequentialIds } from '../in-memory/fakes.js';
 import {
   InMemoryAppRepository,
   InMemoryDecisionRepository,
@@ -41,6 +41,7 @@ function start(...scripts: AgentScript[]): void {
       decisions: new InMemoryDecisionRepository(),
       transcripts: new InMemoryTranscriptStore(),
       workspace: new FakeWorkspace(),
+      notes: new FakeTaskNotes(),
       agent: new ScriptedAgentRunner(...scripts),
       checks: greenChecks,
       codeHost,

@@ -7,7 +7,7 @@ import {
   InMemoryTaskRepository,
   InMemoryTranscriptStore,
 } from '../adapters/in-memory/in-memory-repositories.js';
-import { FakeCodeHost, FakeWorkspace, FixedClock, RecordingBus, SequentialIds } from '../adapters/in-memory/fakes.js';
+import { FakeCodeHost, FakeTaskNotes, FakeWorkspace, FixedClock, RecordingBus, SequentialIds } from '../adapters/in-memory/fakes.js';
 import { ScriptedAgentRunner, type AgentScript } from '../adapters/in-memory/scripted-agent-runner.js';
 import { DEFAULT_FAILURE_POLICY } from '../domain/failure.js';
 import { createTask, type Task, type TaskStatus } from '../domain/task.js';
@@ -88,6 +88,7 @@ function runner(agent: ScriptedAgentRunner, budget = { maxTokens: 400_000, maxTu
     failurePolicy: DEFAULT_FAILURE_POLICY,
     checks,
     codeHost,
+    notes: new FakeTaskNotes(),
     baseRef: 'main',
     systemPromptAppend: 'context pack',
   });
@@ -121,6 +122,7 @@ describe('PhaseRunner', () => {
 
     expect(agent.requests[0]).toMatchObject({
       cwd: '/worktrees/app/t1',
+      notesDir: '/notes/t1',
       resume: false,
       skill: 'grill',
       maxTurns: 80,
@@ -128,6 +130,9 @@ describe('PhaseRunner', () => {
     });
     expect(agent.requests[0]?.outputSchema).not.toBeNull();
     expect(agent.requests[0]?.prompt).toContain('Phase: grill (2 of 7)');
+    expect(agent.requests[0]?.prompt).toContain('Task notes directory: /notes/t1');
+    expect(agent.requests[0]?.prompt).toContain('- test: pnpm test');
+    expect(agent.requests[0]?.prompt).toContain('Base branch: main');
   });
 
   it('stops at the plan approval gate', async () => {

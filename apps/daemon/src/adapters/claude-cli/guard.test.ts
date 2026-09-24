@@ -8,7 +8,7 @@ const WORKTREE = '/home/me/.terminus/worktrees/app/t1';
 function guard(tool: string, toolInput: Record<string, unknown>): { code: number | null; reason: string } {
   const result = spawnSync(process.execPath, [GUARD_SCRIPT], {
     input: JSON.stringify({ cwd: WORKTREE, hook_event_name: 'PreToolUse', tool_name: tool, tool_input: toolInput }),
-    env: { ...process.env, TERMINUS_WORKTREE: WORKTREE, TERMINUS_SECRET_PATHS: '~/.ssh:/etc/prod-secrets' },
+    env: { ...process.env, TERMINUS_WORKTREE: WORKTREE, TERMINUS_NOTES_DIR: '/home/me/.terminus/tasks/t1', TERMINUS_SECRET_PATHS: '~/.ssh:/etc/prod-secrets' },
     encoding: 'utf8',
   });
   return { code: result.status, reason: result.stderr };
@@ -20,6 +20,11 @@ describe('guard hook', () => {
     expect(guard('Write', { file_path: 'src/new.ts' }).code).toBe(0);
     expect(guard('Bash', { command: 'pnpm test && git commit -am wip' }).code).toBe(0);
     expect(guard('Read', { file_path: '/usr/share/doc/readme' }).code).toBe(0);
+  });
+
+  it('lets the agent write its notes outside the repository', () => {
+    expect(guard('Write', { file_path: '/home/me/.terminus/tasks/t1/spec.md' }).code).toBe(0);
+    expect(guard('Write', { file_path: '/home/me/.terminus/tasks/t2/spec.md' }).code).toBe(2);
   });
 
   it('blocks writes outside the worktree', () => {

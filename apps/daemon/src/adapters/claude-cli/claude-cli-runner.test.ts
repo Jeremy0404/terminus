@@ -13,6 +13,7 @@ const request = (overrides: Partial<AgentRunRequest> = {}): AgentRunRequest => (
   sessionId: '11111111-1111-4111-8111-111111111111',
   resume: false,
   cwd: tmpdir(),
+  notesDir: '/home/me/.terminus/tasks/t1',
   prompt: 'Phase: execute',
   systemPromptAppend: 'context pack',
   skill: 'execute-tdd',
@@ -44,7 +45,7 @@ async function collect(events: AsyncIterable<AgentEvent>): Promise<AgentEvent[]>
 describe('claudeArguments', () => {
   it('starts a new session with the guard hooks, budget and context', () => {
     const args = claudeArguments(request());
-    expect(args.slice(0, 5)).toEqual(['-p', 'Phase: execute', '--output-format', 'stream-json', '--verbose']);
+    expect(args.slice(0, 7)).toEqual(['-p', 'Phase: execute', '--output-format', 'stream-json', '--verbose', '--add-dir', '/home/me/.terminus/tasks/t1']);
     expect(args).toEqual(expect.arrayContaining(['--session-id', '11111111-1111-4111-8111-111111111111', '--permission-mode', 'bypassPermissions', '--max-turns', '80', '--append-system-prompt', 'context pack']));
     expect(args).not.toContain('--bare');
     const settings = JSON.parse(args[args.indexOf('--settings') + 1] ?? '{}') as { hooks: { PreToolUse: { hooks: { args: string[] }[] }[] } };

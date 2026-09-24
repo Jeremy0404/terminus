@@ -1,5 +1,6 @@
 import type { Clock, IdGenerator, RunEventBus, RunUpdate } from '../../application/ports/system.js';
 import type { ChecksState, CodeHost, PullRequest } from '../../application/ports/code-host.js';
+import type { TaskNotes } from '../../application/ports/task-notes.js';
 import type { TaskWorkspace, Workspace } from '../../application/ports/workspace.js';
 
 export class FixedClock implements Clock {
@@ -71,5 +72,11 @@ export class FakeCodeHost implements CodeHost {
 
   merge(_repoPath: string, pullRequest: number): void {
     this.merged.push(pullRequest);
+  }
+}
+
+export class FakeTaskNotes implements TaskNotes {
+  directoryFor(taskId: string): string {
+    return `/notes/${taskId}`;
   }
 }

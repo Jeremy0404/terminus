@@ -18,6 +18,7 @@ import type {
   TaskRepository,
 } from './application/ports/repositories.js';
 import type { Clock, IdGenerator } from './application/ports/system.js';
+import type { TaskNotes } from './application/ports/task-notes.js';
 import type { TranscriptStore } from './application/ports/transcript-store.js';
 import type { Workspace } from './application/ports/workspace.js';
 import { Queries } from './application/queries.js';
@@ -33,6 +34,7 @@ export interface Adapters {
   readonly decisions: DecisionRepository;
   readonly transcripts: TranscriptStore;
   readonly workspace: Workspace;
+  readonly notes: TaskNotes;
   readonly agent: AgentRunner;
   readonly checks: CheckRunner;
   readonly codeHost: CodeHost;

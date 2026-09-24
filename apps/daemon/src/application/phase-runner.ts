@@ -15,6 +15,7 @@ import type { AgentEvent, AgentRunner } from './ports/agent-runner.js';
 import type { AppRepository, DecisionRepository, EpicRepository, RunRepository, TaskRepository } from './ports/repositories.js';
 import type { Clock, IdGenerator, RunEventBus } from './ports/system.js';
 import type { TranscriptStore } from './ports/transcript-store.js';
+import type { TaskNotes } from './ports/task-notes.js';
 import type { TaskWorkspace, Workspace } from './ports/workspace.js';
 
 export interface RunBudget {
@@ -30,6 +31,7 @@ export interface PhaseRunnerDeps {
   readonly decisions: DecisionRepository;
   readonly transcripts: TranscriptStore;
   readonly workspace: Workspace;
+  readonly notes: TaskNotes;
   readonly agent: AgentRunner;
   readonly checks: CheckRunner;
   readonly codeHost: CodeHost;
@@ -74,7 +76,12 @@ export class PhaseRunner {
     const previousRun = runs.listByTask(ready.id).filter((run) => run.phaseIndex === ready.phaseIndex).at(-1);
     const resume = ready.status.mode === 'resume' && previousRun !== undefined;
     const sessionId = resume ? previousRun.sessionId : ids.uuid();
-    const prompt = buildPhasePrompt(ready, phase, this.deps.decisions.listByTask(ready.id).filter((decision) => decision.answer));
+    const notesDir = this.deps.notes.directoryFor(ready.id);
+    const prompt = buildPhasePrompt(ready, phase, this.deps.decisions.listByTask(ready.id).filter((decision) => decision.answer), {
+      notesDir,
+      baseRef: this.deps.baseRef,
+      verification: app.verification,
+    });
 
     const runId = ids.next('run');
     let task = this.save(startRun(ready, runId));
@@ -86,6 +93,7 @@ export class PhaseRunner {
       sessionId,
       resume,
       cwd: taskWorkspace.path,
+      notesDir,
       prompt,
       systemPromptAppend: this.deps.systemPromptAppend,
       skill: phase.skill ?? null,
