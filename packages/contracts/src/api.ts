@@ -5,6 +5,27 @@ const Track = z.enum(['standard', 'light']);
 
 export type TrackDto = z.infer<typeof Track>;
 
+export const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+const Effort = z.enum(EFFORT_LEVELS);
+
+export type EffortDto = z.infer<typeof Effort>;
+
+export const AgentChoiceBody = z.object({
+  model: z.string().regex(/^[\w.\-[\]]{1,100}$/).nullable(),
+  effort: Effort.nullable(),
+});
+
+export type AgentChoiceDto = z.infer<typeof AgentChoiceBody>;
+
+export const AgentDefaultsBody = z.object({ defaults: z.record(z.string(), AgentChoiceBody) });
+
+export interface AgentPhaseDto {
+  readonly key: string;
+  readonly lifecycleId: string;
+  readonly phaseId: string;
+  readonly choice: AgentChoiceDto;
+}
+
 export const TrackBody = z.object({ track: Track });
 
 export const CreateAppBody = z.object({
@@ -110,6 +131,7 @@ export interface TaskSummaryDto {
   readonly title: string;
   readonly autonomy: AutonomyDto;
   readonly track: TrackDto;
+  readonly agent: AgentChoiceDto;
   readonly phases: readonly string[];
   readonly phasesInTrack: readonly string[];
   readonly skippablePhases: readonly string[];
@@ -160,6 +182,7 @@ export interface RunDto {
   readonly endedAt: string | null;
   readonly usage: { readonly inputTokens: number; readonly outputTokens: number } | null;
   readonly output: unknown;
+  readonly agent: AgentChoiceDto | null;
 }
 
 export type ProposalDto =

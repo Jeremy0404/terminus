@@ -1,4 +1,5 @@
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { EFFORTS } from '../../domain/agent-choice.js';
 import type { VerificationCommand } from '../../domain/app.js';
 import type { Breakdown } from '../../domain/epic.js';
 import type { DecisionAnswer, DecisionOption, Proposal } from '../../domain/decision.js';
@@ -54,6 +55,8 @@ export const tasks = sqliteTable(
     status: text('status', { mode: 'json' }).$type<TaskStatus>().notNull(),
     failuresInPhase: text('failures_in_phase', { mode: 'json' }).$type<Failure[]>().notNull(),
     checkFailures: text('check_failures', { mode: 'json' }).$type<Failure[]>().notNull().default([]),
+    model: text('model'),
+    effort: text('effort', { enum: EFFORTS }),
   },
   (table) => [index('tasks_epic_idx').on(table.epicId)],
 );
@@ -93,6 +96,8 @@ export const runs = sqliteTable(
     inputTokens: integer('input_tokens'),
     outputTokens: integer('output_tokens'),
     output: text('output', { mode: 'json' }).$type<unknown>(),
+    model: text('model'),
+    effort: text('effort', { enum: EFFORTS }),
   },
   (table) => [index('runs_task_idx').on(table.taskId)],
 );
@@ -119,4 +124,10 @@ export const quota = sqliteTable('quota', {
   limited: integer('limited', { mode: 'boolean' }).notNull(),
   windows: text('windows', { mode: 'json' }).$type<QuotaWindow[]>().notNull(),
   observedAt: text('observed_at').notNull(),
+});
+
+export const agentDefaults = sqliteTable('agent_defaults', {
+  phaseId: text('phase_id').primaryKey(),
+  model: text('model'),
+  effort: text('effort', { enum: EFFORTS }),
 });

@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { NetworkDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type { AgentPhaseDto, NetworkDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
 import { HealthResponse } from '@terminus/contracts';
 import type { AgentEvent } from '../../application/ports/agent-runner.js';
 import type { CheckResult, CheckRunner } from '../../application/ports/check-runner.js';
@@ -8,6 +8,7 @@ import { compose, type Services } from '../../compose.js';
 import { FsPlaybookRegistry } from '../fs-playbooks/fs-playbook-registry.js';
 import { FakeCodeHost, FakeTaskNotes, FakeWorkspace, FixedClock, SequentialIds } from '../in-memory/fakes.js';
 import {
+  InMemoryAgentDefaultsStore,
   InMemoryAppRepository,
   InMemoryDecisionRepository,
   InMemoryEpicRepository,
@@ -46,6 +47,7 @@ function start(...scripts: AgentScript[]): void {
       notes: new FakeTaskNotes(),
       instructions: { localOnly: () => '' },
       agent: new ScriptedAgentRunner(...scripts),
+      agentDefaults: new InMemoryAgentDefaultsStore(),
       checks: greenChecks,
       codeHost,
       scanner: { scan: (repoPath) => ({ repoPath, name: 'demo', isGitRepo: true, hasOrigin: false, defaultBranch: 'main', packageManager: 'pnpm', ciWorkflows: [], agentDocs: [], suggestedVerification: [{ name: 'test', command: 'pnpm run test' }], todos: [] }) },
@@ -96,6 +98,19 @@ describe('HTTP API', () => {
     await settle();
 
     expect((await call('GET', '/api/quota')).json).toEqual({ ...quota, observedAt: '2026-09-24T10:00:00.000Z' });
+  });
+
+  it('sets the default model per agent phase and the model of a task', async () => {
+    const phases = (await call<AgentPhaseDto[]>('PUT', '/api/settings/agents', { defaults: { 'task.execute': { model: 'opus', effort: 'high' } } })).json;
+    expect(phases.find((phase) => phase.key === 'task.execute')?.choice).toEqual({ model: 'opus', effort: 'high' });
+    expect((await call('PUT', '/api/settings/agents', { defaults: { 'task.verify': { model: 'opus', effort: null } } })).status).toBe(409);
+    expect((await call('PUT', '/api/settings/agents', { defaults: { 'task.execute': { model: 'opus; rm', effort: null } } })).status).toBe(400);
+
+    const { taskId } = await givenTask();
+    const task = (await call<TaskSummaryDto>('POST', `/api/tasks/${taskId}/agent`, { model: 'haiku', effort: 'low' })).json;
+
+    expect(task.agent).toEqual({ model: 'haiku', effort: 'low' });
+    expect((await call<AgentPhaseDto[]>('GET', '/api/settings/agents')).json.map((phase) => phase.key)).toContain('epic.breakdown');
   });
 
   it('creates an app, a line and a station, and draws the network', async () => {

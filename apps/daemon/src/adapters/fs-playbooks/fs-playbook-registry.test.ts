@@ -30,12 +30,12 @@ function skill(name: string, extra = ''): string {
 describe('FsPlaybookRegistry', () => {
   it('loads a lifecycle with its gates, skills and a content-hash version', () => {
     const registry = new FsPlaybookRegistry(
-      playbooks({ task: 'id: task\nphases:\n  - id: plan\n    skill: plan\n    gate: plan-approval\n  - id: merge\n    gate: merge\n' }),
+      playbooks({ task: 'id: task\nphases:\n  - id: plan\n    skill: plan\n    gate: plan-approval\n    model: sonnet\n    effort: high\n  - id: merge\n    gate: merge\n' }),
     );
 
     const lifecycle = registry.lifecycle('task');
     expect(lifecycle.phases).toEqual([
-      { id: 'plan', skill: 'plan', gate: 'plan-approval' },
+      { id: 'plan', skill: 'plan', gate: 'plan-approval', model: 'sonnet', effort: 'high' },
       { id: 'merge', gate: 'merge' },
     ]);
     expect(lifecycle.version).toMatch(/^[0-9a-f]{12}$/);

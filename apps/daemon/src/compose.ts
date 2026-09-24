@@ -2,9 +2,11 @@ import type { Hono } from 'hono';
 import { EmitterBus } from './adapters/events/emitter-bus.js';
 import { createHttpApp } from './adapters/http/app.js';
 import { Adoption } from './application/adoption.js';
+import { AgentSettings } from './application/agent-settings.js';
 import { Catalog } from './application/catalog.js';
 import { EpicPlanner } from './application/epic-planner.js';
 import { PhaseRunner, type RunBudget } from './application/phase-runner.js';
+import type { AgentDefaultsStore } from './application/ports/agent-defaults-store.js';
 import type { AgentRunner } from './application/ports/agent-runner.js';
 import type { CheckRunner } from './application/ports/check-runner.js';
 import type { CodeHost } from './application/ports/code-host.js';
@@ -42,6 +44,7 @@ export interface Adapters {
   readonly notes: TaskNotes;
   readonly instructions: RepositoryInstructions;
   readonly agent: AgentRunner;
+  readonly agentDefaults: AgentDefaultsStore;
   readonly checks: CheckRunner;
   readonly codeHost: CodeHost;
   readonly scanner: RepoScanner;
@@ -90,6 +93,7 @@ export function compose(given: Adapters, settings: Settings): Services {
     adoption: new Adoption(adapters.scanner, adapters.checks, adapters.issues, catalog, adapters.apps),
     planner,
     actions,
+    agentSettings: new AgentSettings(adapters),
     runs: phases,
     scheduler,
     events: bus,

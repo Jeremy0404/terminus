@@ -1,3 +1,5 @@
+import type { AgentChoice } from './agent-choice.js';
+
 export type RunStatus = 'running' | 'succeeded' | 'failed' | 'interrupted';
 
 export interface RunUsage {
@@ -15,4 +17,5 @@ export interface Run {
   readonly endedAt: string | null;
   readonly usage: RunUsage | null;
   readonly output: unknown;
+  readonly agent?: AgentChoice;
 }

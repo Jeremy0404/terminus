@@ -1,7 +1,9 @@
+import type { AgentChoice } from '../domain/agent-choice.js';
 import type { DecisionAnswer, Proposal } from '../domain/decision.js';
 import { DomainError } from '../domain/errors.js';
 import {
   answerDecision,
+  chooseAgent,
   closeTask,
   createTask,
   releaseProposal,
@@ -179,6 +181,10 @@ export class TaskActions {
     const changed = this.save(setTrack(task, track));
     this.recordDeviation(changed, `Track changed from ${task.track} to ${track}`);
     return changed;
+  }
+
+  chooseAgent(taskId: string, agent: AgentChoice): Task {
+    return this.save(chooseAgent(this.load(taskId), agent));
   }
 
   skip(taskId: string): Task {

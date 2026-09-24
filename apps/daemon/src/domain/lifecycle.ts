@@ -1,3 +1,4 @@
+import type { Effort } from './agent-choice.js';
 import { DomainError } from './errors.js';
 
 export type Autonomy = 'step-by-step' | 'up-to-pr' | 'up-to-merge';
@@ -13,6 +14,7 @@ export interface PhaseDefinition {
   readonly gate?: GateKind;
   readonly skill?: string;
   readonly model?: string;
+  readonly effort?: Effort;
   readonly output?: 'decisions' | 'review' | 'verdict';
   readonly executor?: PhaseExecutorKind;
   readonly retryFrom?: string;

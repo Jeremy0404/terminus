@@ -222,6 +222,16 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .btn.subtle { border-color: transparent; background: transparent; color: var(--ink-2); }
 .btn.subtle:hover { border-color: var(--rule); color: var(--ink); }
 
+.agent-picker { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.agent-chip { background: none; text-transform: none; letter-spacing: 0.02em; }
+.agent-chip:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
+.agent-editor { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.agent-fields { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.agent-fields select { font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); color: var(--ink); }
+.settings { max-width: 720px; margin: 0 auto; }
+.settings-rows { list-style: none; padding: 0; margin: 12px 0 16px; display: grid; gap: 8px; }
+.settings-rows li { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+.settings-rows li > span:first-child { font-weight: 700; }
 .track-chip { font-family: var(--display); font-weight: 800; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 999px; padding: 2px 9px; }
 .phase-strip li.off { opacity: 0.35; }
 .phase-strip li.off span { text-decoration: line-through; }

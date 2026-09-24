@@ -52,6 +52,7 @@ export function claudeArguments(request: AgentRunRequest, profile: AgentProfile 
     ...(profile?.mcpConfig ? ['--mcp-config', JSON.stringify({ mcpServers: profile.mcpConfig })] : []),
     ...(request.systemPromptAppend ? ['--append-system-prompt', request.systemPromptAppend] : []),
     ...(request.model ? ['--model', request.model] : []),
+    ...(request.effort ? ['--effort', request.effort] : []),
     ...(request.outputSchema ? ['--json-schema', JSON.stringify(request.outputSchema)] : []),
   ];
 }

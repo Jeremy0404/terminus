@@ -1,4 +1,5 @@
-import type { AppDto, DecisionDto, EpicDto, InboxItemDto, NetworkDto, QuotaDto, RunDto, ServerEventDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type { AgentPhaseDto, AppDto, DecisionDto, EpicDto, InboxItemDto, NetworkDto, QuotaDto, RunDto, ServerEventDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type { AgentPhase } from '../../application/agent-settings.js';
 import type { RunUpdate } from '../../application/ports/system.js';
 import type { Network, TaskDetail } from '../../application/queries.js';
 import type { App } from '../../domain/app.js';
@@ -20,6 +21,7 @@ export const toTaskSummaryDto = (task: Task): TaskSummaryDto => ({
   title: task.title,
   autonomy: task.autonomy,
   track: task.track,
+  agent: task.agent,
   phases: task.lifecycle.phases.map((phase) => phase.id),
   phasesInTrack: task.lifecycle.phases.filter((phase) => appliesTo(phase, task.track)).map((phase) => phase.id),
   skippablePhases: task.lifecycle.phases.filter((phase) => phase.skippable).map((phase) => phase.id),
@@ -30,7 +32,9 @@ export const toTaskSummaryDto = (task: Task): TaskSummaryDto => ({
 
 const toInboxItemDto = (item: InboxItem): InboxItemDto => item;
 
-const toRunDto = ({ id, phaseIndex, status, startedAt, endedAt, usage, output }: Run): RunDto => ({ id, phaseIndex, status, startedAt, endedAt, usage, output });
+const toRunDto = ({ id, phaseIndex, status, startedAt, endedAt, usage, output, agent }: Run): RunDto => ({ id, phaseIndex, status, startedAt, endedAt, usage, output, agent: agent ?? null });
+
+export const toAgentPhaseDto = ({ key, lifecycleId, phaseId, choice }: AgentPhase): AgentPhaseDto => ({ key, lifecycleId, phaseId, choice });
 
 const toDecisionDto = ({ id, kind, phaseIndex, question, options, answer, proposal }: Decision): DecisionDto => ({ id, kind, proposal: proposal ?? null, phaseIndex, question, options, answer });
 

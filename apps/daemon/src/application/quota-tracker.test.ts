@@ -15,6 +15,7 @@ const request: AgentRunRequest = {
   systemPromptAppend: '',
   skill: null,
   model: null,
+  effort: null,
   maxTurns: 10,
   outputSchema: null,
 };

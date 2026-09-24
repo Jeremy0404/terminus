@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  InMemoryAgentDefaultsStore,
   InMemoryAppRepository,
   InMemoryDecisionRepository,
   InMemoryEpicRepository,
@@ -91,9 +92,9 @@ function givenTask(phaseIndex: number, status: TaskStatus = { kind: 'ready', mod
   return task;
 }
 
-function runner(agent: ScriptedAgentRunner, budget = { maxTokens: 400_000, maxTurns: 80 }): PhaseRunner {
+function runner(agent: ScriptedAgentRunner, budget = { maxTokens: 400_000, maxTurns: 80 }, agentDefaults = new InMemoryAgentDefaultsStore()): PhaseRunner {
   return new PhaseRunner({
-    apps, epics, tasks, runs, decisions, transcripts, workspace, agent, bus, budget,
+    apps, epics, tasks, runs, decisions, transcripts, workspace, agent, bus, budget, agentDefaults,
     clock: new FixedClock(),
     ids: new SequentialIds(),
     failurePolicy: DEFAULT_FAILURE_POLICY,
@@ -124,6 +125,17 @@ describe('PhaseRunner', () => {
     expect(run?.usage).toEqual({ inputTokens: 1000, outputTokens: 200 });
     expect(transcripts.read(run?.id ?? '')).toHaveLength(3);
     expect(tasks.get('t1')).toEqual(task);
+  });
+
+  it('runs with the task model over the phase default, and records the choice on the run', async () => {
+    givenTask(3, { kind: 'ready', mode: 'fresh' }, { agent: { model: 'sonnet', effort: null } });
+    const agent = new ScriptedAgentRunner(script(success()));
+    const defaults = new InMemoryAgentDefaultsStore({ 'task.execute': { model: 'opus', effort: 'high' }, 'task.spec': { model: 'haiku', effort: 'low' } });
+
+    await runner(agent, undefined, defaults).run('t1');
+
+    expect(agent.requests[0]).toMatchObject({ model: 'sonnet', effort: 'high' });
+    expect(runs.listByTask('t1')[0]?.agent).toEqual({ model: 'sonnet', effort: 'high' });
   });
 
   it('starts the agent in the task worktree with the phase settings', async () => {

@@ -5,8 +5,10 @@ import type {
   RunRepository,
   TaskRepository,
 } from '../../application/ports/repositories.js';
+import type { AgentDefaultsStore } from '../../application/ports/agent-defaults-store.js';
 import type { QuotaStore } from '../../application/ports/quota-store.js';
 import type { TranscriptStore } from '../../application/ports/transcript-store.js';
+import type { AgentDefaults } from '../../domain/agent-choice.js';
 import type { App } from '../../domain/app.js';
 import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
@@ -65,6 +67,18 @@ export class InMemoryRunRepository extends Store<Run> implements RunRepository {
 export class InMemoryDecisionRepository extends Store<Decision> implements DecisionRepository {
   listByTask(taskId: string): Decision[] {
     return this.where((decision) => decision.taskId === taskId);
+  }
+}
+
+export class InMemoryAgentDefaultsStore implements AgentDefaultsStore {
+  constructor(private defaults: AgentDefaults = {}) {}
+
+  all(): AgentDefaults {
+    return this.defaults;
+  }
+
+  replace(defaults: AgentDefaults): void {
+    this.defaults = defaults;
   }
 }
 

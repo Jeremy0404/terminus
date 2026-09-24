@@ -344,5 +344,48 @@
       "seven-day-opus": "7 j Opus",
       "seven-day-sonnet": "7 j Sonnet"
     }
+  },
+  "agent": {
+    "defaults": "Modèle par défaut",
+    "chipTitle": "Modèle et effort de l'agent pour cette tâche",
+    "defaultModel": "Modèle par défaut",
+    "defaultEffort": "Effort par défaut",
+    "modelOf": "Modèle · {{label}}",
+    "effortOf": "Effort · {{label}}",
+    "saving": "Enregistrement…",
+    "models": {
+      "haiku": "Haiku",
+      "sonnet": "Sonnet",
+      "opus": "Opus",
+      "fable": "Fable"
+    },
+    "efforts": {
+      "low": "effort faible",
+      "medium": "effort moyen",
+      "high": "effort élevé",
+      "xhigh": "effort très élevé",
+      "max": "effort maximal"
+    }
+  },
+  "settings": {
+    "open": "Réglages",
+    "close": "Fermer les réglages",
+    "eyebrow": "Réglages",
+    "agents": {
+      "title": "Modèle et effort par phase",
+      "hint": "Pour les prochains runs. Le choix fait sur une tâche passe avant."
+    },
+    "phases": {
+      "epic.breakdown": "Découpage d'épique",
+      "task.spec": "Spec",
+      "task.grill": "Grill",
+      "task.plan": "Plan",
+      "task.execute": "Exécution",
+      "task.review": "Review",
+      "task.sync": "Résolution de conflits"
+    },
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "saved": "Enregistré"
   }
 }

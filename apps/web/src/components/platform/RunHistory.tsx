@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CheckpointDto, RunDto } from '@terminus/contracts';
 import { api } from '../../api/client';
+import { describeChoice } from '../agent/AgentChoiceFields';
 import { RunLog } from './RunLog';
 
 const REPLAY_STEP_MS = 180;
@@ -41,6 +42,7 @@ export function RunHistory({ runs, checkpoints, phases }: { runs: readonly RunDt
             <span className={`run-status run-${run.status}`}>{t(`run.status.${run.status}`)}</span>
             <span>{t(`phase.${phases[run.phaseIndex] ?? ''}`)}</span>
             {run.usage && <span className="muted small">{t('run.tokens', { count: run.usage.inputTokens + run.usage.outputTokens })}</span>}
+            {describeChoice(run.agent, t) && <span className="muted small">{describeChoice(run.agent, t)}</span>}
             <button type="button" className="btn small" onClick={() => setOpen(open === run.id ? null : run.id)}>
               {open === run.id ? t('history.close') : t('history.replay')}
             </button>

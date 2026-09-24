@@ -18,6 +18,7 @@ const request = (overrides: Partial<AgentRunRequest> = {}): AgentRunRequest => (
   systemPromptAppend: 'context pack',
   skill: 'execute-tdd',
   model: null,
+  effort: null,
   maxTurns: 80,
   outputSchema: null,
   ...overrides,
@@ -69,9 +70,9 @@ describe('claudeArguments', () => {
     expect(settings.hooks.PreToolUse[0]?.hooks[0]?.args).toEqual([GUARD_SCRIPT]);
   });
 
-  it('resumes a session and passes the model and output schema when set', () => {
-    const args = claudeArguments(request({ resume: true, model: 'opus', outputSchema: { type: 'object' } }), null);
-    expect(args).toEqual(expect.arrayContaining(['--resume', '11111111-1111-4111-8111-111111111111', '--model', 'opus', '--json-schema', '{"type":"object"}']));
+  it('resumes a session and passes the model, effort and output schema when set', () => {
+    const args = claudeArguments(request({ resume: true, model: 'opus', effort: 'high', outputSchema: { type: 'object' } }), null);
+    expect(args).toEqual(expect.arrayContaining(['--resume', '11111111-1111-4111-8111-111111111111', '--model', 'opus', '--effort', 'high', '--json-schema', '{"type":"object"}']));
     expect(args).not.toContain('--session-id');
   });
 

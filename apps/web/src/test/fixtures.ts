@@ -10,6 +10,7 @@ export const task = (id: string, epicId: string, title: string, status: TaskSumm
   title,
   autonomy: 'up-to-pr',
   track: 'standard',
+  agent: { model: null, effort: null },
   phases: PHASES,
   phasesInTrack: PHASES,
   skippablePhases: ['spec', 'grill', 'plan', 'review'],
