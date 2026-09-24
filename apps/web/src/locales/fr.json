@@ -1,0 +1,10 @@
+{
+  "app": {
+    "name": "terminus",
+    "daemon": {
+      "checking": "Connexion au démon…",
+      "online": "Démon connecté · version {{version}}",
+      "offline": "Démon injoignable"
+    }
+  }
+}
