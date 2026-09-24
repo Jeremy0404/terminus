@@ -25,6 +25,7 @@ let decisions: InMemoryDecisionRepository;
 let runs: InMemoryRunRepository;
 let workspace: RewindRecordingWorkspace;
 let codeHost: FakeCodeHost;
+let bus: RecordingBus;
 let actions: TaskActions;
 
 beforeEach(() => {
@@ -35,9 +36,10 @@ beforeEach(() => {
   runs = new InMemoryRunRepository();
   workspace = new RewindRecordingWorkspace();
   codeHost = new FakeCodeHost();
+  bus = new RecordingBus();
   apps.save({ id: 'app', name: 'app', repoPath: '/repo', verification: [], createdAt: '2026-09-24T09:00:00Z' });
   epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'Interface', status: 'active', position: 1 });
-  actions = new TaskActions({ apps, epics, tasks, runs, decisions, workspace, codeHost, clock: new FixedClock(), bus: new RecordingBus(), baseRef: 'main' });
+  actions = new TaskActions({ apps, epics, tasks, runs, decisions, workspace, codeHost, clock: new FixedClock(), bus, baseRef: 'main' });
 });
 
 function givenTask(id: string, status: TaskStatus, extra: Partial<Task> = {}): Task {
@@ -124,14 +126,14 @@ describe('TaskActions', () => {
     expect(actions.resumeFromManual('t1').status).toEqual({ kind: 'ready', mode: 'fresh' });
   });
 
-  describe('merge', () => {
-    const atMergeGate = (): Task => {
-      const task = givenTask('t1', { kind: 'awaiting-gate', gate: 'merge' }, { phaseIndex: 6 });
-      runs.save({ id: 'publish', taskId: 't1', phaseIndex: 6, sessionId: 'code-host', status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null,
-        output: { pullRequest: { number: 42, url: 'u' } } });
-      return task;
-    };
+  const atMergeGate = (): Task => {
+    const task = givenTask('t1', { kind: 'awaiting-gate', gate: 'merge' }, { phaseIndex: 6 });
+    runs.save({ id: 'publish', taskId: 't1', phaseIndex: 6, sessionId: 'code-host', status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null,
+      output: { pullRequest: { number: 42, url: 'u' } } });
+    return task;
+  };
 
+  describe('merge', () => {
     it('merges once CI is green and completes the task', () => {
       atMergeGate();
       expect(actions.merge('t1').status).toEqual({ kind: 'done' });
@@ -175,6 +177,26 @@ describe('TaskActions', () => {
     it('does not let a plain approval skip the merge', () => {
       atMergeGate();
       expect(() => actions.approve('t1')).toThrow(/merged with merge/);
+    });
+  });
+
+  describe('checks', () => {
+    it.each(['success', 'none', 'pending', 'failure'] as const)('reads the pull request checks state %s', (state) => {
+      atMergeGate();
+      codeHost.checksState = state;
+      expect(actions.checks('t1')).toBe(state);
+    });
+
+    it('throws when the task has no published pull request yet', () => {
+      givenTask('t1', { kind: 'awaiting-gate', gate: 'plan-approval' }, { phaseIndex: 2 });
+      expect(() => actions.checks('t1')).toThrow(/has no pull request/);
+    });
+
+    it('does not save the task or publish on the bus', () => {
+      atMergeGate();
+      bus.updates.length = 0;
+      actions.checks('t1');
+      expect(bus.updates).toEqual([]);
     });
   });
 });

@@ -141,7 +141,15 @@
       "eyebrow": "Porte de merge",
       "title": "Tout est prêt, la rame attend ton signal",
       "action": "Merger",
-      "pullRequest": "Pull request #{{number}}"
+      "pullRequest": "Pull request #{{number}}",
+      "checks": {
+        "loading": "Vérification en cours…",
+        "none": "Pas de CI configurée",
+        "pending": "CI en cours",
+        "success": "CI au vert",
+        "failure": "CI en échec",
+        "error": "État CI indisponible"
+      }
     },
     "verdict": {
       "approve": "Approuvé",

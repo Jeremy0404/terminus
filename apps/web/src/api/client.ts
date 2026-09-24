@@ -1,5 +1,6 @@
 import type {
   AppDto,
+  ChecksResponseDto,
   CheckResultDto,
   CutOverResultDto,
   EpicDto,
@@ -41,6 +42,7 @@ export const api = {
   apps: () => request<AppDto[]>('/apps'),
   network: (appId: string) => request<NetworkDto>(`/apps/${appId}/network`),
   task: (taskId: string) => request<TaskDetailDto>(`/tasks/${taskId}`),
+  checks: (taskId: string) => request<ChecksResponseDto>(`/tasks/${taskId}/checks`),
   transcript: (runId: string) => request<unknown[]>(`/runs/${runId}/transcript`),
   createApp: (body: { name: string; repoPath: string; verification: { name: string; command: string }[] }) => post<AppDto>('/apps', body),
   createEpic: (appId: string, body: { code: string; name: string; status?: 'planned' | 'active' }) => post<EpicDto>(`/apps/${appId}/epics`, body),
