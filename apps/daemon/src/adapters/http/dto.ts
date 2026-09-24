@@ -1,0 +1,57 @@
+import type { AppDto, DecisionDto, EpicDto, InboxItemDto, NetworkDto, RunDto, ServerEventDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type { RunUpdate } from '../../application/ports/system.js';
+import type { Network, TaskDetail } from '../../application/queries.js';
+import type { App } from '../../domain/app.js';
+import type { Decision } from '../../domain/decision.js';
+import type { Epic } from '../../domain/epic.js';
+import type { InboxItem } from '../../domain/inbox.js';
+import type { Run } from '../../domain/run.js';
+import type { Task } from '../../domain/task.js';
+
+export const toAppDto = ({ id, name, repoPath }: App): AppDto => ({ id, name, repoPath });
+
+export const toEpicDto = ({ id, appId, code, name, status, position }: Epic): EpicDto => ({ id, appId, code, name, status, position });
+
+export const toTaskSummaryDto = (task: Task): TaskSummaryDto => ({
+  id: task.id,
+  epicId: task.epicId,
+  title: task.title,
+  autonomy: task.autonomy,
+  phases: task.lifecycle.phases.map((phase) => phase.id),
+  phaseIndex: task.phaseIndex,
+  status: task.status,
+  dependsOn: task.dependsOn,
+});
+
+const toInboxItemDto = (item: InboxItem): InboxItemDto => item;
+
+const toRunDto = ({ id, phaseIndex, status, startedAt, endedAt, usage, output }: Run): RunDto => ({ id, phaseIndex, status, startedAt, endedAt, usage, output });
+
+const toDecisionDto = ({ id, phaseIndex, question, options, answer }: Decision): DecisionDto => ({ id, phaseIndex, question, options, answer });
+
+export const toNetworkDto = (network: Network): NetworkDto => ({
+  app: toAppDto(network.app),
+  epics: network.epics.map(toEpicDto),
+  tasks: network.tasks.map(toTaskSummaryDto),
+  inbox: network.inbox.map(toInboxItemDto),
+});
+
+export const toTaskDetailDto = (detail: TaskDetail): TaskDetailDto => ({
+  task: toTaskSummaryDto(detail.task),
+  checkpoints: detail.task.checkpoints.map(({ sequence, phaseIndex, ref, takenAt }) => ({ sequence, phaseIndex, ref, takenAt })),
+  failures: detail.task.failuresInPhase,
+  actions: detail.actions,
+  runs: detail.runs.map(toRunDto),
+  decisions: detail.decisions.map(toDecisionDto),
+});
+
+export const toServerEventDto = (update: RunUpdate): ServerEventDto => {
+  switch (update.kind) {
+    case 'task-changed':
+      return { type: 'task-changed', task: toTaskSummaryDto(update.task) };
+    case 'run-event':
+      return { type: 'run-event', runId: update.runId, taskId: update.taskId, event: update.event };
+    case 'check-result':
+      return { type: 'check-result', runId: update.runId, taskId: update.taskId, result: update.result };
+  }
+};
