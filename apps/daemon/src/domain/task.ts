@@ -15,9 +15,11 @@ export type RecoveryOption = 'restart-from-checkpoint' | 'resume-session' | 'rew
 
 export const DEFAULT_RECOVERY: RecoveryOption = 'restart-from-checkpoint';
 
+export type RunMode = 'fresh' | 'retry' | 'resume';
+
 export type TaskStatus =
   | { readonly kind: 'todo' }
-  | { readonly kind: 'ready'; readonly retry: boolean }
+  | { readonly kind: 'ready'; readonly mode: RunMode }
   | { readonly kind: 'running'; readonly runId: string }
   | { readonly kind: 'awaiting-decision'; readonly decisionId: string }
   | { readonly kind: 'awaiting-gate'; readonly gate: GateKind | 'phase-approval' }
@@ -71,7 +73,7 @@ export function openTask(task: Task, dependencies: readonly Task[]): Task {
   expectStatus(task, 'todo');
   const pending = task.dependsOn.filter((id) => dependencies.find((dep) => dep.id === id)?.status.kind !== 'done');
   if (pending.length > 0) throw new DomainError(`Task ${task.id} waits for ${pending.join(', ')}`);
-  return { ...task, status: { kind: 'ready', retry: false } };
+  return { ...task, status: { kind: 'ready', mode: 'fresh' } };
 }
 
 export function startRun(task: Task, runId: string): Task {
@@ -84,9 +86,10 @@ export function requestDecision(task: Task, decisionId: string): Task {
   return { ...task, status: { kind: 'awaiting-decision', decisionId } };
 }
 
-export function answerDecision(task: Task): Task {
+export function answerDecision(task: Task, nextDecisionId: string | null): Task {
   expectStatus(task, 'awaiting-decision');
-  return { ...task, status: { kind: 'ready', retry: false } };
+  if (nextDecisionId) return { ...task, status: { kind: 'awaiting-decision', decisionId: nextDecisionId } };
+  return { ...task, status: { kind: 'ready', mode: 'resume' } };
 }
 
 export function completePhase(task: Task, checkpoint: Checkpoint): Task {
@@ -118,7 +121,7 @@ export function failRun(task: Task, failure: Failure, policy: FailurePolicy): Ta
   expectStatus(task, 'running');
   const failuresInPhase = [...task.failuresInPhase, failure];
   const status: TaskStatus =
-    decideAfterFailure(failuresInPhase, policy) === 'retry' ? { kind: 'ready', retry: true } : { kind: 'blocked', failure };
+    decideAfterFailure(failuresInPhase, policy) === 'retry' ? { kind: 'ready', mode: 'retry' } : { kind: 'blocked', failure };
   return { ...task, failuresInPhase, status };
 }
 
@@ -126,8 +129,9 @@ export function recover(task: Task, option: RecoveryOption, rewindTo?: number): 
   expectStatus(task, 'blocked');
   switch (option) {
     case 'restart-from-checkpoint':
+      return { ...task, failuresInPhase: [], status: { kind: 'ready', mode: 'retry' } };
     case 'resume-session':
-      return { ...task, failuresInPhase: [], status: { kind: 'ready', retry: false } };
+      return { ...task, failuresInPhase: [], status: { kind: 'ready', mode: 'resume' } };
     case 'take-over':
       return { ...task, status: { kind: 'manual' } };
     case 'rewind': {
@@ -141,7 +145,7 @@ export function recover(task: Task, option: RecoveryOption, rewindTo?: number): 
 
 export function resumeFromManual(task: Task): Task {
   expectStatus(task, 'manual');
-  return { ...task, failuresInPhase: [], status: { kind: 'ready', retry: false } };
+  return { ...task, failuresInPhase: [], status: { kind: 'ready', mode: 'fresh' } };
 }
 
 function advance(task: Task): Task {
@@ -151,7 +155,7 @@ function advance(task: Task): Task {
 
 function enterPhase(task: Task, phaseIndex: number): Task {
   phaseAt(task.lifecycle, phaseIndex);
-  return { ...task, phaseIndex, failuresInPhase: [], status: { kind: 'ready', retry: false } };
+  return { ...task, phaseIndex, failuresInPhase: [], status: { kind: 'ready', mode: 'fresh' } };
 }
 
 function expectStatus(task: Task, kind: TaskStatus['kind']): void {

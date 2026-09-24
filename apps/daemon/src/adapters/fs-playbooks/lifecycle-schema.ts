@@ -7,6 +7,7 @@ const PhaseSchema = z.strictObject({
   gate: z.enum(['plan-approval', 'human-review', 'merge']).optional(),
   skill: z.string().regex(PHASE_ID).optional(),
   model: z.string().min(1).optional(),
+  output: z.literal('decisions').optional(),
 });
 
 export const LifecycleFileSchema = z

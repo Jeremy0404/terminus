@@ -46,6 +46,7 @@ export default tseslint.config(
   },
   {
     files: ['apps/daemon/src/domain/**/*.ts', 'apps/daemon/src/application/**/*.ts'],
+    ignores: ['**/*.test.ts'],
     rules: { 'no-restricted-imports': ['error', CORE_FORBIDDEN_IMPORTS] },
   },
   {

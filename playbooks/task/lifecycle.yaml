@@ -4,6 +4,7 @@ phases:
     skill: spec
   - id: grill
     skill: grill
+    output: decisions
   - id: plan
     skill: plan
     gate: plan-approval
