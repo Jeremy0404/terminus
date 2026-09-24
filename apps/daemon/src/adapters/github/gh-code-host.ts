@@ -34,6 +34,10 @@ export class GhCodeHost implements CodeHost {
   merge(repoPath: string, pullRequest: number): void {
     run(this.gh, repoPath, ['pr', 'merge', String(pullRequest), '--squash']);
   }
+
+  close(repoPath: string, pullRequest: number, comment: string): void {
+    run(this.gh, repoPath, ['pr', 'close', String(pullRequest), '--comment', comment, '--delete-branch']);
+  }
 }
 
 function run(binary: string, cwd: string, args: readonly string[], options: { allowFailure?: boolean } = {}): string {

@@ -12,6 +12,7 @@ export interface SyncResult {
 
 export interface Workspace {
   prepare(repoPath: string, appId: string, taskId: string, baseRef: string): TaskWorkspace;
+  locate(appId: string, taskId: string): TaskWorkspace;
   checkpoint(workspace: TaskWorkspace, sequence: number, label: string): string;
   rewind(workspace: TaskWorkspace, checkpointRef: string): void;
   diff(workspace: TaskWorkspace, baseRef: string): string;

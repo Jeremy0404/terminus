@@ -17,6 +17,10 @@ export const DEFAULT_RECOVERY: RecoveryOption = 'restart-from-checkpoint';
 
 export type RunMode = 'fresh' | 'retry' | 'resume';
 
+export type CloseReason = 'already-done' | 'obsolete' | 'duplicate' | 'abandoned';
+
+export const SATISFYING_CLOSE_REASONS: readonly CloseReason[] = ['already-done', 'obsolete', 'duplicate'];
+
 export type TaskStatus =
   | { readonly kind: 'todo' }
   | { readonly kind: 'ready'; readonly mode: RunMode }
@@ -25,7 +29,8 @@ export type TaskStatus =
   | { readonly kind: 'awaiting-gate'; readonly gate: GateKind | 'phase-approval' }
   | { readonly kind: 'blocked'; readonly failure: Failure }
   | { readonly kind: 'manual' }
-  | { readonly kind: 'done' };
+  | { readonly kind: 'done' }
+  | { readonly kind: 'closed'; readonly reason: CloseReason; readonly evidence: string };
 
 export interface Task {
   readonly id: string;
@@ -73,7 +78,7 @@ export function currentPhaseId(task: Task): string {
 
 export function openTask(task: Task, dependencies: readonly Task[]): Task {
   expectStatus(task, 'todo');
-  const pending = task.dependsOn.filter((id) => dependencies.find((dep) => dep.id === id)?.status.kind !== 'done');
+  const pending = task.dependsOn.filter((id) => { const dependency = dependencies.find((dep) => dep.id === id); return !dependency || !isSettled(dependency); });
   if (pending.length > 0) throw new DomainError(`Task ${task.id} waits for ${pending.join(', ')}`);
   return { ...task, status: { kind: 'ready', mode: 'fresh' } };
 }
@@ -162,6 +167,16 @@ export function rejectByChecks(task: Task, failure: Failure, fixPhaseId: string,
   const fixPhase = phaseIndexOf(task.lifecycle, fixPhaseId);
   if (fixPhase >= task.phaseIndex) throw new DomainError(`Cannot send task ${task.id} forward to ${fixPhaseId}`);
   return { ...task, checkFailures, phaseIndex: fixPhase, failuresInPhase: [failure], status: { kind: 'ready', mode: 'retry' } };
+}
+
+export function closeTask(task: Task, reason: CloseReason, evidence: string): Task {
+  if (task.status.kind === 'running') throw new DomainError(`Task ${task.id} has a run in progress; interrupt it before closing`);
+  if (task.status.kind === 'done' || task.status.kind === 'closed') throw new DomainError(`Task ${task.id} is already ${task.status.kind}`);
+  return { ...task, status: { kind: 'closed', reason, evidence } };
+}
+
+export function isSettled(task: Task): boolean {
+  return task.status.kind === 'done' || (task.status.kind === 'closed' && SATISFYING_CLOSE_REASONS.includes(task.status.reason));
 }
 
 export function resumeFromManual(task: Task): Task {

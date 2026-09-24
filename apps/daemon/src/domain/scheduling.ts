@@ -1,8 +1,8 @@
 import { DomainError } from './errors.js';
-import type { Task } from './task.js';
+import { isSettled, type Task } from './task.js';
 
 export function dependenciesMet(task: Task, tasks: readonly Task[]): boolean {
-  return task.dependsOn.every((id) => tasks.find((candidate) => candidate.id === id)?.status.kind === 'done');
+  return task.dependsOn.every((id) => { const dependency = tasks.find((candidate) => candidate.id === id); return dependency !== undefined && isSettled(dependency); });
 }
 
 export function unblockCount(taskId: string, tasks: readonly Task[]): number {
@@ -11,7 +11,7 @@ export function unblockCount(taskId: string, tasks: readonly Task[]): number {
   while (queue.length > 0) {
     const current = queue.shift() as string;
     for (const candidate of tasks) {
-      if (candidate.status.kind !== 'done' && candidate.dependsOn.includes(current) && !blocked.has(candidate.id)) {
+      if (candidate.status.kind !== 'done' && candidate.status.kind !== 'closed' && candidate.dependsOn.includes(current) && !blocked.has(candidate.id)) {
         blocked.add(candidate.id);
         queue.push(candidate.id);
       }

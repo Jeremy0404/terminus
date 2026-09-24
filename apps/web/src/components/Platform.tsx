@@ -3,6 +3,7 @@ import type { NetworkDto } from '@terminus/contracts';
 import { lineColor } from '../network/line-colors';
 import { useTask } from '../state/resources';
 import { ActionPanel } from './platform/ActionPanel';
+import { CloseTask } from './platform/CloseTask';
 import { RunHistory } from './platform/RunHistory';
 import { StatusPill } from './StatusPill';
 
@@ -41,6 +42,7 @@ export function Platform({ network, taskId, onClose }: Props) {
       {data && data.task.id === taskId && (
         <>
           <ActionPanel detail={data} live={live} />
+          {!['running', 'done', 'closed'].includes(data.task.status.kind) && <CloseTask key={data.task.id} taskId={data.task.id} />}
           <RunHistory runs={data.runs} checkpoints={data.checkpoints} phases={data.task.phases} />
         </>
       )}

@@ -68,6 +68,13 @@ export function ActionPanel({ detail, live }: { detail: TaskDetailDto; live: rea
           {error && <p className="action-error" role="alert">{error}</p>}
         </div>
       );
+    case 'closed':
+      return (
+        <div className="action-card">
+          <span className="eyebrow">{t('closeTask.closedAs', { reason: t(`closeTask.reason.${status.reason}`) })}</span>
+          {status.evidence && <p className="muted">{status.evidence}</p>}
+        </div>
+      );
     case 'done':
       return (
         <div className="action-card">

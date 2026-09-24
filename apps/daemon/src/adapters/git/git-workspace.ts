@@ -14,8 +14,12 @@ const CHECKPOINT_IDENTITY = {
 export class GitWorkspace implements Workspace {
   constructor(private readonly worktreesRoot: string) {}
 
+  locate(appId: string, taskId: string): TaskWorkspace {
+    return { taskId, path: join(this.worktreesRoot, safe(appId), safe(taskId)), branch: `terminus/${safe(taskId)}` };
+  }
+
   prepare(repoPath: string, appId: string, taskId: string, baseRef: string): TaskWorkspace {
-    const workspace = { taskId, path: join(this.worktreesRoot, safe(appId), safe(taskId)), branch: `terminus/${safe(taskId)}` };
+    const workspace = this.locate(appId, taskId);
     if (existsSync(workspace.path)) return workspace;
     mkdirSync(dirname(workspace.path), { recursive: true });
     const branchExists = git(repoPath, ['branch', '--list', workspace.branch]).trim().length > 0;

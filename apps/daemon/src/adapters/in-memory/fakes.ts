@@ -46,7 +46,13 @@ export class FakeWorkspace implements Workspace {
     return this.behind;
   }
 
+  readonly removed: string[] = [];
+
   prepare(_repoPath: string, appId: string, taskId: string): TaskWorkspace {
+    return this.locate(appId, taskId);
+  }
+
+  locate(appId: string, taskId: string): TaskWorkspace {
     return { taskId, path: `/worktrees/${appId}/${taskId}`, branch: `terminus/${taskId}` };
   }
 
@@ -61,7 +67,9 @@ export class FakeWorkspace implements Workspace {
     return '';
   }
 
-  remove(): void {}
+  remove(_repoPath: string, workspace: TaskWorkspace): void {
+    this.removed.push(workspace.taskId);
+  }
 }
 
 export class FakeCodeHost implements CodeHost {
@@ -82,6 +90,12 @@ export class FakeCodeHost implements CodeHost {
 
   merge(_repoPath: string, pullRequest: number): void {
     this.merged.push(pullRequest);
+  }
+
+  readonly closed: { number: number; comment: string }[] = [];
+
+  close(_repoPath: string, pullRequest: number, comment: string): void {
+    this.closed.push({ number: pullRequest, comment });
   }
 }
 

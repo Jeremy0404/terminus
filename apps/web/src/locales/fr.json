@@ -69,7 +69,8 @@
       "human-review": "Attend ta review",
       "merge": "Prêt à merger",
       "phase-approval": "Attend ta validation"
-    }
+    },
+    "closed": "Clôturée"
   },
   "phaseShort": {
     "spec": "Spec",
@@ -277,6 +278,18 @@
       "run": "Basculer",
       "done": "{{name}} est adoptée. {{closed}} issue(s) fermée(s).",
       "open": "Ouvrir le réseau"
+    }
+  },
+  "closeTask": {
+    "open": "Clôturer sans merge…",
+    "evidence": "PR, commit ou raison (facultatif)",
+    "submit": "Clôturer",
+    "closedAs": "Clôturée · {{reason}}",
+    "reason": {
+      "already-done": "Déjà fait",
+      "obsolete": "Obsolète",
+      "duplicate": "Doublon",
+      "abandoned": "Abandonnée"
     }
   }
 }

@@ -2,11 +2,13 @@ import type { DecisionAnswer } from '../domain/decision.js';
 import { DomainError } from '../domain/errors.js';
 import {
   answerDecision,
+  closeTask,
   approveGate,
   openTask,
   recover,
   resumeFromManual,
   sendBack,
+  type CloseReason,
   type RecoveryOption,
   type Task,
 } from '../domain/task.js';
@@ -26,6 +28,11 @@ export interface TaskActionsDeps {
   readonly clock: Clock;
   readonly bus: RunEventBus;
   readonly baseRef: string;
+}
+
+export interface Closed {
+  readonly task: Task;
+  readonly warnings: readonly string[];
 }
 
 export interface TakeOver {
@@ -114,6 +121,27 @@ export class TaskActions {
     return { task: taken, command };
   }
 
+  close(taskId: string, reason: CloseReason, evidence: string): Closed {
+    const task = this.load(taskId);
+    const closed = this.save(closeTask(task, reason, evidence));
+    const app = this.appOf(task);
+    const warnings: string[] = [];
+    try {
+      this.deps.workspace.remove(app.repoPath, this.deps.workspace.locate(app.id, task.id));
+    } catch (error) {
+      warnings.push(`The worktree could not be removed: ${String(error)}`);
+    }
+    const pullRequest = this.publishedPullRequest(task);
+    if (pullRequest) {
+      try {
+        this.deps.codeHost.close(app.repoPath, pullRequest.number, `Closed from Terminus (${reason})${evidence ? `: ${evidence}` : '.'}`);
+      } catch (error) {
+        warnings.push(`Pull request #${pullRequest.number} could not be closed: ${String(error)}`);
+      }
+    }
+    return { task: closed, warnings };
+  }
+
   resumeFromManual(taskId: string): Task {
     return this.save(resumeFromManual(this.load(taskId)));
   }
@@ -131,14 +159,18 @@ export class TaskActions {
   }
 
   private pullRequestOf(task: Task): PullRequest {
-    const published = this.deps.runs
+    const published = this.publishedPullRequest(task);
+    if (!published) throw new DomainError(`Task ${task.id} has no pull request`);
+    return published;
+  }
+
+  private publishedPullRequest(task: Task): PullRequest | null {
+    const output = this.deps.runs
       .listByTask(task.id)
-      .filter((run) => run.phaseIndex === task.phaseIndex)
       .map((run) => run.output)
       .reverse()
-      .find((output): output is { pullRequest: PullRequest } => typeof output === 'object' && output !== null && 'pullRequest' in output);
-    if (!published) throw new DomainError(`Task ${task.id} has no pull request`);
-    return published.pullRequest;
+      .find((candidate): candidate is { pullRequest: PullRequest } => typeof candidate === 'object' && candidate !== null && 'pullRequest' in candidate);
+    return output?.pullRequest ?? null;
   }
 
   private load(taskId: string): Task {
