@@ -13,6 +13,7 @@ import {
   SqliteAppRepository,
   SqliteDecisionRepository,
   SqliteEpicRepository,
+  SqliteQuotaStore,
   SqliteRunRepository,
   SqliteTaskRepository,
 } from './sqlite-repositories.js';
@@ -144,5 +145,18 @@ describe('SqliteRunRepository and SqliteDecisionRepository', () => {
     const answered: Decision = { ...open, answer: { kind: 'other', text: 'Both' }, answeredAt: '2026-09-24T10:05:00Z' };
     decisions.save(answered);
     expect(decisions.listByTask('t1')).toEqual([answered]);
+  });
+});
+
+describe('SqliteQuotaStore', () => {
+  it('keeps only the latest quota', () => {
+    const store = new SqliteQuotaStore(db);
+    expect(store.latest()).toBeNull();
+
+    store.save({ limited: false, windows: [{ kind: 'five-hour', utilization: 0.2, resetsAt: '2026-09-24T12:00:00.000Z' }], observedAt: '2026-09-24T10:00:00.000Z' });
+    const latest = { limited: true, windows: [{ kind: 'five-hour', utilization: 1, resetsAt: '2026-09-24T12:00:00.000Z' }], observedAt: '2026-09-24T11:00:00.000Z' };
+    store.save(latest);
+
+    expect(store.latest()).toEqual(latest);
   });
 });

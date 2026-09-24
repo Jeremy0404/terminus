@@ -1,4 +1,5 @@
 import type { Epic } from '../../domain/epic.js';
+import type { Quota } from '../../domain/quota.js';
 import type { Task } from '../../domain/task.js';
 import type { AgentEvent } from './agent-runner.js';
 import type { CheckResult } from './check-runner.js';
@@ -18,7 +19,8 @@ export type RunUpdate =
   | { readonly kind: 'run-event'; readonly runId: string; readonly taskId: string; readonly event: AgentEvent }
   | { readonly kind: 'check-started'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string }
   | { readonly kind: 'check-output'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string; readonly outputTail: string }
-  | { readonly kind: 'check-result'; readonly runId: string; readonly taskId: string; readonly result: CheckResult };
+  | { readonly kind: 'check-result'; readonly runId: string; readonly taskId: string; readonly result: CheckResult }
+  | { readonly kind: 'quota-changed'; readonly quota: Quota };
 
 export interface RunEventBus {
   publish(update: RunUpdate): void;

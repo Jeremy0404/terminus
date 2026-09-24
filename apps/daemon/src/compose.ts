@@ -11,6 +11,7 @@ import type { CodeHost } from './application/ports/code-host.js';
 import type { IssueTracker } from './application/ports/issue-tracker.js';
 import type { RepoScanner } from './application/ports/repo-scanner.js';
 import type { PlaybookRegistry } from './application/ports/playbook-registry.js';
+import type { QuotaStore } from './application/ports/quota-store.js';
 import type {
   AppRepository,
   DecisionRepository,
@@ -24,6 +25,7 @@ import type { TaskNotes } from './application/ports/task-notes.js';
 import type { TranscriptStore } from './application/ports/transcript-store.js';
 import type { Workspace } from './application/ports/workspace.js';
 import { Queries } from './application/queries.js';
+import { QuotaTrackingRunner } from './application/quota-tracker.js';
 import { Scheduler } from './application/scheduler.js';
 import { TaskActions } from './application/task-actions.js';
 import { DEFAULT_FAILURE_POLICY } from './domain/failure.js';
@@ -35,6 +37,7 @@ export interface Adapters {
   readonly runs: RunRepository;
   readonly decisions: DecisionRepository;
   readonly transcripts: TranscriptStore;
+  readonly quota: QuotaStore;
   readonly workspace: Workspace;
   readonly notes: TaskNotes;
   readonly instructions: RepositoryInstructions;
@@ -63,8 +66,9 @@ export interface Services {
   readonly bus: EmitterBus;
 }
 
-export function compose(adapters: Adapters, settings: Settings): Services {
+export function compose(given: Adapters, settings: Settings): Services {
   const bus = new EmitterBus();
+  const adapters = { ...given, agent: new QuotaTrackingRunner(given.agent, given.quota, bus, given.clock) };
   const phases = new PhaseRunner({
     ...adapters,
     bus,

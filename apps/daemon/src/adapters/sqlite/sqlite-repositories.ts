@@ -6,13 +6,15 @@ import type {
   RunRepository,
   TaskRepository,
 } from '../../application/ports/repositories.js';
+import type { QuotaStore } from '../../application/ports/quota-store.js';
 import type { App } from '../../domain/app.js';
 import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
+import type { Quota } from '../../domain/quota.js';
 import type { Run } from '../../domain/run.js';
 import type { Task } from '../../domain/task.js';
 import type { TerminusDatabase } from './database.js';
-import { apps, checkpoints, decisions, epics, playbookVersions, runs, taskDependencies, tasks } from './schema.js';
+import { apps, checkpoints, decisions, epics, playbookVersions, quota, runs, taskDependencies, tasks } from './schema.js';
 
 export class SqliteAppRepository implements AppRepository {
   constructor(private readonly db: TerminusDatabase) {}
@@ -192,3 +194,19 @@ function toDecision(row: typeof decisions.$inferSelect): Decision {
   return proposal ? { ...rest, proposal } : rest;
 }
 
+
+const AGENT_QUOTA = 'agent';
+
+export class SqliteQuotaStore implements QuotaStore {
+  constructor(private readonly db: TerminusDatabase) {}
+
+  save(latest: Quota): void {
+    const row = { id: AGENT_QUOTA, ...latest, windows: [...latest.windows] };
+    this.db.insert(quota).values(row).onConflictDoUpdate({ target: quota.id, set: row }).run();
+  }
+
+  latest(): Quota | null {
+    const row = this.db.select().from(quota).where(eq(quota.id, AGENT_QUOTA)).get();
+    return row ? { limited: row.limited, windows: row.windows, observedAt: row.observedAt } : null;
+  }
+}

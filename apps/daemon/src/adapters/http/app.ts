@@ -25,7 +25,7 @@ import type { RunUpdate } from '../../application/ports/system.js';
 import { NotFound, type Queries } from '../../application/queries.js';
 import type { TaskActions } from '../../application/task-actions.js';
 import { DomainError } from '../../domain/errors.js';
-import { toAppDto, toEpicDto, toNetworkDto, toServerEventDto, toTaskDetailDto, toTaskSummaryDto } from './dto.js';
+import { toAppDto, toEpicDto, toNetworkDto, toQuotaDto, toServerEventDto, toTaskDetailDto, toTaskSummaryDto } from './dto.js';
 
 const KEEPALIVE_MS = 15_000;
 
@@ -63,6 +63,10 @@ export function createHttpApp(deps: HttpDeps): Hono {
   app.get('/api/health', (c) => c.json<HealthResponse>({ status: 'ok', version: deps.version }));
 
   app.get('/api/apps', (c) => c.json(queries.apps().map(toAppDto)));
+  app.get('/api/quota', (c) => {
+    const quota = queries.quota();
+    return c.json(quota ? toQuotaDto(quota) : null);
+  });
   app.post('/api/apps', async (c) => c.json(toAppDto(catalog.createApp(await body(c, CreateAppBody))), 201));
   app.get('/api/apps/:appId/network', (c) => c.json(toNetworkDto(queries.network(c.req.param('appId')))));
   app.post('/api/apps/:appId/epics', async (c) => c.json(toEpicDto(catalog.createEpic(c.req.param('appId'), await body(c, CreateEpicBody))), 201));

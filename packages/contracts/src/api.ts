@@ -197,13 +197,26 @@ export interface ChecksResponseDto {
   readonly state: ChecksStateDto;
 }
 
+export interface QuotaWindowDto {
+  readonly kind: string;
+  readonly utilization: number;
+  readonly resetsAt: string;
+}
+
+export interface QuotaDto {
+  readonly limited: boolean;
+  readonly windows: readonly QuotaWindowDto[];
+  readonly observedAt: string;
+}
+
 export type ServerEventDto =
   | { readonly type: 'task-changed'; readonly task: TaskSummaryDto }
   | { readonly type: 'epic-changed'; readonly epic: EpicDto }
   | { readonly type: 'run-event'; readonly runId: string; readonly taskId: string; readonly event: unknown }
   | { readonly type: 'check-started'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string }
   | { readonly type: 'check-output'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string; readonly outputTail: string }
-  | { readonly type: 'check-result'; readonly runId: string; readonly taskId: string; readonly result: unknown };
+  | { readonly type: 'check-result'; readonly runId: string; readonly taskId: string; readonly result: unknown }
+  | { readonly type: 'quota-changed'; readonly quota: QuotaDto };
 
 const VerificationCommandSchema = z.object({ name: z.string().min(1), command: z.string().min(1) });
 

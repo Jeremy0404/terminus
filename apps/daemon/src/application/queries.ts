@@ -3,10 +3,12 @@ import type { Decision } from '../domain/decision.js';
 import type { Epic } from '../domain/epic.js';
 import { DomainError } from '../domain/errors.js';
 import { buildInbox, type InboxItem } from '../domain/inbox.js';
+import type { Quota } from '../domain/quota.js';
 import type { Run } from '../domain/run.js';
 import { suggestedActions, type SuggestedAction } from '../domain/suggestions.js';
 import type { Task } from '../domain/task.js';
 import type { AppRepository, DecisionRepository, EpicRepository, RunRepository, TaskRepository } from './ports/repositories.js';
+import type { QuotaStore } from './ports/quota-store.js';
 import type { TranscriptStore } from './ports/transcript-store.js';
 
 export interface Network {
@@ -30,6 +32,7 @@ export interface QueriesDeps {
   readonly runs: RunRepository;
   readonly decisions: DecisionRepository;
   readonly transcripts: TranscriptStore;
+  readonly quota: QuotaStore;
 }
 
 export class Queries {
@@ -62,6 +65,10 @@ export class Queries {
   transcript(runId: string): unknown[] {
     if (!this.deps.runs.get(runId)) throw new NotFound(`Unknown run ${runId}`);
     return this.deps.transcripts.read(runId);
+  }
+
+  quota(): Quota | null {
+    return this.deps.quota.latest();
   }
 }
 

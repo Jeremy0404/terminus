@@ -19,6 +19,7 @@ import {
   SqliteAppRepository,
   SqliteDecisionRepository,
   SqliteEpicRepository,
+  SqliteQuotaStore,
   SqliteRunRepository,
   SqliteTaskRepository,
 } from './adapters/sqlite/sqlite-repositories.js';
@@ -88,6 +89,7 @@ const { http, scheduler } = compose(
     runs: new SqliteRunRepository(db),
     decisions: new SqliteDecisionRepository(db),
     transcripts: new JsonlTranscriptStore(join(home, 'runs')),
+    quota: new SqliteQuotaStore(db),
     workspace: new GitWorkspace(join(home, 'worktrees')),
     notes: new FsTaskNotes(join(home, 'tasks')),
     instructions: new FsRepositoryInstructions(),
