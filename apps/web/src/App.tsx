@@ -122,7 +122,7 @@ function Cockpit() {
               />
             </section>
             <aside className="rail">
-              {level === 'network' && <NetworkSummary network={network.data} />}
+              {level === 'network' && <NetworkSummary network={network.data} onStation={openStation} onLine={(line) => go({ app: appId, line, task: null })} />}
               {level === 'line' && place.line && <LineCard network={network.data} lineId={place.line} onStation={openStation} />}
               {level === 'platform' && place.task && (
                 <Platform network={network.data} taskId={place.task} onClose={() => go({ ...place, app: appId, task: null })} />

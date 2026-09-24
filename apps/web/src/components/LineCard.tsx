@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { NetworkDto } from '@terminus/contracts';
 import { lineColor } from '../network/line-colors';
+import { nextStep } from '../network/next-step';
 import { isActive, statusKey, toneOf } from '../network/tone';
 import { LineBadge } from './LineBadge';
 import { BreakdownPanel } from './BreakdownPanel';
 import { NewStationForm } from './NewStationForm';
+import { NextStep } from './NextStep';
 import { StatusPill } from './StatusPill';
 
 interface Props {
@@ -21,13 +23,15 @@ export function LineCard({ network, lineId, onStation }: Props) {
   if (!epic) return null;
   const tasks = network.tasks.filter((task) => task.epicId === lineId);
   const done = tasks.filter((task) => task.status.kind === 'done').length;
+  const step = network.inbox.some((item) => item.epicId === lineId) ? null : nextStep(network, lineId);
   return (
     <section className="card" style={{ ['--lc' as string]: lineColor(epic.position) }}>
       <div className="row"><LineBadge epic={epic} /><span className="eyebrow">{t('line.eyebrow')}</span></div>
       <h2>{epic.name}</h2>
       <p className="muted">{t('line.progress', { done, total: tasks.length })}</p>
       {epic.description && <p className="epic-description">{epic.description}</p>}
-      <BreakdownPanel epic={epic} />
+      {step?.kind === 'open-station' && <NextStep step={step} onAct={() => onStation(step.epicId, step.taskId)} />}
+      <BreakdownPanel epic={epic} prominent={step?.kind === 'break-down'} />
       <ul className="station-list">
         {tasks.map((task) => (
           <li key={task.id}>

@@ -391,5 +391,11 @@
   },
   "feedback": {
     "done": "✓ {{action}}"
+  },
+  "nextStep": {
+    "eyebrow": "Prochain arrêt",
+    "open": "Ouvrir « {{title}} »",
+    "breakDown": "Découper « {{name}} »",
+    "createLine": "Tracer une première ligne"
   }
 }
