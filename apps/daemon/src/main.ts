@@ -1,8 +1,9 @@
-import { mkdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
+import { ClaudeCliRunner } from './adapters/claude-cli/claude-cli-runner.js';
 import { FsPlaybookRegistry } from './adapters/fs-playbooks/fs-playbook-registry.js';
 import { GitWorkspace } from './adapters/git/git-workspace.js';
 import { GhCodeHost, GhIssueTracker } from './adapters/github/gh-code-host.js';
@@ -31,9 +32,42 @@ const port = Number(env['TERMINUS_PORT'] ?? 4317);
 const home = env['TERMINUS_HOME'] ?? join(homedir(), '.terminus');
 const playbooksDir = env['TERMINUS_PLAYBOOKS_DIR'] ?? fileURLToPath(new URL('../../../playbooks', import.meta.url));
 
+const SECRET_PATHS = ['~/.ssh', '~/.aws', '~/.gnupg', '~/.config/gh', join(home, '.env')];
+
+function readEnvFile(path: string): Record<string, string> {
+  if (!existsSync(path)) return {};
+  return Object.fromEntries(
+    readFileSync(path, 'utf8')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('#') && line.includes('='))
+      .map((line) => [line.slice(0, line.indexOf('=')).trim(), line.slice(line.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')]),
+  );
+}
+
+function syncAgentSkills(agentHome: string): void {
+  const target = join(agentHome, 'skills');
+  mkdirSync(target, { recursive: true });
+  for (const lifecycle of readdirSync(playbooksDir)) {
+    const skills = join(playbooksDir, lifecycle, 'skills');
+    if (existsSync(skills)) cpSync(skills, target, { recursive: true });
+  }
+}
+
 function agentRunner(kind: string | undefined): AgentRunner {
   if (kind === 'demo') return new DemoAgentRunner();
-  throw new Error('No agent runner configured: set TERMINUS_AGENT=demo until the claude-cli adapter lands');
+  const secrets = readEnvFile(join(home, '.env'));
+  const token = env['CLAUDE_CODE_OAUTH_TOKEN'] ?? secrets['CLAUDE_CODE_OAUTH_TOKEN'] ?? null;
+  const isolated = env['TERMINUS_AGENT_ISOLATION'] !== 'off';
+  if (isolated && !token) {
+    throw new Error(
+      `No subscription token for isolated agent runs. Run \`claude setup-token\` and add CLAUDE_CODE_OAUTH_TOKEN=... to ${join(home, '.env')} (mode 600), ` +
+        'or start with TERMINUS_AGENT=demo, or TERMINUS_AGENT_ISOLATION=off to use your own Claude Code configuration.',
+    );
+  }
+  const agentHome = join(home, 'agent-home');
+  if (isolated) syncAgentSkills(agentHome);
+  return new ClaudeCliRunner({ binary: env['TERMINUS_CLAUDE_BIN'] ?? 'claude', configDir: isolated ? agentHome : null, oauthToken: token, secretPaths: SECRET_PATHS });
 }
 
 mkdirSync(home, { recursive: true });
