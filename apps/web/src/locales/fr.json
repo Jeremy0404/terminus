@@ -204,7 +204,9 @@
       "name": "Nom de l’épique",
       "code": "Code de ligne",
       "planned": "En projet (pas encore commencée)",
-      "submit": "Tracer la ligne"
+      "submit": "Tracer la ligne",
+      "goal": "Objectif",
+      "goalHint": "Rempli, l’agent propose aussitôt un découpage en stations"
     },
     "station": {
       "open": "Ajouter une station",
@@ -313,5 +315,21 @@
       "lighten": "Passer en parcours léger"
     },
     "continue": "Continuer comme prévu"
+  },
+  "breakdown": {
+    "open": "Découper avec l’agent",
+    "brief": "Ce que cette épique doit apporter",
+    "start": "Lancer le découpage",
+    "running": "L’agent explore le code et découpe l’épique…",
+    "failed": "Le découpage a échoué : {{error}}",
+    "review": "Découpage proposé",
+    "description": "Description de l’épique",
+    "stationTitle": "Titre de la station {{number}}",
+    "drop": "Retirer la station {{number}}",
+    "keep": "Garder la station {{number}}",
+    "after": "après {{list}}",
+    "accept_one": "Créer {{count}} station",
+    "accept_other": "Créer {{count}} stations",
+    "dismiss": "Écarter"
   }
 }

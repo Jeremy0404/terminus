@@ -1,5 +1,5 @@
 import type { App, VerificationCommand } from '../domain/app.js';
-import type { Epic, EpicStatus } from '../domain/epic.js';
+import { IDLE_BREAKDOWN, type Epic, type EpicStatus } from '../domain/epic.js';
 import { DomainError } from '../domain/errors.js';
 import type { Autonomy, Track } from '../domain/lifecycle.js';
 import { assertAcyclic } from '../domain/scheduling.js';
@@ -27,11 +27,11 @@ export class Catalog {
     return app;
   }
 
-  createEpic(appId: string, input: { code: string; name: string; status: EpicStatus }): Epic {
+  createEpic(appId: string, input: { code: string; name: string; status: EpicStatus; description?: string }): Epic {
     if (!this.deps.apps.get(appId)) throw new DomainError(`Unknown app ${appId}`);
     const siblings = this.deps.epics.listByApp(appId);
     if (siblings.some((epic) => epic.code === input.code)) throw new DomainError(`Line ${input.code} already exists`);
-    const epic: Epic = { id: this.deps.ids.next('epic'), appId, ...input, position: siblings.length + 1 };
+    const epic: Epic = { id: this.deps.ids.next('epic'), appId, ...input, description: input.description ?? '', breakdown: IDLE_BREAKDOWN, position: siblings.length + 1 };
     this.deps.epics.save(epic);
     return epic;
   }

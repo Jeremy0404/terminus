@@ -58,7 +58,7 @@ export function useNetwork(appId: string | null): Resource<NetworkDto> {
   const resource = useResource(appId ? () => api.network(appId) : null, `network:${appId}`);
   const refresh = useDebounced(resource.reload);
   useServerEvents((event) => {
-    if (event.type === 'task-changed') refresh();
+    if (event.type === 'task-changed' || event.type === 'epic-changed') refresh();
   });
   return resource;
 }

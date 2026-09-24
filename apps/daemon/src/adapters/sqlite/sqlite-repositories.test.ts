@@ -18,7 +18,7 @@ import {
 } from './sqlite-repositories.js';
 
 const app: App = { id: 'terminus', name: 'terminus', repoPath: '/home/me/dev/terminus', verification: [{ name: 'test', command: 'pnpm test' }], createdAt: '2026-09-24T09:00:00Z' };
-const epic: Epic = { id: 'e-interface', appId: 'terminus', code: 'I', name: 'Interface', status: 'active', position: 3 };
+const epic: Epic = { id: 'e-interface', appId: 'terminus', code: 'I', name: 'Interface', status: 'active', position: 3, description: '', breakdown: { status: 'idle' } };
 
 let directory: string;
 let db: TerminusDatabase;

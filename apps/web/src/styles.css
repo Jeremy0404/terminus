@@ -224,6 +224,15 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .proposed-stations { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
 .proposed-stations span { display: block; color: var(--ink-2); font-size: 13px; }
 
+.epic-description { margin: 8px 0 0; font-size: 14px; color: var(--ink-2); white-space: pre-line; }
+.breakdown { display: grid; gap: 10px; margin-top: 12px; }
+.breakdown.running { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2); }
+.pulse-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--lc, var(--go)); animation: blink 1s steps(1) infinite; }
+.free-answer.brief { min-height: 70px; resize: vertical; font: inherit; }
+.proposed-stations.editable li { display: grid; gap: 4px; }
+.proposed-stations.editable input { border: 1.5px solid var(--rule); border-radius: 8px; padding: 6px 9px; background: var(--surface); font: inherit; color: var(--ink); }
+.proposed-stations.editable li.dropped { opacity: 0.45; }
+
 @media (max-width: 980px) {
   .stage { grid-template-columns: 1fr; }
   .network-map { min-width: 720px; }

@@ -29,6 +29,13 @@
       "when": 1790278662506,
       "tag": "0003_proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790284737042,
+      "tag": "0004_epic_breakdown",
+      "breakpoints": true
     }
   ]
 }

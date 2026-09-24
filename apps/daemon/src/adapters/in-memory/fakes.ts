@@ -67,8 +67,11 @@ export class FakeWorkspace implements Workspace {
     return '';
   }
 
-  remove(_repoPath: string, workspace: TaskWorkspace): void {
+  readonly branchesDeleted: string[] = [];
+
+  remove(_repoPath: string, workspace: TaskWorkspace, options?: { readonly deleteBranch: boolean }): void {
     this.removed.push(workspace.taskId);
+    if (options?.deleteBranch) this.branchesDeleted.push(workspace.branch);
   }
 }
 

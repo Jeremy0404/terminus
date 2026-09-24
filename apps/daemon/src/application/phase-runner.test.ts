@@ -82,7 +82,7 @@ beforeEach(() => {
   checks = new StubCheckRunner();
   codeHost = new FakeCodeHost();
   apps.save({ id: 'app', name: 'app', repoPath: '/repo', verification: [{ name: 'test', command: 'pnpm test' }, { name: 'build', command: 'pnpm build' }], createdAt: '2026-09-24T09:00:00Z' });
-  epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'Interface', status: 'active', position: 1 });
+  epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'Interface', status: 'active', position: 1, description: '', breakdown: { status: 'idle' } });
 });
 
 function givenTask(phaseIndex: number, status: TaskStatus = { kind: 'ready', mode: 'fresh' }, extra: Partial<Task> = {}): Task {

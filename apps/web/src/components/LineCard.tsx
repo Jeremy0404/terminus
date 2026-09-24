@@ -4,6 +4,7 @@ import type { NetworkDto } from '@terminus/contracts';
 import { lineColor } from '../network/line-colors';
 import { isActive, statusKey, toneOf } from '../network/tone';
 import { LineBadge } from './LineBadge';
+import { BreakdownPanel } from './BreakdownPanel';
 import { NewStationForm } from './NewStationForm';
 import { StatusPill } from './StatusPill';
 
@@ -25,6 +26,8 @@ export function LineCard({ network, lineId, onStation }: Props) {
       <div className="row"><LineBadge epic={epic} /><span className="eyebrow">{t('line.eyebrow')}</span></div>
       <h2>{epic.name}</h2>
       <p className="muted">{t('line.progress', { done, total: tasks.length })}</p>
+      {epic.description && <p className="epic-description">{epic.description}</p>}
+      <BreakdownPanel epic={epic} />
       <ul className="station-list">
         {tasks.map((task) => (
           <li key={task.id}>

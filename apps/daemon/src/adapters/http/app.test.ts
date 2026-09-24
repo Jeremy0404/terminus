@@ -223,4 +223,20 @@ describe('HTTP API', () => {
     expect((await call('POST', `/api/tasks/${taskId}/skip`)).status).toBe(409);
     expect((await call('POST', `/api/tasks/${taskId}/track`, { track: 'fast' })).status).toBe(400);
   });
+
+  it('breaks a line down with an agent and creates the accepted stations', async () => {
+    start(() => [{ type: 'finished', outcome: 'success', summary: 'ok', structuredOutput: { description: 'd', stations: [{ title: 'A', why: 'a', dependsOn: [] }, { title: 'B', why: 'b', dependsOn: [0] }] } }]);
+    const app = await call<{ id: string }>('POST', '/api/apps', { name: 'demo', repoPath: '/repo' });
+    const epic = await call<{ id: string; description: string }>('POST', `/api/apps/${app.json.id}/epics`, { code: 'E', name: 'Epic', description: 'Goal' });
+    expect(epic.json.description).toBe('Goal');
+
+    expect((await call('POST', `/api/epics/${epic.json.id}/breakdown`, { brief: 'Goal' })).status).toBe(202);
+    await services.planner.idle();
+    const network = (await call<NetworkDto>('GET', `/api/apps/${app.json.id}/network`)).json;
+    expect(network.epics[0]?.breakdown).toMatchObject({ status: 'ready', proposal: { stations: [{ title: 'A' }, { title: 'B' }] } });
+
+    const created = await call<TaskSummaryDto[]>('POST', `/api/epics/${epic.json.id}/breakdown/accept`, { description: 'Goal, refined', stations: [{ title: 'A' }, { title: 'B', dependsOn: [0] }] });
+    expect(created.status).toBe(201);
+    expect(created.json.map((task) => task.title)).toEqual(['A', 'B']);
+  });
 });

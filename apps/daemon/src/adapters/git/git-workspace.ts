@@ -75,9 +75,10 @@ export class GitWorkspace implements Workspace {
     return git(workspace.path, ['diff', mergeBase, '--', '.']);
   }
 
-  remove(repoPath: string, workspace: TaskWorkspace): void {
+  remove(repoPath: string, workspace: TaskWorkspace, options: { readonly deleteBranch: boolean } = { deleteBranch: false }): void {
     if (existsSync(workspace.path)) git(repoPath, ['worktree', 'remove', '--force', workspace.path]);
     git(repoPath, ['worktree', 'prune']);
+    if (options.deleteBranch) tryGit(repoPath, ['branch', '-D', workspace.branch]);
   }
 }
 
