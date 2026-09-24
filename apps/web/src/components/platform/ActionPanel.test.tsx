@@ -202,9 +202,12 @@ describe('ActionPanel', () => {
 
     expect(screen.getByText('Changements demandés')).toBeInTheDocument();
     expect(screen.getByText('Pas de test pour Échap')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Commentaire pour l’agent (facultatif)' }), { target: { value: 'Ajoute le test pour Échap' } });
     fireEvent.click(screen.getByRole('button', { name: 'Renvoyer' }));
 
-    await waitFor(() => expect(calls[0]).toEqual({ method: 'POST', path: '/api/tasks/t4/send-back', body: { toPhaseId: 'execute' } }));
+    await waitFor(() =>
+      expect(calls[0]).toEqual({ method: 'POST', path: '/api/tasks/t4/send-back', body: { toPhaseId: 'execute', comment: 'Ajoute le test pour Échap' } }),
+    );
   });
 
   it('disables the send-back-to select while sending the task back', async () => {
@@ -219,6 +222,7 @@ describe('ActionPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Renvoyer' }));
 
     await waitFor(() => expect(screen.getByRole('combobox')).toBeDisabled());
+    expect(screen.getByRole('textbox')).toBeDisabled();
 
     resolve(Response.json({}));
     await waitFor(() => expect(screen.getByRole('combobox')).not.toBeDisabled());

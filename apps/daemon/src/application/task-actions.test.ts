@@ -90,7 +90,10 @@ describe('TaskActions', () => {
     expect(actions.approve('t1').phaseIndex).toBe(3);
 
     givenTask('t2', { kind: 'awaiting-gate', gate: 'human-review' }, { phaseIndex: 5 });
-    expect(actions.sendBack('t2', 'execute').phaseIndex).toBe(3);
+    expect(actions.sendBack('t2', 'execute', '  Missing a test for Escape ').phaseIndex).toBe(3);
+    expect(decisions.listByTask('t2')).toEqual([
+      expect.objectContaining({ kind: 'deviation', question: 'Sent back from the review phase to execute', answer: { kind: 'other', text: 'Missing a test for Escape' } }),
+    ]);
   });
 
   it('restarts from the last checkpoint by resetting the worktree to it', () => {

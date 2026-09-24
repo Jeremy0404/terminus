@@ -130,8 +130,11 @@ export class TaskActions {
     return this.deps.codeHost.checks(app.repoPath, pullRequest.number);
   }
 
-  sendBack(taskId: string, toPhaseId: string): Task {
-    return this.save(sendBack(this.load(taskId), toPhaseId));
+  sendBack(taskId: string, toPhaseId: string, comment = ''): Task {
+    const task = this.load(taskId);
+    const sent = this.save(sendBack(task, toPhaseId));
+    this.recordDeviation(sent, `Sent back from the ${phaseAt(task.lifecycle, task.phaseIndex).id} phase to ${toPhaseId}`, comment.trim());
+    return sent;
   }
 
   recover(taskId: string, option: Exclude<RecoveryOption, 'take-over'>, rewindTo?: number): Task {
@@ -198,7 +201,7 @@ export class TaskActions {
     return this.save(resumeFromManual(this.load(taskId)));
   }
 
-  private recordDeviation(task: Task, what: string): void {
+  private recordDeviation(task: Task, what: string, comment = ''): void {
     const now = this.deps.clock.now();
     this.deps.decisions.save({
       id: this.deps.ids.next('decision'),
@@ -207,7 +210,7 @@ export class TaskActions {
       phaseIndex: task.phaseIndex,
       question: what,
       options: [],
-      answer: { kind: 'other', text: 'Decided by the human' },
+      answer: { kind: 'other', text: comment || 'Decided by the human' },
       createdAt: now,
       answeredAt: now,
     });
