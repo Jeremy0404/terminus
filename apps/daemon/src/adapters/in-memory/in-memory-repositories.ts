@@ -5,10 +5,12 @@ import type {
   RunRepository,
   TaskRepository,
 } from '../../application/ports/repositories.js';
+import type { QuotaStore } from '../../application/ports/quota-store.js';
 import type { TranscriptStore } from '../../application/ports/transcript-store.js';
 import type { App } from '../../domain/app.js';
 import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
+import type { Quota } from '../../domain/quota.js';
 import type { Run } from '../../domain/run.js';
 import type { Task } from '../../domain/task.js';
 
@@ -63,6 +65,18 @@ export class InMemoryRunRepository extends Store<Run> implements RunRepository {
 export class InMemoryDecisionRepository extends Store<Decision> implements DecisionRepository {
   listByTask(taskId: string): Decision[] {
     return this.where((decision) => decision.taskId === taskId);
+  }
+}
+
+export class InMemoryQuotaStore implements QuotaStore {
+  private quota: Quota | null = null;
+
+  save(quota: Quota): void {
+    this.quota = quota;
+  }
+
+  latest(): Quota | null {
+    return this.quota;
   }
 }
 

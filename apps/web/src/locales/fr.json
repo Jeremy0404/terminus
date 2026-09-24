@@ -331,5 +331,18 @@
     "accept_one": "Créer {{count}} station",
     "accept_other": "Créer {{count}} stations",
     "dismiss": "Écarter"
+  },
+  "quota": {
+    "label": "Quota de l'abonnement",
+    "limited": "Quota atteint",
+    "reset": "réinitialisé",
+    "title": "{{window}} : {{percent}} % utilisés, réinitialisation {{reset}} (relevé {{observed}})",
+    "titleReset": "{{window}} : fenêtre réinitialisée depuis le dernier relevé",
+    "window": {
+      "five-hour": "5 h",
+      "seven-day": "7 j",
+      "seven-day-opus": "7 j Opus",
+      "seven-day-sonnet": "7 j Sonnet"
+    }
   }
 }

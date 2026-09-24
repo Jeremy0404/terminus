@@ -11,6 +11,7 @@ import {
   InMemoryAppRepository,
   InMemoryDecisionRepository,
   InMemoryEpicRepository,
+  InMemoryQuotaStore,
   InMemoryRunRepository,
   InMemoryTaskRepository,
   InMemoryTranscriptStore,
@@ -40,6 +41,7 @@ function start(...scripts: AgentScript[]): void {
       runs: new InMemoryRunRepository(),
       decisions: new InMemoryDecisionRepository(),
       transcripts: new InMemoryTranscriptStore(),
+      quota: new InMemoryQuotaStore(),
       workspace: new FakeWorkspace(),
       notes: new FakeTaskNotes(),
       instructions: { localOnly: () => '' },
@@ -82,6 +84,18 @@ describe('HTTP API', () => {
     const { status, json } = await call<unknown>('GET', '/api/health');
     expect(status).toBe(200);
     expect(HealthResponse.parse(json)).toEqual({ status: 'ok', version: '9.9.9' });
+  });
+
+  it('reports the latest agent quota seen during a run', async () => {
+    const quota = { limited: false, windows: [{ kind: 'five-hour', utilization: 0.4, resetsAt: '2026-09-24T12:00:00.000Z' }] };
+    start(() => [{ type: 'quota', ...quota }, { type: 'finished', outcome: 'error', summary: 'stopped', structuredOutput: null }]);
+    expect((await call('GET', '/api/quota')).json).toBeNull();
+    const { taskId } = await givenTask();
+
+    await call('POST', `/api/tasks/${taskId}/open`);
+    await settle();
+
+    expect((await call('GET', '/api/quota')).json).toEqual({ ...quota, observedAt: '2026-09-24T10:00:00.000Z' });
   });
 
   it('creates an app, a line and a station, and draws the network', async () => {

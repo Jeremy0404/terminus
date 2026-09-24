@@ -7,6 +7,7 @@ import type {
   EpicDto,
   NetworkDto,
   ProposalsDto,
+  QuotaDto,
   RepoScanDto,
   TakeOverDto,
   TaskDetailDto,
@@ -42,6 +43,7 @@ export type TaskAction = 'open' | 'approve' | 'merge' | 'resume-from-manual' | '
 
 export const api = {
   apps: () => request<AppDto[]>('/apps'),
+  quota: () => request<QuotaDto | null>('/quota'),
   network: (appId: string) => request<NetworkDto>(`/apps/${appId}/network`),
   task: (taskId: string) => request<TaskDetailDto>(`/tasks/${taskId}`),
   checks: (taskId: string) => request<ChecksResponseDto>(`/tasks/${taskId}/checks`),

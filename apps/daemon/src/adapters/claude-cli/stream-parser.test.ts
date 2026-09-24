@@ -15,6 +15,14 @@ describe('ClaudeStreamParser on recorded runs', () => {
     expect(events.filter((event) => event.type !== 'usage')).toEqual([
       { type: 'text', text: 'Agent setup — skills: none · MCP: none · plugins: none' },
       { type: 'tool-call', tool: 'Bash', summary: 'false' },
+      {
+        type: 'quota',
+        limited: false,
+        windows: [
+          { kind: 'five-hour', utilization: 0.46, resetsAt: '2026-09-24T11:00:00.000Z' },
+          { kind: 'seven-day', utilization: 0.43, resetsAt: '2026-09-26T04:00:00.000Z' },
+        ],
+      },
       { type: 'tool-failure', tool: 'Bash', signature: 'Bash:Exit code 1', summary: 'Exit code 1' },
       { type: 'text', text: 'done' },
       { type: 'finished', outcome: 'success', summary: 'done', structuredOutput: null },
@@ -43,7 +51,7 @@ describe('ClaudeStreamParser outcomes', () => {
     expect(new ClaudeStreamParser().push(result({ subtype: 'error_during_execution', is_error: true }))[0]).toMatchObject({ outcome: 'error' });
 
     const quota = new ClaudeStreamParser();
-    quota.push(JSON.stringify({ type: 'rate_limit_event', rate_limit_info: { status: 'rejected' } }));
+    expect(quota.push(JSON.stringify({ type: 'rate_limit_event', rate_limit_info: { status: 'rejected' } }))).toEqual([{ type: 'quota', limited: true, windows: [] }]);
     expect(quota.push(result({ is_error: true }))[0]).toMatchObject({ outcome: 'quota-exhausted' });
 
     const interrupted = new ClaudeStreamParser();

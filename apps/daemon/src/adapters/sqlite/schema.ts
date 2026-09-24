@@ -4,6 +4,7 @@ import type { Breakdown } from '../../domain/epic.js';
 import type { DecisionAnswer, DecisionOption, Proposal } from '../../domain/decision.js';
 import type { Failure } from '../../domain/failure.js';
 import type { PhaseDefinition } from '../../domain/lifecycle.js';
+import type { QuotaWindow } from '../../domain/quota.js';
 import type { TaskStatus } from '../../domain/task.js';
 
 export const apps = sqliteTable('apps', {
@@ -112,3 +113,10 @@ export const decisions = sqliteTable(
   },
   (table) => [index('decisions_task_idx').on(table.taskId)],
 );
+
+export const quota = sqliteTable('quota', {
+  id: text('id').primaryKey(),
+  limited: integer('limited', { mode: 'boolean' }).notNull(),
+  windows: text('windows', { mode: 'json' }).$type<QuotaWindow[]>().notNull(),
+  observedAt: text('observed_at').notNull(),
+});

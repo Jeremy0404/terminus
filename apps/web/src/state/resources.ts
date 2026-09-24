@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AppDto, NetworkDto, ServerEventDto, TaskDetailDto } from '@terminus/contracts';
+import type { AppDto, NetworkDto, QuotaDto, ServerEventDto, TaskDetailDto } from '@terminus/contracts';
 import { api } from '../api/client';
 import { useServerEvents } from '../api/events';
 
@@ -61,6 +61,15 @@ export function useNetwork(appId: string | null): Resource<NetworkDto> {
     if (event.type === 'task-changed' || event.type === 'epic-changed') refresh();
   });
   return resource;
+}
+
+export function useQuota(): QuotaDto | null {
+  const loaded = useResource(api.quota, 'quota');
+  const [pushed, setPushed] = useState<QuotaDto | null>(null);
+  useServerEvents((event) => {
+    if (event.type === 'quota-changed') setPushed(event.quota);
+  });
+  return pushed ?? loaded.data;
 }
 
 function liveItem(event: Extract<ServerEventDto, { runId: string; taskId: string }>): unknown {

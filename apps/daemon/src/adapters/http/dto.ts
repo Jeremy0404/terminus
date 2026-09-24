@@ -1,4 +1,4 @@
-import type { AppDto, DecisionDto, EpicDto, InboxItemDto, NetworkDto, RunDto, ServerEventDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type { AppDto, DecisionDto, EpicDto, InboxItemDto, NetworkDto, QuotaDto, RunDto, ServerEventDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
 import type { RunUpdate } from '../../application/ports/system.js';
 import type { Network, TaskDetail } from '../../application/queries.js';
 import type { App } from '../../domain/app.js';
@@ -6,6 +6,7 @@ import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
 import { appliesTo } from '../../domain/lifecycle.js';
 import type { InboxItem } from '../../domain/inbox.js';
+import type { Quota } from '../../domain/quota.js';
 import type { Run } from '../../domain/run.js';
 import type { Task } from '../../domain/task.js';
 
@@ -49,6 +50,8 @@ export const toTaskDetailDto = (detail: TaskDetail): TaskDetailDto => ({
   decisions: detail.decisions.map(toDecisionDto),
 });
 
+export const toQuotaDto = ({ limited, windows, observedAt }: Quota): QuotaDto => ({ limited, windows, observedAt });
+
 export const toServerEventDto = (update: RunUpdate): ServerEventDto => {
   switch (update.kind) {
     case 'task-changed':
@@ -63,5 +66,7 @@ export const toServerEventDto = (update: RunUpdate): ServerEventDto => {
       return { type: 'check-output', runId: update.runId, taskId: update.taskId, name: update.name, command: update.command, outputTail: update.outputTail };
     case 'check-result':
       return { type: 'check-result', runId: update.runId, taskId: update.taskId, result: update.result };
+    case 'quota-changed':
+      return { type: 'quota-changed', quota: toQuotaDto(update.quota) };
   }
 };

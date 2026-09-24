@@ -8,6 +8,11 @@ export interface ExpectedAgentSetup {
   readonly plugins: readonly string[];
 }
 
+interface RateLimitInfo {
+  readonly status?: string;
+  readonly unifiedWindows?: Record<string, { readonly utilization?: unknown; readonly resetsAt?: unknown } | null>;
+}
+
 interface Usage {
   readonly input_tokens?: number;
   readonly cache_creation_input_tokens?: number;
@@ -52,9 +57,10 @@ export class ClaudeStreamParser {
       case 'user':
         return this.toolResults(message);
       case 'rate_limit_event': {
-        const info = message['rate_limit_info'] as { status?: string } | undefined;
-        if (info?.status === 'rejected') this.quotaRejected = true;
-        return [];
+        const info = message['rate_limit_info'] as RateLimitInfo | undefined;
+        if (!info) return [];
+        if (info.status === 'rejected') this.quotaRejected = true;
+        return [quotaOf(info)];
       }
       case 'result':
         return this.result(message);
@@ -153,6 +159,15 @@ export class ClaudeStreamParser {
     }
     return { type: 'usage', inputTokens, outputTokens };
   }
+}
+
+function quotaOf(info: RateLimitInfo): AgentEvent {
+  const windows = Object.entries(info.unifiedWindows ?? {}).flatMap(([kind, window]) =>
+    typeof window?.utilization === 'number' && typeof window.resetsAt === 'number'
+      ? [{ kind: kind.replace(/_/g, '-'), utilization: window.utilization, resetsAt: new Date(window.resetsAt * 1000).toISOString() }]
+      : [],
+  );
+  return { type: 'quota', limited: info.status === 'rejected', windows };
 }
 
 function names(value: unknown): string[] {
