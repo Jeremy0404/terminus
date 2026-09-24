@@ -168,7 +168,8 @@
       "succeeded": "Réussi",
       "failed": "Échoué",
       "interrupted": "Interrompu"
-    }
+    },
+    "follow": "↓ Suivre"
   },
   "history": {
     "title": "Historique · {{runs}} runs, {{checkpoints}} checkpoints",
