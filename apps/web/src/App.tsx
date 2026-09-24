@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ServerEventsProvider } from './api/events';
 import { AppSelector } from './components/AppSelector';
@@ -9,6 +9,7 @@ import { NetworkSummary } from './components/NetworkSummary';
 import { Platform } from './components/Platform';
 import { Trip } from './components/Trip';
 import { levelOf, up, usePlace } from './state/location';
+import { useInboxNotifications } from './state/notifications';
 import { useApps, useNetwork } from './state/resources';
 
 const LAST_APP_KEY = 'terminus:last-app';
@@ -45,6 +46,8 @@ function Cockpit() {
   const appId = place.app ?? (apps.data ? (apps.data.find((app) => app.id === readLastApp())?.id ?? apps.data[0]?.id ?? null) : null);
   const network = useNetwork(appId);
   const level = levelOf(place);
+  const describe = useCallback((title: string, reason: string) => ({ title: t(`notify.${reason}`), body: title }), [t]);
+  const notifications = useInboxNotifications(network.data, describe);
 
   useEffect(() => {
     if (appId) rememberApp(appId);
@@ -68,6 +71,9 @@ function Cockpit() {
         <span className="roundel" aria-hidden="true" />
         <AppSelector apps={apps.data ?? []} current={current} onSelect={(id) => go({ app: id, line: null, task: null })} />
         <span className="spacer" />
+        {notifications.permission === 'default' && (
+          <button type="button" className="btn small" onClick={notifications.ask}>{t('notify.enable')}</button>
+        )}
         {apps.error && <span className="offline" role="status">{t('app.daemon.offline')}</span>}
       </header>
       {!network.data ? (

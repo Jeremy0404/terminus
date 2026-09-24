@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { NetworkDto } from '@terminus/contracts';
 import { lineColor } from '../network/line-colors';
 import { isActive, statusKey, toneOf } from '../network/tone';
 import { LineBadge } from './LineBadge';
+import { NewStationForm } from './NewStationForm';
 import { StatusPill } from './StatusPill';
 
 interface Props {
@@ -13,6 +15,7 @@ interface Props {
 
 export function LineCard({ network, lineId, onStation }: Props) {
   const { t } = useTranslation();
+  const [adding, setAdding] = useState(false);
   const epic = network.epics.find((candidate) => candidate.id === lineId);
   if (!epic) return null;
   const tasks = network.tasks.filter((task) => task.epicId === lineId);
@@ -33,6 +36,13 @@ export function LineCard({ network, lineId, onStation }: Props) {
           </li>
         ))}
       </ul>
+      {adding ? (
+        <NewStationForm network={network} lineId={lineId} onDone={() => setAdding(false)} />
+      ) : (
+        <div className="row card-actions">
+          <button type="button" className="btn small" onClick={() => setAdding(true)}>{t('create.station.open')}</button>
+        </div>
+      )}
     </section>
   );
 }
