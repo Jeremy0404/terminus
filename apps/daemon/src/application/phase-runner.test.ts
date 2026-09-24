@@ -13,22 +13,32 @@ import { DEFAULT_FAILURE_POLICY } from '../domain/failure.js';
 import { createTask, type Task, type TaskStatus } from '../domain/task.js';
 import { TASK_LIFECYCLE } from '../domain/test-fixtures.js';
 import type { AgentEvent } from './ports/agent-runner.js';
-import type { CheckResult, CheckRunner } from './ports/check-runner.js';
+import type { CheckProgress, CheckResult, CheckRunner } from './ports/check-runner.js';
 import { PhaseRunner } from './phase-runner.js';
 
 class StubCheckRunner implements CheckRunner {
   readonly calls: { cwd: string; names: string[] }[] = [];
   outcomes: Record<string, boolean>[] = [];
+  outputsFor: Record<string, string> = {};
 
-  run(cwd: string, commands: readonly { name: string; command: string }[]): Promise<CheckResult[]> {
+  async run(
+    cwd: string,
+    commands: readonly { name: string; command: string }[],
+    onProgress?: (progress: CheckProgress) => void,
+  ): Promise<CheckResult[]> {
     this.calls.push({ cwd, names: commands.map((command) => command.name) });
     const outcome = this.outcomes.shift() ?? {};
-    return Promise.resolve(
-      commands.map(({ name, command }) => {
-        const ok = outcome[name] ?? true;
-        return { name, command, ok, exitCode: ok ? 0 : 1, outputTail: ok ? '' : `${name} exploded`, durationMs: 5 };
-      }),
-    );
+    const results: CheckResult[] = [];
+    for (const { name, command } of commands) {
+      onProgress?.({ kind: 'started', name, command });
+      const outputTail = this.outputsFor[name];
+      if (outputTail !== undefined) onProgress?.({ kind: 'output', name, command, outputTail });
+      const ok = outcome[name] ?? true;
+      const result: CheckResult = { name, command, ok, exitCode: ok ? 0 : 1, outputTail: ok ? '' : `${name} exploded`, durationMs: 5 };
+      onProgress?.({ kind: 'result', result });
+      results.push(result);
+    }
+    return results;
   }
 }
 
@@ -257,6 +267,31 @@ describe('PhaseRunner', () => {
     expect(task.checkpoints.at(-1)).toMatchObject({ phaseIndex: 4, sessionId: null });
     expect(runs.listByTask('t1')[0]).toMatchObject({ status: 'succeeded', sessionId: 'checks' });
     expect(bus.updates.filter((update) => update.kind === 'check-result')).toHaveLength(2);
+  });
+
+  it('publishes each check as it starts and finishes, interleaved per command', async () => {
+    givenTask(4);
+
+    await runner(new ScriptedAgentRunner()).run('t1');
+
+    const checkUpdates = bus.updates.filter((update): update is Extract<typeof update, { kind: `check-${string}` }> => update.kind.startsWith('check-'));
+    expect(checkUpdates.map((update) => update.kind)).toEqual(['check-started', 'check-result', 'check-started', 'check-result']);
+    expect(checkUpdates.map((update) => ('name' in update ? update.name : update.result.name))).toEqual(['test', 'test', 'build', 'build']);
+  });
+
+  it('publishes a check-output update with the live tail before the check finishes', async () => {
+    givenTask(4);
+    checks.outputsFor = { test: 'partial tail…' };
+
+    await runner(new ScriptedAgentRunner()).run('t1');
+
+    const checkUpdates = bus.updates.filter((update): update is Extract<typeof update, { kind: `check-${string}` }> => update.kind.startsWith('check-'));
+    const outputIndex = checkUpdates.findIndex((update) => update.kind === 'check-output');
+    const resultIndex = checkUpdates.findIndex((update) => update.kind === 'check-result' && update.result.name === 'test');
+    expect(outputIndex).toBeGreaterThanOrEqual(0);
+    expect(outputIndex).toBeLessThan(resultIndex);
+    const output = checkUpdates[outputIndex];
+    expect(output).toMatchObject({ kind: 'check-output', name: 'test', outputTail: 'partial tail…' });
   });
 
   it('sends a red verification back to execution with the failing output', async () => {
