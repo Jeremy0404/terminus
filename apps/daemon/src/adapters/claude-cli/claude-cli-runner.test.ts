@@ -32,11 +32,18 @@ const profile = (overrides: Partial<AgentProfile> = {}): AgentProfile => ({
 
 const settingsOf = (args: string[]): Record<string, unknown> => JSON.parse(args[args.indexOf('--settings') + 1] ?? '{}') as Record<string, unknown>;
 
+const INHERITED_BY_AGENT_RUNS = ['CLAUDE_CONFIG_DIR', 'CLAUDE_CODE_OAUTH_TOKEN', 'CLAUDE_CODE_DISABLE_BUNDLED_SKILLS', 'CLAUDE_CODE_DISABLE_AUTO_MEMORY'];
+let saved: Record<string, string | undefined>;
 let root: string;
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'terminus-claude-'));
+  saved = Object.fromEntries(INHERITED_BY_AGENT_RUNS.map((name) => [name, process.env[name]]));
+  for (const name of INHERITED_BY_AGENT_RUNS) delete process.env[name];
 });
-afterEach(() => rmSync(root, { recursive: true, force: true }));
+afterEach(() => {
+  rmSync(root, { recursive: true, force: true });
+  for (const [name, value] of Object.entries(saved)) if (value !== undefined) process.env[name] = value;
+});
 
 function fakeClaude(body: string): string {
   const path = join(root, 'claude');
