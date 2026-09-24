@@ -1,3 +1,4 @@
+import { choiceKey, resolveChoice } from '../domain/agent-choice.js';
 import type { Epic } from '../domain/epic.js';
 import { IDLE_BREAKDOWN } from '../domain/epic.js';
 import { DomainError } from '../domain/errors.js';
@@ -6,13 +7,17 @@ import type { Task } from '../domain/task.js';
 import { BREAKDOWN_OUTPUT_SCHEMA, readBreakdown } from './breakdown-output.js';
 import type { Catalog } from './catalog.js';
 import type { RunBudget } from './phase-runner.js';
+import type { AgentDefaultsStore } from './ports/agent-defaults-store.js';
 import type { AgentEvent, AgentRunner } from './ports/agent-runner.js';
+import type { PlaybookRegistry } from './ports/playbook-registry.js';
 import type { AppRepository, EpicRepository, TaskRepository } from './ports/repositories.js';
 import type { RepositoryInstructions } from './ports/repository-instructions.js';
 import type { IdGenerator, RunEventBus } from './ports/system.js';
 import type { TaskNotes } from './ports/task-notes.js';
 import type { TranscriptStore } from './ports/transcript-store.js';
 import type { Workspace } from './ports/workspace.js';
+
+const BREAKDOWN_PHASE = 'breakdown';
 
 export interface EpicPlannerDeps {
   readonly apps: AppRepository;
@@ -23,6 +28,8 @@ export interface EpicPlannerDeps {
   readonly notes: TaskNotes;
   readonly instructions: RepositoryInstructions;
   readonly agent: AgentRunner;
+  readonly agentDefaults: AgentDefaultsStore;
+  readonly playbooks: PlaybookRegistry;
   readonly transcripts: TranscriptStore;
   readonly ids: IdGenerator;
   readonly bus: RunEventBus;
@@ -91,6 +98,9 @@ export class EpicPlanner {
     const scratch = this.deps.workspace.prepare(repoPath, appId, `epic-${runId}`, this.deps.baseRef);
     try {
       const notesDir = this.deps.notes.directoryFor(`epic-${epic.id}`);
+      const lifecycle = this.deps.playbooks.lifecycle('epic');
+      const phase = lifecycle.phases.find((candidate) => candidate.id === BREAKDOWN_PHASE);
+      const choice = resolveChoice(this.deps.agentDefaults.all()[choiceKey(lifecycle.id, BREAKDOWN_PHASE)], phase);
       const handle = this.deps.agent.start({
         runId,
         sessionId: this.deps.ids.uuid(),
@@ -100,7 +110,8 @@ export class EpicPlanner {
         prompt: this.prompt(epic, brief, notesDir),
         systemPromptAppend: this.deps.instructions.localOnly(repoPath, scratch.path),
         skill: 'epic-breakdown',
-        model: null,
+        model: choice.model,
+        effort: choice.effort,
         maxTurns: this.deps.budget.maxTurns,
         outputSchema: BREAKDOWN_OUTPUT_SCHEMA,
       });

@@ -16,6 +16,7 @@ import { JsonlTranscriptStore } from './adapters/jsonl-transcripts/jsonl-transcr
 import { ShellCheckRunner } from './adapters/shell-checks/shell-check-runner.js';
 import { openDatabase } from './adapters/sqlite/database.js';
 import {
+  SqliteAgentDefaultsStore,
   SqliteAppRepository,
   SqliteDecisionRepository,
   SqliteEpicRepository,
@@ -94,6 +95,7 @@ const { http, scheduler } = compose(
     notes: new FsTaskNotes(join(home, 'tasks')),
     instructions: new FsRepositoryInstructions(),
     agent: agentRunner(env['TERMINUS_AGENT']),
+    agentDefaults: new SqliteAgentDefaultsStore(db),
     checks: new ShellCheckRunner(CHECK_TIMEOUT_MS),
     codeHost: new GhCodeHost(),
     scanner: new FsRepoScanner(),

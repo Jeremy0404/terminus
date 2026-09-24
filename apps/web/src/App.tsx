@@ -9,6 +9,7 @@ import { NetworkMap } from './components/NetworkMap';
 import { NetworkSummary } from './components/NetworkSummary';
 import { Platform } from './components/Platform';
 import { QuotaGauge } from './components/QuotaGauge';
+import { AgentSettings } from './components/settings/AgentSettings';
 import { Trip } from './components/Trip';
 import { levelOf, up, usePlace } from './state/location';
 import { useInboxNotifications } from './state/notifications';
@@ -46,6 +47,7 @@ function Cockpit() {
   const [place, go] = usePlace();
   const [inboxOpen, setInboxOpen] = useState(false);
   const [adopting, setAdopting] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const appId = place.app ?? (apps.data ? (apps.data.find((app) => app.id === readLastApp())?.id ?? apps.data[0]?.id ?? null) : null);
   const network = useNetwork(appId);
   const quota = useQuota();
@@ -76,6 +78,9 @@ function Cockpit() {
         <AppSelector apps={apps.data ?? []} current={current} onSelect={(id) => go({ app: id, line: null, task: null })} onAdopt={() => setAdopting(true)} />
         <span className="spacer" />
         <QuotaGauge quota={quota} />
+        <button type="button" className="btn small" aria-pressed={settingsOpen} onClick={() => setSettingsOpen(!settingsOpen)}>
+          {t('settings.open')}
+        </button>
         {notifications.permission === 'default' && (
           <button type="button" className="btn small" onClick={notifications.ask}>{t('notify.enable')}</button>
         )}
@@ -91,6 +96,10 @@ function Cockpit() {
               go({ app: id, line: null, task: null });
             }}
           />
+        </div>
+      ) : settingsOpen ? (
+        <div className="adoption-stage">
+          <AgentSettings onClose={() => setSettingsOpen(false)} />
         </div>
       ) : !network.data ? (
         <div className="empty-state" role="status">

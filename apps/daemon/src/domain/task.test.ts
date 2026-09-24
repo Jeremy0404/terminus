@@ -8,6 +8,7 @@ import {
   setTrack,
   skipPhase,
   canSkipPhase,
+  chooseAgent,
   completePhase,
   createTask,
   currentPhaseId,
@@ -239,6 +240,14 @@ describe('tracks and skipped phases', () => {
     const atExecute = flexible({ phaseIndex: 3, status: { kind: 'ready', mode: 'fresh' }, track: 'light' });
     expect(currentPhaseId(setTrack(atExecute, 'standard'))).toBe('execute');
     expect(setTrack(flexible(), 'light').status).toEqual({ kind: 'todo' });
+  });
+
+  it('changes the model and effort until the task is finished, even while a phase runs', () => {
+    const choice = { model: 'sonnet', effort: 'low' as const };
+    expect(newTask().agent).toEqual({ model: null, effort: null });
+    expect(chooseAgent(flexible({ status: { kind: 'running', runId: 'r' } }), choice).agent).toEqual(choice);
+    expect(() => chooseAgent(flexible({ status: { kind: 'done' } }), choice)).toThrow(DomainError);
+    expect(() => chooseAgent(flexible({ status: { kind: 'closed', reason: 'obsolete', evidence: '' } }), choice)).toThrow(DomainError);
   });
 
   it('refuses a track change while running or once finished', () => {

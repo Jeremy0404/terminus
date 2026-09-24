@@ -129,7 +129,7 @@ describe('ActionPanel', () => {
 
   const atMerge = (): TaskDetailDto => ({
     ...detailOf(task('t3', 'ui', 'Zoom', { kind: 'awaiting-gate', gate: 'merge' }, { phaseIndex: 6 })),
-    runs: [{ id: 'r', phaseIndex: 6, status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null, output: { pullRequest: { number: 42, url: 'https://github.com/o/r/pull/42' } } }],
+    runs: [{ id: 'r', phaseIndex: 6, status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null, agent: null, output: { pullRequest: { number: 42, url: 'https://github.com/o/r/pull/42' } } }],
   });
 
   it('shows why a merge is refused', async () => {
@@ -195,7 +195,7 @@ describe('ActionPanel', () => {
   it('shows the reviewer verdict and can send the task back to execution', async () => {
     const atReview: TaskDetailDto = {
       ...detailOf(task('t4', 'ui', 'Zoom', { kind: 'awaiting-gate', gate: 'human-review' }, { phaseIndex: 5 })),
-      runs: [{ id: 'r', phaseIndex: 5, status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null,
+      runs: [{ id: 'r', phaseIndex: 5, status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null, agent: null,
         output: { verdict: 'changes-requested', summary: 'Un manque', findings: [{ severity: 'major', file: 'zoom.ts', summary: 'Pas de test pour Échap' }] } }],
     };
     render(<ActionPanel detail={atReview} live={[]} />);
@@ -212,7 +212,7 @@ describe('ActionPanel', () => {
     reply = () => new Promise<Response>((r) => { resolve = r; }) as unknown as Response;
     const atReview: TaskDetailDto = {
       ...detailOf(task('t4', 'ui', 'Zoom', { kind: 'awaiting-gate', gate: 'human-review' }, { phaseIndex: 5 })),
-      runs: [{ id: 'r', phaseIndex: 5, status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null,
+      runs: [{ id: 'r', phaseIndex: 5, status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null, agent: null,
         output: { verdict: 'changes-requested', summary: 'Un manque', findings: [] } }],
     };
     render(<ActionPanel detail={atReview} live={[]} />);

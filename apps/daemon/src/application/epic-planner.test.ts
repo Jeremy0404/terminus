@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { FsPlaybookRegistry } from '../adapters/fs-playbooks/fs-playbook-registry.js';
 import { FakeTaskNotes, FakeWorkspace, FixedClock, RecordingBus, SequentialIds } from '../adapters/in-memory/fakes.js';
 import {
+  InMemoryAgentDefaultsStore,
   InMemoryAppRepository,
   InMemoryEpicRepository,
   InMemoryTaskRepository,
@@ -46,11 +47,18 @@ beforeEach(() => {
   catalog.createEpic('app', { code: 'U', name: 'UX', status: 'active' });
   catalog.createEpic('app', { code: 'A', name: 'Adoption', status: 'active', description: 'draft' });
   catalog.createTask('epic-1', { title: 'Give every click feedback', dependsOn: [], autonomy: 'up-to-pr' });
-  planner = (agent) =>
-    new EpicPlanner({ apps, epics, tasks, catalog, workspace, notes: new FakeTaskNotes(), instructions: { localOnly: () => 'repo rules' }, agent, transcripts, ids, bus, budget: { maxTokens: 400_000, maxTurns: 80 }, baseRef: 'main' });
+  planner = (agent, agentDefaults = new InMemoryAgentDefaultsStore()) =>
+    new EpicPlanner({
+      apps, epics, tasks, catalog, workspace, agent, agentDefaults, transcripts, ids, bus,
+      playbooks: new FsPlaybookRegistry(PLAYBOOKS),
+      notes: new FakeTaskNotes(),
+      instructions: { localOnly: () => 'repo rules' },
+      budget: { maxTokens: 400_000, maxTurns: 80 },
+      baseRef: 'main',
+    });
 });
 
-let planner: (agent: ScriptedAgentRunner) => EpicPlanner;
+let planner: (agent: ScriptedAgentRunner, agentDefaults?: InMemoryAgentDefaultsStore) => EpicPlanner;
 
 describe('EpicPlanner', () => {
   it('runs a breakdown agent in a disposable checkout and keeps its proposal for review', async () => {
@@ -62,12 +70,22 @@ describe('EpicPlanner', () => {
     await epicPlanner.idle();
 
     expect(epics.get('epic-2')?.breakdown).toEqual({ status: 'ready', brief: 'Adopt repos in five stations', proposal });
-    expect(agent.requests[0]).toMatchObject({ skill: 'epic-breakdown', systemPromptAppend: 'repo rules', notesDir: '/notes/epic-epic-2' });
+    expect(agent.requests[0]).toMatchObject({ skill: 'epic-breakdown', systemPromptAppend: 'repo rules', notesDir: '/notes/epic-epic-2', model: null, effort: null });
     expect(agent.requests[0]?.prompt).toContain('Brief from the human: Adopt repos in five stations');
     expect(agent.requests[0]?.prompt).toContain('- [U] Give every click feedback (todo)');
     expect(agent.requests[0]?.prompt).toContain('Current description:\ndraft');
     expect(workspace.branchesDeleted).toEqual([`terminus/epic-${running.breakdown.status === 'running' ? running.breakdown.runId : ''}`]);
     expect(bus.updates.filter((update) => update.kind === 'epic-changed')).toHaveLength(2);
+  });
+
+  it('runs the breakdown with its default model and effort', async () => {
+    const agent = new ScriptedAgentRunner(answers(proposal));
+    const epicPlanner = planner(agent, new InMemoryAgentDefaultsStore({ 'epic.breakdown': { model: 'sonnet', effort: 'medium' } }));
+
+    epicPlanner.start('epic-2', 'Adopt repos');
+    await epicPlanner.idle();
+
+    expect(agent.requests[0]).toMatchObject({ model: 'sonnet', effort: 'medium' });
   });
 
   it('records a failed breakdown and refuses a second one while running', async () => {

@@ -10,6 +10,7 @@ import { createTask, type Task } from '../../domain/task.js';
 import { checkpoint, failure, TASK_LIFECYCLE } from '../../domain/test-fixtures.js';
 import { openDatabase, type TerminusDatabase } from './database.js';
 import {
+  SqliteAgentDefaultsStore,
   SqliteAppRepository,
   SqliteDecisionRepository,
   SqliteEpicRepository,
@@ -58,6 +59,7 @@ describe('SqliteTaskRepository', () => {
     tasks.save(task('t0', { status: { kind: 'done' } }));
     const saved = task('t1', {
       autonomy: 'up-to-merge',
+      agent: { model: 'sonnet', effort: 'low' },
       dependsOn: ['t0'],
       phaseIndex: 4,
       status: { kind: 'blocked', failure: failure() },
@@ -112,10 +114,17 @@ describe('SqliteTaskRepository', () => {
 describe('SqliteRunRepository and SqliteDecisionRepository', () => {
   beforeEach(() => new SqliteTaskRepository(db).save(task('t1')));
 
-  it('round-trips runs with and without usage', () => {
+  it('round-trips runs with and without usage and model', () => {
     const runs = new SqliteRunRepository(db);
     const running: Run = { id: 'r1', taskId: 't1', phaseIndex: 3, sessionId: 's1', status: 'running', startedAt: '2026-09-24T10:00:00Z', endedAt: null, usage: null, output: null };
-    const finished: Run = { ...running, status: 'succeeded', endedAt: '2026-09-24T10:14:00Z', usage: { inputTokens: 150_000, outputTokens: 32_000 }, output: { verdict: 'approve' } };
+    const finished: Run = {
+      ...running,
+      status: 'succeeded',
+      endedAt: '2026-09-24T10:14:00Z',
+      usage: { inputTokens: 150_000, outputTokens: 32_000 },
+      output: { verdict: 'approve' },
+      agent: { model: 'opus', effort: null },
+    };
 
     runs.save(running);
     expect(runs.get('r1')).toEqual(running);
@@ -158,5 +167,17 @@ describe('SqliteQuotaStore', () => {
     store.save(latest);
 
     expect(store.latest()).toEqual(latest);
+  });
+});
+
+describe('SqliteAgentDefaultsStore', () => {
+  it('replaces the defaults per phase as a whole', () => {
+    const store = new SqliteAgentDefaultsStore(db);
+    expect(store.all()).toEqual({});
+
+    store.replace({ spec: { model: 'sonnet', effort: null }, execute: { model: 'opus', effort: 'high' } });
+    store.replace({ execute: { model: null, effort: 'max' } });
+
+    expect(store.all()).toEqual({ execute: { model: null, effort: 'max' } });
   });
 });

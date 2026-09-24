@@ -1,3 +1,4 @@
+import { choiceKey, resolveChoice, type AgentChoice } from '../domain/agent-choice.js';
 import type { Decision } from '../domain/decision.js';
 import { DomainError } from '../domain/errors.js';
 import { isLooping, type Failure, type FailurePolicy } from '../domain/failure.js';
@@ -12,6 +13,7 @@ import { readVerdict, VERDICT_OUTPUT_SCHEMA } from './verdict-output.js';
 import type { CheckProgress, CheckRunner } from './ports/check-runner.js';
 import type { CodeHost } from './ports/code-host.js';
 import { pullRequestBody, pullRequestTitle } from './pull-request-text.js';
+import type { AgentDefaultsStore } from './ports/agent-defaults-store.js';
 import type { AgentEvent, AgentRunner } from './ports/agent-runner.js';
 import type { AppRepository, DecisionRepository, EpicRepository, RunRepository, TaskRepository } from './ports/repositories.js';
 import type { Clock, IdGenerator, RunEventBus } from './ports/system.js';
@@ -36,6 +38,7 @@ export interface PhaseRunnerDeps {
   readonly notes: TaskNotes;
   readonly instructions: RepositoryInstructions;
   readonly agent: AgentRunner;
+  readonly agentDefaults: AgentDefaultsStore;
   readonly checks: CheckRunner;
   readonly codeHost: CodeHost;
   readonly clock: Clock;
@@ -91,7 +94,7 @@ export class PhaseRunner {
 
     const runId = ids.next('run');
     let task = this.save(startRun(ready, runId));
-    let run: Run = { id: runId, taskId, phaseIndex: task.phaseIndex, sessionId, status: 'running', startedAt: clock.now(), endedAt: null, usage: null, output: null };
+    let run: Run = { id: runId, taskId, phaseIndex: task.phaseIndex, sessionId, status: 'running', startedAt: clock.now(), endedAt: null, usage: null, output: null, agent: this.choiceFor(ready, phase) };
     runs.save(run);
     const observation = await this.runAgent(ready, app, phase, taskWorkspace, { runId, sessionId, resume, outputSchema: outputSchemaFor(phase) });
 
@@ -156,6 +159,7 @@ export class PhaseRunner {
       baseRef: this.deps.baseRef,
       verification: app.verification,
     });
+    const choice = this.choiceFor(ready, phase);
     const handle = this.deps.agent.start({
       runId: options.runId,
       sessionId: options.sessionId,
@@ -165,7 +169,8 @@ export class PhaseRunner {
       prompt: options.promptSuffix ? `${prompt}\n\n${options.promptSuffix}` : prompt,
       systemPromptAppend: [this.deps.systemPromptAppend, this.deps.instructions.localOnly(app.repoPath, taskWorkspace.path)].filter(Boolean).join('\n\n'),
       skill: phase.skill ?? null,
-      model: phase.model ?? null,
+      model: choice.model,
+      effort: choice.effort,
       maxTurns: this.deps.budget.maxTurns,
       outputSchema: options.outputSchema,
     });
@@ -174,6 +179,10 @@ export class PhaseRunner {
     const observation = await this.observe(ready.id, options.runId, handle.events, () => handle.interrupt()).finally(() => this.active.delete(ready.id));
     if (control.byUser && !observation.stopped) observation.stopped = this.failure('interrupted', 'user', 'Interrupted from Terminus');
     return observation;
+  }
+
+  private choiceFor(task: Task, phase: PhaseDefinition): AgentChoice {
+    return resolveChoice(task.agent, this.deps.agentDefaults.all()[choiceKey(task.lifecycle.id, phase.id)], phase);
   }
 
   private async runSync(ready: Task, app: App, phase: PhaseDefinition, taskWorkspace: TaskWorkspace): Promise<Task> {

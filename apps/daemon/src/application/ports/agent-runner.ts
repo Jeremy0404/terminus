@@ -1,3 +1,4 @@
+import type { Effort } from '../../domain/agent-choice.js';
 import type { QuotaWindow } from '../../domain/quota.js';
 
 export interface AgentRunRequest {
@@ -10,6 +11,7 @@ export interface AgentRunRequest {
   readonly systemPromptAppend: string;
   readonly skill: string | null;
   readonly model: string | null;
+  readonly effort: Effort | null;
   readonly maxTurns: number;
   readonly outputSchema: object | null;
 }

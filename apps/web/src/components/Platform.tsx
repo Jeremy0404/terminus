@@ -3,6 +3,7 @@ import type { NetworkDto } from '@terminus/contracts';
 import { lineColor } from '../network/line-colors';
 import { useTask } from '../state/resources';
 import { ActionPanel } from './platform/ActionPanel';
+import { AgentPicker } from './platform/AgentPicker';
 import { TaskDeviations } from './platform/TaskDeviations';
 import { RunHistory } from './platform/RunHistory';
 import { StatusPill } from './StatusPill';
@@ -33,6 +34,7 @@ export function Platform({ network, taskId, onClose }: Props) {
       <div className="row">
         <StatusPill status={task.status} />
         <span className="track-chip">{t(`track.${task.track}`)}</span>
+        <AgentPicker key={task.id} task={task} />
       </div>
       <ol className="phase-strip" style={{ gridTemplateColumns: `repeat(${task.phases.length}, 1fr)`, ['--n' as string]: task.phases.length }}>
         {task.phases.map((phase, index) => (

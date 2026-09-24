@@ -1,3 +1,4 @@
+import { NO_CHOICE, type AgentChoice } from './agent-choice.js';
 import type { Checkpoint } from './checkpoint.js';
 import { DomainError } from './errors.js';
 import { decideAfterFailure, isLooping, type Failure, type FailurePolicy } from './failure.js';
@@ -41,6 +42,7 @@ export interface Task {
   readonly lifecycle: LifecycleDefinition;
   readonly autonomy: Autonomy;
   readonly track: Track;
+  readonly agent: AgentChoice;
   readonly dependsOn: readonly string[];
   readonly phaseIndex: number;
   readonly status: TaskStatus;
@@ -56,6 +58,7 @@ export interface NewTask {
   readonly lifecycle: LifecycleDefinition;
   readonly autonomy?: Autonomy;
   readonly track?: Track;
+  readonly agent?: AgentChoice;
   readonly dependsOn?: readonly string[];
 }
 
@@ -68,6 +71,7 @@ export function createTask(input: NewTask): Task {
     lifecycle: input.lifecycle,
     autonomy: input.autonomy ?? 'up-to-pr',
     track: input.track ?? 'standard',
+    agent: input.agent ?? NO_CHOICE,
     dependsOn: input.dependsOn ?? [],
     phaseIndex: 0,
     status: { kind: 'todo' },
@@ -204,6 +208,11 @@ export function setTrack(task: Task, track: Track): Task {
   const switched = { ...task, track };
   if (appliesTo(phaseAt(task.lifecycle, task.phaseIndex), track)) return switched;
   return task.status.kind === 'todo' ? { ...switched, phaseIndex: nextPhaseIndex(task.lifecycle, track, task.phaseIndex) ?? task.phaseIndex } : advance(switched);
+}
+
+export function chooseAgent(task: Task, agent: AgentChoice): Task {
+  if (task.status.kind === 'done' || task.status.kind === 'closed') throw new DomainError(`Task ${task.id} is ${task.status.kind}; its model can no longer change`);
+  return { ...task, agent };
 }
 
 export function canSkipPhase(task: Task): boolean {

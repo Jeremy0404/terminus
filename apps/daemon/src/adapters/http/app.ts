@@ -3,6 +3,8 @@ import { streamSSE } from 'hono/streaming';
 import { ZodError, type ZodType } from 'zod';
 import {
   AcceptBreakdownBody,
+  AgentChoiceBody,
+  AgentDefaultsBody,
   AnswerBody,
   BreakdownBody,
   CloseBody,
@@ -19,13 +21,14 @@ import {
   type HealthResponse,
 } from '@terminus/contracts';
 import type { Adoption } from '../../application/adoption.js';
+import type { AgentSettings } from '../../application/agent-settings.js';
 import type { Catalog } from '../../application/catalog.js';
 import type { EpicPlanner } from '../../application/epic-planner.js';
 import type { RunUpdate } from '../../application/ports/system.js';
 import { NotFound, type Queries } from '../../application/queries.js';
 import type { TaskActions } from '../../application/task-actions.js';
 import { DomainError } from '../../domain/errors.js';
-import { toAppDto, toEpicDto, toNetworkDto, toQuotaDto, toServerEventDto, toTaskDetailDto, toTaskSummaryDto } from './dto.js';
+import { toAgentPhaseDto, toAppDto, toEpicDto, toNetworkDto, toQuotaDto, toServerEventDto, toTaskDetailDto, toTaskSummaryDto } from './dto.js';
 
 const KEEPALIVE_MS = 15_000;
 
@@ -36,6 +39,7 @@ export interface HttpDeps {
   readonly adoption: Adoption;
   readonly planner: EpicPlanner;
   readonly actions: TaskActions;
+  readonly agentSettings: AgentSettings;
   readonly runs: { interrupt(taskId: string): boolean };
   readonly scheduler: { tick(): unknown; release(taskId: string): void };
   readonly events: { subscribe(listener: (update: RunUpdate) => void): () => void };
@@ -63,6 +67,11 @@ export function createHttpApp(deps: HttpDeps): Hono {
   app.get('/api/health', (c) => c.json<HealthResponse>({ status: 'ok', version: deps.version }));
 
   app.get('/api/apps', (c) => c.json(queries.apps().map(toAppDto)));
+  app.get('/api/settings/agents', (c) => c.json(deps.agentSettings.phases().map(toAgentPhaseDto)));
+  app.put('/api/settings/agents', async (c) => {
+    const { defaults } = await body(c, AgentDefaultsBody);
+    return c.json(deps.agentSettings.update(defaults).map(toAgentPhaseDto));
+  });
   app.get('/api/quota', (c) => {
     const quota = queries.quota();
     return c.json(quota ? toQuotaDto(quota) : null);
@@ -127,6 +136,7 @@ export function createHttpApp(deps: HttpDeps): Hono {
     const { track } = await body(c, TrackBody);
     return c.json(toTaskSummaryDto(act(taskId, () => actions.changeTrack(taskId, track)) as ReturnType<TaskActions['changeTrack']>));
   });
+  app.post('/api/tasks/:taskId/agent', async (c) => c.json(toTaskSummaryDto(actions.chooseAgent(c.req.param('taskId'), await body(c, AgentChoiceBody)))));
   app.post('/api/tasks/:taskId/take-over', (c) => {
     const { task, command } = actions.takeOver(c.req.param('taskId'));
     return c.json({ task: toTaskSummaryDto(task), command });

@@ -6,7 +6,9 @@ import type {
   RunRepository,
   TaskRepository,
 } from '../../application/ports/repositories.js';
+import type { AgentDefaultsStore } from '../../application/ports/agent-defaults-store.js';
 import type { QuotaStore } from '../../application/ports/quota-store.js';
+import type { AgentDefaults } from '../../domain/agent-choice.js';
 import type { App } from '../../domain/app.js';
 import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
@@ -14,7 +16,7 @@ import type { Quota } from '../../domain/quota.js';
 import type { Run } from '../../domain/run.js';
 import type { Task } from '../../domain/task.js';
 import type { TerminusDatabase } from './database.js';
-import { apps, checkpoints, decisions, epics, playbookVersions, quota, runs, taskDependencies, tasks } from './schema.js';
+import { agentDefaults, apps, checkpoints, decisions, epics, playbookVersions, quota, runs, taskDependencies, tasks } from './schema.js';
 
 export class SqliteAppRepository implements AppRepository {
   constructor(private readonly db: TerminusDatabase) {}
@@ -65,6 +67,8 @@ export class SqliteTaskRepository implements TaskRepository {
       status: task.status,
       failuresInPhase: [...task.failuresInPhase],
       checkFailures: [...task.checkFailures],
+      model: task.agent.model,
+      effort: task.agent.effort,
     };
     this.db.transaction((tx) => {
       tx.insert(playbookVersions)
@@ -127,6 +131,7 @@ export class SqliteTaskRepository implements TaskRepository {
       lifecycle: { id: lifecycle.lifecycleId, version: lifecycle.version, phases: lifecycle.phases },
       autonomy: row.autonomy,
       track: row.track,
+      agent: { model: row.model, effort: row.effort },
       dependsOn,
       phaseIndex: row.phaseIndex,
       status: row.status,
@@ -152,6 +157,8 @@ export class SqliteRunRepository implements RunRepository {
       inputTokens: run.usage?.inputTokens ?? null,
       outputTokens: run.usage?.outputTokens ?? null,
       output: run.output ?? null,
+      model: run.agent?.model ?? null,
+      effort: run.agent?.effort ?? null,
     };
     this.db.insert(runs).values(row).onConflictDoUpdate({ target: runs.id, set: row }).run();
   }
@@ -167,8 +174,9 @@ export class SqliteRunRepository implements RunRepository {
 }
 
 function toRun(row: typeof runs.$inferSelect): Run {
-  const { inputTokens, outputTokens, output, ...rest } = row;
-  return { ...rest, output: output ?? null, usage: inputTokens === null || outputTokens === null ? null : { inputTokens, outputTokens } };
+  const { inputTokens, outputTokens, output, model, effort, ...rest } = row;
+  const run = { ...rest, output: output ?? null, usage: inputTokens === null || outputTokens === null ? null : { inputTokens, outputTokens } };
+  return model === null && effort === null ? run : { ...run, agent: { model, effort } };
 }
 
 export class SqliteDecisionRepository implements DecisionRepository {
@@ -208,5 +216,21 @@ export class SqliteQuotaStore implements QuotaStore {
   latest(): Quota | null {
     const row = this.db.select().from(quota).where(eq(quota.id, AGENT_QUOTA)).get();
     return row ? { limited: row.limited, windows: row.windows, observedAt: row.observedAt } : null;
+  }
+}
+
+export class SqliteAgentDefaultsStore implements AgentDefaultsStore {
+  constructor(private readonly db: TerminusDatabase) {}
+
+  all(): AgentDefaults {
+    return Object.fromEntries(this.db.select().from(agentDefaults).all().map(({ phaseId, model, effort }) => [phaseId, { model, effort }]));
+  }
+
+  replace(defaults: AgentDefaults): void {
+    this.db.transaction((tx) => {
+      tx.delete(agentDefaults).run();
+      const rows = Object.entries(defaults).map(([phaseId, choice]) => ({ phaseId, ...choice }));
+      if (rows.length > 0) tx.insert(agentDefaults).values(rows).run();
+    });
   }
 }
