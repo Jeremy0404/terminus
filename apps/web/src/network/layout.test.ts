@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
-import { layoutNetwork, LEFT, ROW, STEP, TOP } from './layout';
+import { layoutNetwork, LEFT, lineViewBox, ROW, STEP, TOP } from './layout';
 
 const epic = (id: string, position: number): EpicDto => ({ id, appId: 'app', code: id.toUpperCase(), name: id, status: 'active', position });
 const task = (id: string, epicId: string, dependsOn: string[] = []): TaskSummaryDto => ({
@@ -49,5 +49,12 @@ describe('layoutNetwork', () => {
     const layout = layoutNetwork([epic('a', 1), epic('b', 2)], [task('a1', 'a'), task('a2', 'a')]);
     expect(layout.width).toBeGreaterThan(LEFT + STEP);
     expect(layout.height).toBeGreaterThan(TOP + ROW);
+  });
+
+  it('zooms onto a line without cutting its name or blowing up a short line', () => {
+    const layout = layoutNetwork([epic('a', 1), epic('b', 2)], [task('a1', 'a'), task('a2', 'a'), task('a3', 'a'), task('a4', 'a'), task('a5', 'a'), task('a6', 'a'), task('b1', 'b')]);
+    const [x, , width] = lineViewBox(layout, 'b', 2);
+    expect(x).toBeLessThan(LEFT - STEP);
+    expect(width).toBeGreaterThanOrEqual(layout.width * 0.55);
   });
 });
