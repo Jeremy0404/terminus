@@ -15,6 +15,7 @@ import type { AgentEvent, AgentRunner } from './ports/agent-runner.js';
 import type { AppRepository, DecisionRepository, EpicRepository, RunRepository, TaskRepository } from './ports/repositories.js';
 import type { Clock, IdGenerator, RunEventBus } from './ports/system.js';
 import type { TranscriptStore } from './ports/transcript-store.js';
+import type { RepositoryInstructions } from './ports/repository-instructions.js';
 import type { TaskNotes } from './ports/task-notes.js';
 import type { TaskWorkspace, Workspace } from './ports/workspace.js';
 
@@ -32,6 +33,7 @@ export interface PhaseRunnerDeps {
   readonly transcripts: TranscriptStore;
   readonly workspace: Workspace;
   readonly notes: TaskNotes;
+  readonly instructions: RepositoryInstructions;
   readonly agent: AgentRunner;
   readonly checks: CheckRunner;
   readonly codeHost: CodeHost;
@@ -95,7 +97,7 @@ export class PhaseRunner {
       cwd: taskWorkspace.path,
       notesDir,
       prompt,
-      systemPromptAppend: this.deps.systemPromptAppend,
+      systemPromptAppend: [this.deps.systemPromptAppend, this.deps.instructions.localOnly(app.repoPath, taskWorkspace.path)].filter(Boolean).join('\n\n'),
       skill: phase.skill ?? null,
       model: phase.model ?? null,
       maxTurns: budget.maxTurns,

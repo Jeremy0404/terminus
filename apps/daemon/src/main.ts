@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
 import { buildAgentHome, readAgentProfile } from './adapters/claude-cli/agent-home.js';
 import { BUILTIN_PLUGINS, ClaudeCliRunner } from './adapters/claude-cli/claude-cli-runner.js';
+import { FsRepositoryInstructions } from './adapters/repo-context/fs-repository-instructions.js';
 import { FsTaskNotes } from './adapters/fs-notes/fs-task-notes.js';
 import { FsPlaybookRegistry } from './adapters/fs-playbooks/fs-playbook-registry.js';
 import { GitWorkspace } from './adapters/git/git-workspace.js';
@@ -89,6 +90,7 @@ const { http, scheduler } = compose(
     transcripts: new JsonlTranscriptStore(join(home, 'runs')),
     workspace: new GitWorkspace(join(home, 'worktrees')),
     notes: new FsTaskNotes(join(home, 'tasks')),
+    instructions: new FsRepositoryInstructions(),
     agent: agentRunner(env['TERMINUS_AGENT']),
     checks: new ShellCheckRunner(CHECK_TIMEOUT_MS),
     codeHost: new GhCodeHost(),
