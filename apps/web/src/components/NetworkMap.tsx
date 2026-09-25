@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { NetworkDto } from '@terminus/contracts';
-import { fullViewBox, layoutNetwork, lineViewBox } from '../network/layout';
+import { fullViewBox, layoutNetwork, lineViewBox, withoutDeliveredLines } from '../network/layout';
 import { levelOf, type Place } from '../state/location';
+import { useHideDelivered } from '../state/preferences';
 import { MapDrawing } from './map/MapDrawing';
 
 const MAP_ASPECT = 2;
@@ -18,7 +19,12 @@ interface Props {
 
 export function NetworkMap({ network, place, onLine, onStation, onBackground }: Props) {
   const { t } = useTranslation();
-  const layout = useMemo(() => layoutNetwork(network.epics, network.tasks), [network]);
+  const [hideDelivered, setHideDelivered] = useHideDelivered();
+  const anyDelivered = network.epics.some((epic) => epic.status === 'delivered');
+  const layout = useMemo(() => {
+    const visible = hideDelivered ? withoutDeliveredLines(network.epics, network.tasks, place.line) : network;
+    return layoutNetwork(visible.epics, visible.tasks);
+  }, [network, hideDelivered, place.line]);
   const svg = useRef<SVGSVGElement>(null);
   const [initialViewBox] = useState(() => fullViewBox(layout).join(' '));
   const current = useRef<number[] | null>(null);
@@ -50,17 +56,30 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target.join(' ')]);
 
+  const allHidden = layout.lines.length === 0 && network.epics.length > 0;
+
   return (
-    <svg
-      ref={svg}
-      className="network-map"
-      viewBox={initialViewBox}
-      preserveAspectRatio="xMidYMid meet"
-      role="img"
-      aria-label={t('map.label', { app: network.app.name })}
-    >
-      <rect className="map-background" x={-5000} y={-5000} width={10000} height={10000} onClick={onBackground} />
-      <MapDrawing layout={layout} tasks={network.tasks} level={level} openLine={place.line} selectedTask={place.task} onLine={onLine} onStation={onStation} />
-    </svg>
+    <>
+      {anyDelivered && (
+        <button type="button" className="map-toggle" aria-pressed={hideDelivered} onClick={() => setHideDelivered(!hideDelivered)}>
+          {t('map.hideDelivered')}
+        </button>
+      )}
+      {allHidden ? (
+        <p className="map-empty">{t('map.allDelivered')}</p>
+      ) : (
+        <svg
+          ref={svg}
+          className="network-map"
+          viewBox={initialViewBox}
+          preserveAspectRatio="xMidYMid meet"
+          role="img"
+          aria-label={t('map.label', { app: network.app.name })}
+        >
+          <rect className="map-background" x={-5000} y={-5000} width={10000} height={10000} onClick={onBackground} />
+          <MapDrawing layout={layout} tasks={network.tasks} level={level} openLine={place.line} selectedTask={place.task} onLine={onLine} onStation={onStation} />
+        </svg>
+      )}
+    </>
   );
 }

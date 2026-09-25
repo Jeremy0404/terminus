@@ -79,7 +79,11 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .line-badge { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px; color: #fff; font-family: var(--display); font-weight: 900; font-size: 13px; line-height: 1; }
 
 .stage { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 18px; align-items: start; }
-.map-box { background: var(--surface); border-radius: 20px; box-shadow: var(--shadow); overflow-x: auto; }
+.map-box { position: relative; background: var(--surface); border-radius: 20px; box-shadow: var(--shadow); overflow-x: auto; }
+.map-toggle { position: absolute; top: 12px; right: 12px; z-index: 1; border: 1.5px solid var(--rule); border-radius: 999px; background: var(--surface); color: var(--ink-2); padding: 5px 12px; font-size: 12px; font-weight: 700; }
+.map-toggle:hover { background: var(--surface-2); color: var(--ink); }
+.map-toggle[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.map-empty { margin: 0; padding: 60px 24px; text-align: center; color: var(--ink-2); }
 .network-map { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; }
 .map-background { fill: transparent; }
 .line, .transfer { transition: opacity 0.45s ease; }

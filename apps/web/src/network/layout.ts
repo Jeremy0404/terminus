@@ -84,6 +84,16 @@ export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSum
   };
 }
 
+export function withoutDeliveredLines(
+  epics: readonly EpicDto[],
+  tasks: readonly TaskSummaryDto[],
+  keepEpicId: string | null,
+): { readonly epics: readonly EpicDto[]; readonly tasks: readonly TaskSummaryDto[] } {
+  const visible = epics.filter((epic) => epic.status !== 'delivered' || epic.id === keepEpicId);
+  const ids = new Set(visible.map((epic) => epic.id));
+  return { epics: visible, tasks: tasks.filter((task) => ids.has(task.epicId)) };
+}
+
 function rankTasks(tasks: readonly TaskSummaryDto[]): Map<string, number> {
   const byId = new Map(tasks.map((task) => [task.id, task]));
   const previousInLine = new Map<string, string>();
