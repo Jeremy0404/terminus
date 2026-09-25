@@ -30,6 +30,11 @@ describe('ContextPack', () => {
     );
   });
 
+  it('starts with the approved product brief of the app', () => {
+    const pack = new ContextPack({ memory: new InMemoryMemoryRepository(), knowledge: bare }).forApp({ ...app, brief: '## Problem\n\nToo many tabs.' });
+    expect(pack).toBe('# Project memory (kept in Terminus for demo)\n\n## Product brief (approved)\n\n## Problem\n\nToo many tabs.');
+  });
+
   it('keeps only the most recent lessons', () => {
     const memory = new InMemoryMemoryRepository();
     for (let index = 0; index < 45; index += 1) {

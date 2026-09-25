@@ -29,12 +29,17 @@ export class SqliteAppRepository implements AppRepository {
   }
 
   get(id: string): App | null {
-    return this.db.select().from(apps).where(eq(apps.id, id)).get() ?? null;
+    const row = this.db.select().from(apps).where(eq(apps.id, id)).get();
+    return row ? toApp(row) : null;
   }
 
   list(): App[] {
-    return this.db.select().from(apps).orderBy(asc(apps.name)).all();
+    return this.db.select().from(apps).orderBy(asc(apps.name)).all().map(toApp);
   }
+}
+
+function toApp({ brief, ...app }: typeof apps.$inferSelect): App {
+  return brief ? { ...app, brief } : app;
 }
 
 export class SqliteEpicRepository implements EpicRepository {

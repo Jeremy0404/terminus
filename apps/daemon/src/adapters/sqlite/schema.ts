@@ -14,6 +14,7 @@ export const apps = sqliteTable('apps', {
   name: text('name').notNull(),
   repoPath: text('repo_path').notNull(),
   verification: text('verification', { mode: 'json' }).$type<VerificationCommand[]>().notNull().default([]),
+  brief: text('brief').notNull().default(''),
   createdAt: text('created_at').notNull(),
 });
 

@@ -65,6 +65,7 @@ export const api = {
   task: (taskId: string) => request<TaskDetailDto>(`/tasks/${taskId}`),
   checks: (taskId: string) => request<ChecksResponseDto>(`/tasks/${taskId}/checks`),
   transcript: (runId: string) => request<unknown[]>(`/runs/${runId}/transcript`),
+  foundApp: (body: { name: string; idea: string; repoPath: string; visibility: 'private' | 'public' }) => post<AppDto>('/apps/found', body),
   createApp: (body: { name: string; repoPath: string; verification: { name: string; command: string }[] }) => post<AppDto>('/apps', body),
   createEpic: (appId: string, body: { code: string; name: string; status?: 'planned' | 'active'; description?: string }) => post<EpicDto>(`/apps/${appId}/epics`, body),
   startBreakdown: (epicId: string, brief: string) => post<EpicDto>(`/epics/${epicId}/breakdown`, { brief }),

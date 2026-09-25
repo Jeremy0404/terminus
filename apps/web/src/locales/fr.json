@@ -58,7 +58,8 @@
     "review": "Review",
     "merge": "Merge",
     "sync": "Synchro",
-    "retro": "Rétrospective"
+    "retro": "Rétrospective",
+    "brief": "Brief produit"
   },
   "status": {
     "todo": "À faire",
@@ -85,7 +86,8 @@
     "review": "Review",
     "merge": "Merge",
     "sync": "Sync",
-    "retro": "Rétro"
+    "retro": "Rétro",
+    "brief": "Brief"
   },
   "decision": {
     "eyebrow": "Grill · question {{position}} sur {{total}}",
@@ -161,7 +163,11 @@
       "approve": "Approuvé",
       "changes-requested": "Changements demandés"
     },
-    "sendBackComment": "Commentaire pour l’agent (facultatif)"
+    "sendBackComment": "Commentaire pour l’agent (facultatif)",
+    "brief": {
+      "eyebrow": "Brief à valider",
+      "title": "Relis le brief : validé, il accompagnera chaque agent de l’app"
+    }
   },
   "run": {
     "eyebrow": "Agent en route · {{phase}}",
@@ -402,7 +408,9 @@
       "task.execute": "Exécution",
       "task.review": "Review",
       "task.sync": "Résolution de conflits",
-      "task.retro": "Rétrospective"
+      "task.retro": "Rétrospective",
+      "app-framing.grill": "Cadrage : questions",
+      "app-framing.brief": "Cadrage : brief"
     },
     "save": "Enregistrer",
     "saving": "Enregistrement…",
@@ -455,5 +463,28 @@
   },
   "obsolete": {
     "eyebrow": "Peut-être déjà couverte par « {{task}} »"
+  },
+  "found": {
+    "open": "Nouvelle app",
+    "eyebrow": "Nouvelle app",
+    "title": "Partir d’une idée",
+    "name": "Nom",
+    "idea": "L’idée",
+    "ideaPlaceholder": "Le problème, pour qui, ce que la première version doit faire…",
+    "folder": "Dossier (facultatif)",
+    "folderPlaceholder": "Par défaut : dossier des projets / nom",
+    "visibility": "Dépôt GitHub",
+    "private": "Privé",
+    "public": "Public",
+    "submit": "Créer l’app et son dépôt"
+  },
+  "appPhase": {
+    "idea": "Idée",
+    "framing": "Cadrage",
+    "stack-and-architecture": "Stack et architecture",
+    "scaffold": "Socle",
+    "build": "Construction",
+    "production": "Production",
+    "operations": "Exploitation"
   }
 }

@@ -36,13 +36,14 @@ export class Catalog {
     return epic;
   }
 
-  createTask(epicId: string, input: { title: string; description?: string; dependsOn: readonly string[]; autonomy: Autonomy; track?: Track }): Task {
+  createTask(epicId: string, input: { title: string; description?: string; dependsOn: readonly string[]; autonomy: Autonomy; track?: Track; lifecycleId?: string }): Task {
     const epic = this.deps.epics.get(epicId);
     if (!epic) throw new DomainError(`Unknown epic ${epicId}`);
     const existing = this.deps.tasks.listByApp(epic.appId);
     const unknown = input.dependsOn.filter((id) => !existing.some((task) => task.id === id));
     if (unknown.length > 0) throw new DomainError(`Unknown dependencies: ${unknown.join(', ')}`);
-    const task = createTask({ id: this.deps.ids.next('task'), epicId, lifecycle: this.deps.playbooks.lifecycle('task'), ...input });
+    const { lifecycleId = 'task', ...fields } = input;
+    const task = createTask({ id: this.deps.ids.next('task'), epicId, lifecycle: this.deps.playbooks.lifecycle(lifecycleId), ...fields });
     assertAcyclic([...existing, task]);
     this.deps.tasks.save(task);
     this.deps.bus.publish({ kind: 'task-changed', task });

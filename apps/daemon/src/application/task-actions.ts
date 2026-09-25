@@ -23,6 +23,7 @@ import type { Clock, IdGenerator, RunEventBus } from './ports/system.js';
 import { phaseAt, type Track } from '../domain/lifecycle.js';
 import type { ChecksState, CodeHost, PullRequest } from './ports/code-host.js';
 import type { Workspace } from './ports/workspace.js';
+import { readBrief } from './brief-output.js';
 
 export interface TaskActionsDeps {
   readonly apps: AppRepository;
@@ -100,7 +101,21 @@ export class TaskActions {
   approve(taskId: string): Task {
     const task = this.load(taskId);
     if (task.status.kind === 'awaiting-gate' && task.status.gate === 'merge') throw new DomainError(`Task ${taskId} is merged with merge, not approve`);
-    return this.save(approveGate(task));
+    const approved = approveGate(task);
+    if (phaseAt(task.lifecycle, task.phaseIndex).output === 'brief') this.adoptBrief(task);
+    const saved = this.save(approved);
+    if (saved.status.kind === 'done') this.deps.workspace.remove(this.appOf(task).repoPath, this.workspaceOf(task));
+    return saved;
+  }
+
+  private adoptBrief(task: Task): void {
+    const run = this.deps.runs
+      .listByTask(task.id)
+      .filter((candidate) => candidate.phaseIndex === task.phaseIndex && candidate.status === 'succeeded')
+      .at(-1);
+    const brief = readBrief(run?.output);
+    if (!brief) throw new DomainError(`Task ${task.id} has no brief to approve`);
+    this.deps.apps.save({ ...this.appOf(task), brief });
   }
 
   merge(taskId: string): Task {

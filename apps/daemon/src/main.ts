@@ -11,6 +11,7 @@ import { FsTaskNotes } from './adapters/fs-notes/fs-task-notes.js';
 import { FsPlaybookRegistry } from './adapters/fs-playbooks/fs-playbook-registry.js';
 import { GitWorkspace } from './adapters/git/git-workspace.js';
 import { GhCodeHost, GhIssueTracker } from './adapters/github/gh-code-host.js';
+import { GhRepositoryCreator } from './adapters/github/gh-repository-creator.js';
 import { DemoAgentRunner } from './adapters/in-memory/demo-agent-runner.js';
 import { FsRepoScanner } from './adapters/repo-scanner/fs-repo-scanner.js';
 import { JsonlTranscriptStore } from './adapters/jsonl-transcripts/jsonl-transcript-store.js';
@@ -100,6 +101,7 @@ const { http, scheduler } = compose(
     agentDefaults: new SqliteAgentDefaultsStore(db),
     memory: new SqliteMemoryRepository(db),
     knowledge: new FsRepositoryKnowledge(),
+    repositories: new GhRepositoryCreator(),
     checks: new ShellCheckRunner(CHECK_TIMEOUT_MS),
     codeHost: new GhCodeHost(),
     scanner: new FsRepoScanner(),
@@ -114,6 +116,7 @@ const { http, scheduler } = compose(
     concurrency: Number(env['TERMINUS_CONCURRENCY'] ?? 2),
     budget: { maxTokens: 400_000, maxTurns: 80 },
     systemPromptAppend: '',
+    projectsDir: env['TERMINUS_PROJECTS_DIR'] ?? join(homedir(), 'dev', 'projects'),
   },
 );
 

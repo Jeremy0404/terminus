@@ -2,6 +2,7 @@ import type { Hono } from 'hono';
 import { EmitterBus } from './adapters/events/emitter-bus.js';
 import { createHttpApp } from './adapters/http/app.js';
 import { Adoption } from './application/adoption.js';
+import { AppFounder } from './application/app-founder.js';
 import { AgentSettings } from './application/agent-settings.js';
 import { Catalog } from './application/catalog.js';
 import { ContextPack } from './application/context-pack.js';
@@ -11,6 +12,7 @@ import type { AgentDefaultsStore } from './application/ports/agent-defaults-stor
 import type { AgentRunner } from './application/ports/agent-runner.js';
 import type { MemoryRepository } from './application/ports/memory-repository.js';
 import type { RepositoryKnowledge } from './application/ports/repository-knowledge.js';
+import type { RepositoryCreator } from './application/ports/repository-creator.js';
 import type { CheckRunner } from './application/ports/check-runner.js';
 import type { CodeHost } from './application/ports/code-host.js';
 import type { IssueTracker } from './application/ports/issue-tracker.js';
@@ -52,6 +54,7 @@ export interface Adapters {
   readonly agentDefaults: AgentDefaultsStore;
   readonly memory: MemoryRepository;
   readonly knowledge: RepositoryKnowledge;
+  readonly repositories: RepositoryCreator;
   readonly checks: CheckRunner;
   readonly codeHost: CodeHost;
   readonly scanner: RepoScanner;
@@ -67,6 +70,7 @@ export interface Settings {
   readonly concurrency: number;
   readonly budget: RunBudget;
   readonly systemPromptAppend: string;
+  readonly projectsDir: string;
 }
 
 export interface Services {
@@ -98,6 +102,7 @@ export function compose(given: Adapters, settings: Settings): Services {
     version: settings.version,
     queries: new Queries(adapters),
     catalog,
+    founder: new AppFounder({ catalog, repositories: adapters.repositories, projectsDir: settings.projectsDir }),
     adoption: new Adoption(adapters.scanner, adapters.checks, adapters.issues, catalog, adapters.apps),
     planner,
     drafter,
