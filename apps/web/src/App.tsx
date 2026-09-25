@@ -64,11 +64,13 @@ function Cockpit() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       const target = event.target as HTMLElement | null;
-      if (event.key === 'Escape' && !['INPUT', 'TEXTAREA'].includes(target?.tagName ?? '')) go(up({ ...place, app: appId }));
+      if (event.key !== 'Escape' || ['INPUT', 'TEXTAREA'].includes(target?.tagName ?? '')) return;
+      if (panel) setPanel(null);
+      else go(up({ ...place, app: appId }));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [place, appId, go]);
+  }, [place, appId, go, panel]);
 
   const openStation = (line: string, task: string): void => go({ app: appId, line, task });
   const current = apps.data?.find((app) => app.id === appId) ?? null;
@@ -106,14 +108,15 @@ function Cockpit() {
             }}
           />
         </div>
-      ) : panel === 'settings' ? (
-        <div className="adoption-stage">
-          <AgentSettings onClose={() => setPanel(null)} />
-        </div>
-      ) : panel === 'memory' && current ? (
-        <div className="adoption-stage">
-          <ProjectMemory key={current.id} app={current} onClose={() => setPanel(null)} />
-        </div>
+      ) : panel === 'settings' || (panel === 'memory' && current) ? (
+        <>
+          {network.data && (
+            <Trip network={network.data} place={{ ...place, app: appId }} go={go} panel={{ label: t(panel === 'settings' ? 'settings.open' : 'memory.open'), onClose: () => setPanel(null) }} />
+          )}
+          <div className="adoption-stage">
+            {panel === 'settings' ? <AgentSettings onClose={() => setPanel(null)} /> : current && <ProjectMemory key={current.id} app={current} onClose={() => setPanel(null)} />}
+          </div>
+        </>
       ) : !network.data ? (
         <div className="empty-state" role="status">
           <p>{apps.data && apps.data.length === 0 ? t('apps.empty') : t('app.loading')}</p>

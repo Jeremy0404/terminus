@@ -63,4 +63,23 @@ describe('the cockpit', () => {
     render(<App />);
     expect(await screen.findByText('Démon injoignable')).toBeInTheDocument();
   });
+
+  it('leaves the settings for the place it came from, by the trip or by Escape', async () => {
+    window.history.replaceState(null, '', '/?app=app-1&line=engine');
+    render(<App />);
+    await screen.findByRole('button', { name: 'Ligne Moteur' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    const trip = screen.getByRole('navigation', { name: 'Où je suis' });
+    expect(trip).toHaveTextContent('Réglages');
+    fireEvent.click(within(trip).getByRole('button', { name: /Moteur/ }));
+    expect(await screen.findByRole('button', { name: 'Ligne Moteur' })).toBeInTheDocument();
+    expect(window.location.search).toBe('?app=app-1&line=engine');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('navigation', { name: 'Où je suis' })).toHaveTextContent('Moteur');
+    expect(screen.getByRole('button', { name: 'Ligne Moteur' })).toBeInTheDocument();
+    expect(window.location.search).toBe('?app=app-1&line=engine');
+  });
 });
