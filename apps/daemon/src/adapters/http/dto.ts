@@ -24,6 +24,7 @@ export const toTaskSummaryDto = (task: Task): TaskSummaryDto => ({
   description: task.description,
   autonomy: task.autonomy,
   track: task.track,
+  lifecycleId: task.lifecycle.id,
   agent: task.agent,
   phases: task.lifecycle.phases.map((phase) => phase.id),
   phasesInTrack: task.lifecycle.phases.filter((phase) => appliesTo(phase, task.track)).map((phase) => phase.id),

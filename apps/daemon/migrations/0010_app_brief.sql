@@ -1,0 +1,1 @@
+ALTER TABLE `apps` ADD `brief` text DEFAULT '' NOT NULL;

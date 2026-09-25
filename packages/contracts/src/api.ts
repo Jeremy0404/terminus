@@ -40,6 +40,13 @@ export const CreateAppBody = z.object({
   verification: z.array(z.object({ name: z.string().min(1), command: z.string().min(1) })).default([]),
 });
 
+export const FoundAppBody = z.object({
+  name: z.string().trim().min(1).max(80),
+  idea: z.string().trim().min(1).max(4000),
+  repoPath: z.string().trim().max(500).default(''),
+  visibility: z.enum(['private', 'public']).default('private'),
+});
+
 export const CreateEpicBody = z.object({
   code: z.string().regex(/^[A-Z0-9]{1,3}$/),
   name: z.string().min(1),
@@ -147,6 +154,7 @@ export interface TaskSummaryDto {
   readonly description: string;
   readonly autonomy: AutonomyDto;
   readonly track: TrackDto;
+  readonly lifecycleId: string;
   readonly agent: AgentChoiceDto;
   readonly phases: readonly string[];
   readonly phasesInTrack: readonly string[];

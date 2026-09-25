@@ -42,6 +42,11 @@ const pullRequestOf = (runs: readonly RunDto[]): { number: number; url: string }
   return null;
 };
 
+function briefOf(runs: readonly RunDto[], phaseIndex: number): string | null {
+  const output = [...runs].reverse().find((run) => run.phaseIndex === phaseIndex && run.status === 'succeeded')?.output;
+  return typeof output === 'object' && output !== null && 'brief' in output && typeof output.brief === 'string' ? output.brief : null;
+}
+
 export function GateCard({ task, gate, runs }: Props) {
   const { t } = useTranslation();
   const { busy, error, run } = useAction();
@@ -79,10 +84,15 @@ export function GateCard({ task, gate, runs }: Props) {
     );
   }
 
+  const phaseId = task.phases[task.phaseIndex] ?? '';
+  const brief = phaseId === 'brief' ? briefOf(runs, task.phaseIndex) : null;
+  const gateKey = phaseId === 'brief' ? 'gate.brief' : `gate.${gate}`;
+
   return (
     <div className="action-card">
-      <span className="eyebrow">{t(`gate.${gate}.eyebrow`)}</span>
-      <h3>{t(`gate.${gate}.title`)}</h3>
+      <span className="eyebrow">{t(`${gateKey}.eyebrow`)}</span>
+      <h3>{t(`${gateKey}.title`)}</h3>
+      {brief && <div className="brief-preview">{brief}</div>}
       {gate === 'human-review' && isReview(review) && (
         <div className="review">
           <p><span className={`tag ${review.verdict === 'approve' ? 'good' : ''}`}>{t(`gate.verdict.${review.verdict}`, { defaultValue: review.verdict })}</span> {review.summary}</p>

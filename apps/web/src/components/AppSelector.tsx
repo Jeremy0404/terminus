@@ -7,9 +7,10 @@ interface Props {
   readonly current: AppDto | null;
   readonly onSelect: (appId: string) => void;
   readonly onAdopt: () => void;
+  readonly onFound: () => void;
 }
 
-export function AppSelector({ apps, current, onSelect, onAdopt }: Props) {
+export function AppSelector({ apps, current, onSelect, onAdopt, onFound }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   return (
@@ -30,6 +31,13 @@ export function AppSelector({ apps, current, onSelect, onAdopt }: Props) {
               <small>{app.repoPath}</small>
             </button>
           ))}
+          <button type="button" role="menuitem" className="menu-adopt"
+            onClick={() => {
+              setOpen(false);
+              onFound();
+            }}>
+            <b>{t('found.open')}</b>
+          </button>
           <button type="button" role="menuitem" className="menu-adopt"
             onClick={() => {
               setOpen(false);

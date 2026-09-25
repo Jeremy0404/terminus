@@ -1,0 +1,9 @@
+id: app-framing
+phases:
+  - id: grill
+    skill: idea-grill
+    output: decisions
+  - id: brief
+    skill: product-brief
+    output: brief
+    gate: plan-approval

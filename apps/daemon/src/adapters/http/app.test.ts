@@ -31,10 +31,12 @@ const greenChecks: CheckRunner = {
 
 let services: Services;
 let codeHost: FakeCodeHost;
+let founded: { path: string; name: string; visibility: string }[];
 
 function start(...scripts: AgentScript[]): void {
   const epics = new InMemoryEpicRepository();
   codeHost = new FakeCodeHost();
+  founded = [];
   services = compose(
     {
       apps: new InMemoryAppRepository(),
@@ -50,6 +52,7 @@ function start(...scripts: AgentScript[]): void {
       agent: new ScriptedAgentRunner(...scripts),
       agentDefaults: new InMemoryAgentDefaultsStore(),
       memory: new InMemoryMemoryRepository(),
+      repositories: { create: (path, name, visibility) => void founded.push({ path, name, visibility }) },
       knowledge: { contextDoc: () => 'Glossary of the demo repo.', decisions: () => [{ path: 'docs/adr/0001-use-sqlite.md', title: 'Use SQLite' }] },
       checks: greenChecks,
       codeHost,
@@ -59,7 +62,7 @@ function start(...scripts: AgentScript[]): void {
       clock: new FixedClock(),
       ids: new SequentialIds(),
     },
-    { version: '9.9.9', baseRef: 'main', concurrency: 2, budget: { maxTokens: 400_000, maxTurns: 80 }, systemPromptAppend: '' },
+    { version: '9.9.9', baseRef: 'main', concurrency: 2, budget: { maxTokens: 400_000, maxTurns: 80 }, systemPromptAppend: '', projectsDir: '/projects' },
   );
 }
 
@@ -116,6 +119,17 @@ describe('HTTP API', () => {
 
     expect(task.agent).toEqual({ model: 'haiku', effort: 'low' });
     expect((await call<AgentSettingsDto>('GET', '/api/settings/agents')).json.phases.map((phase) => phase.key)).toEqual(expect.arrayContaining(['epic.breakdown', 'epic.station-draft']));
+  });
+
+  it('founds a new app from an idea, ready to frame', async () => {
+    const created = await call<{ id: string; repoPath: string }>('POST', '/api/apps/found', { name: 'Carnet', idea: 'Log my rides.' });
+
+    expect(created.status).toBe(201);
+    expect(founded).toEqual([{ path: '/projects/carnet', name: 'carnet', visibility: 'private' }]);
+    const network = (await call<NetworkDto>('GET', `/api/apps/${created.json.id}/network`)).json;
+    expect(network.epics.map((epic) => epic.name)).toEqual(['Fondations']);
+    expect(network.tasks).toEqual([expect.objectContaining({ title: 'Cadrer l’idée', description: 'Log my rides.', phases: ['grill', 'brief'] })]);
+    expect((await call('POST', '/api/apps/found', { name: 'x', idea: '' })).status).toBe(400);
   });
 
   it('keeps the project memory and shows the pack agents receive', async () => {

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { ServerEventsProvider } from './api/events';
 import { ActivityBar, Toasts } from './components/ActivityFeedback';
 import { AdoptionWizard } from './components/adoption/AdoptionWizard';
+import { NewAppForm } from './components/NewAppForm';
+import { appPhaseOf } from './network/app-phase';
 import { AppSelector } from './components/AppSelector';
 import { Inbox } from './components/Inbox';
 import { LineCard } from './components/LineCard';
@@ -49,6 +51,7 @@ function Cockpit() {
   const [place, go] = usePlace();
   const [inboxOpen, setInboxOpen] = useState(false);
   const [adopting, setAdopting] = useState(false);
+  const [founding, setFounding] = useState(false);
   const [panel, setPanel] = useState<'settings' | 'memory' | null>(null);
   const appId = place.app ?? (apps.data ? (apps.data.find((app) => app.id === readLastApp())?.id ?? apps.data[0]?.id ?? null) : null);
   const network = useNetwork(appId);
@@ -80,7 +83,8 @@ function Cockpit() {
       <ActivityBar />
       <header className="top-bar">
         <span className="roundel" aria-hidden="true" />
-        <AppSelector apps={apps.data ?? []} current={current} onSelect={(id) => go({ app: id, line: null, task: null })} onAdopt={() => setAdopting(true)} />
+        <AppSelector apps={apps.data ?? []} current={current} onSelect={(id) => go({ app: id, line: null, task: null })} onAdopt={() => setAdopting(true)} onFound={() => setFounding(true)} />
+        {network.data && appPhaseOf(network.data) && <span className="app-phase">{t(`appPhase.${appPhaseOf(network.data)}`)}</span>}
         <span className="spacer" />
         <QuotaGauge quota={quota} />
         {current && (
@@ -97,7 +101,18 @@ function Cockpit() {
         )}
         {apps.error && <span className="offline" role="status">{t('app.daemon.offline')}</span>}
       </header>
-      {adopting ? (
+      {founding ? (
+        <div className="adoption-stage">
+          <NewAppForm
+            onCancel={() => setFounding(false)}
+            onFounded={(id) => {
+              setFounding(false);
+              apps.reload();
+              go({ app: id, line: null, task: null });
+            }}
+          />
+        </div>
+      ) : adopting ? (
         <div className="adoption-stage">
           <AdoptionWizard
             onCancel={() => setAdopting(false)}
@@ -120,7 +135,12 @@ function Cockpit() {
       ) : !network.data ? (
         <div className="empty-state" role="status">
           <p>{apps.data && apps.data.length === 0 ? t('apps.empty') : t('app.loading')}</p>
-          {apps.data && apps.data.length === 0 && <button type="button" className="btn primary" onClick={() => setAdopting(true)}>{t('adopt.open')}</button>}
+          {apps.data && apps.data.length === 0 && (
+            <div className="row">
+              <button type="button" className="btn primary" onClick={() => setFounding(true)}>{t('found.open')}</button>
+              <button type="button" className="btn" onClick={() => setAdopting(true)}>{t('adopt.open')}</button>
+            </div>
+          )}
         </div>
       ) : (
         <>

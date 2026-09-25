@@ -71,6 +71,13 @@
       "when": 1790337979659,
       "tag": "0009_memory_proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790342351014,
+      "tag": "0010_app_brief",
+      "breakpoints": true
     }
   ]
 }

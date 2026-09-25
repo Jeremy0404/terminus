@@ -12,6 +12,7 @@ import {
   CloseBody,
   CreateAppBody,
   CutOverBody,
+  FoundAppBody,
   HealthCheckBody,
   RepoPathBody,
   CreateEpicBody,
@@ -25,6 +26,7 @@ import {
   type StationDraftDto,
 } from '@terminus/contracts';
 import type { Adoption } from '../../application/adoption.js';
+import type { AppFounder } from '../../application/app-founder.js';
 import type { AgentSettings } from '../../application/agent-settings.js';
 import type { ProjectMemory } from '../../application/project-memory.js';
 import type { Catalog } from '../../application/catalog.js';
@@ -43,6 +45,7 @@ export interface HttpDeps {
   readonly queries: Queries;
   readonly catalog: Catalog;
   readonly adoption: Adoption;
+  readonly founder: AppFounder;
   readonly planner: EpicPlanner;
   readonly drafter: StationDrafter;
   readonly actions: TaskActions;
@@ -85,6 +88,10 @@ export function createHttpApp(deps: HttpDeps): Hono {
     return c.json(quota ? toQuotaDto(quota) : null);
   });
   app.post('/api/apps', async (c) => c.json(toAppDto(catalog.createApp(await body(c, CreateAppBody))), 201));
+  app.post('/api/apps/found', async (c) => {
+    const { name, idea, repoPath, visibility } = await body(c, FoundAppBody);
+    return c.json(toAppDto(deps.founder.found({ name, idea, visibility, ...(repoPath ? { repoPath } : {}) })), 201);
+  });
   app.get('/api/apps/:appId/memory', (c) => {
     const appId = c.req.param('appId');
     const { lessons, terms, proposals } = deps.memory.view(appId);

@@ -8,5 +8,6 @@ export interface App {
   readonly name: string;
   readonly repoPath: string;
   readonly verification: readonly VerificationCommand[];
+  readonly brief?: string;
   readonly createdAt: string;
 }

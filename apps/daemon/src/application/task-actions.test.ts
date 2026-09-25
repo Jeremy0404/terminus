@@ -27,9 +27,10 @@ let workspace: RewindRecordingWorkspace;
 let codeHost: FakeCodeHost;
 let bus: RecordingBus;
 let actions: TaskActions;
+let apps: InMemoryAppRepository;
 
 beforeEach(() => {
-  const apps = new InMemoryAppRepository();
+  apps = new InMemoryAppRepository();
   const epics = new InMemoryEpicRepository();
   tasks = new InMemoryTaskRepository(epics);
   decisions = new InMemoryDecisionRepository();
@@ -83,6 +84,16 @@ describe('TaskActions', () => {
     givenTask('t1', { kind: 'awaiting-decision', decisionId: 'd1' }, { phaseIndex: 1 });
     expect(() => actions.answer('d2', { kind: 'option', index: 0 })).toThrow(/not waiting on decision d2/);
     expect(() => actions.answer('d1', { kind: 'option', index: 5 })).toThrow(/no option 5/);
+  });
+
+  it('stores the approved product brief on the app and finishes a framing station', () => {
+    const framing = { id: 'app-framing', version: 'test', phases: [{ id: 'grill', output: 'decisions' as const }, { id: 'brief', output: 'brief' as const, gate: 'plan-approval' as const }] };
+    givenTask('t1', { kind: 'awaiting-gate', gate: 'plan-approval' }, { lifecycle: framing, phaseIndex: 1 });
+    runs.save({ id: 'r1', taskId: 't1', phaseIndex: 1, sessionId: 's', status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null, output: { summary: 'ok', brief: '## Problem\n\nToo many tabs.' } });
+
+    expect(actions.approve('t1').status).toEqual({ kind: 'done' });
+    expect(apps.get('app')?.brief).toBe('## Problem\n\nToo many tabs.');
+    expect(workspace.removed).toEqual(['t1']);
   });
 
   it('approves a gate and sends a review back to execution', () => {

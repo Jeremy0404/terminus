@@ -11,6 +11,7 @@ const task = (id: string, epicId: string, status: TaskSummaryDto['status'] = { k
   description: '',
   autonomy: 'up-to-pr',
   track: 'standard',
+  lifecycleId: 'task',
   agent: { model: null, effort: null },
   phases: ['spec', 'merge'],
   phasesInTrack: ['spec', 'merge'],
