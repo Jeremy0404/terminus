@@ -9,6 +9,7 @@ import { BreakdownPanel } from './BreakdownPanel';
 import { NewStationForm } from './NewStationForm';
 import { NextStep } from './NextStep';
 import { StatusPill } from './StatusPill';
+import { ProgressSummary } from './ProgressSummary';
 
 interface Props {
   readonly network: NetworkDto;
@@ -22,13 +23,12 @@ export function LineCard({ network, lineId, onStation }: Props) {
   const epic = network.epics.find((candidate) => candidate.id === lineId);
   if (!epic) return null;
   const tasks = network.tasks.filter((task) => task.epicId === lineId);
-  const done = tasks.filter((task) => task.status.kind === 'done').length;
   const step = network.inbox.some((item) => item.epicId === lineId) ? null : nextStep(network, lineId);
   return (
     <section className="card" style={{ ['--lc' as string]: lineColor(epic.position) }}>
       <div className="row"><LineBadge epic={epic} /><span className="eyebrow">{t('line.eyebrow')}</span></div>
       <h2>{epic.name}</h2>
-      <p className="muted">{t('line.progress', { done, total: tasks.length })}</p>
+      <ProgressSummary tasks={tasks} />
       {epic.description && <p className="epic-description">{epic.description}</p>}
       {step?.kind === 'open-station' && <NextStep step={step} onAct={() => onStation(step.epicId, step.taskId)} />}
       <BreakdownPanel epic={epic} prominent={step?.kind === 'break-down'} />

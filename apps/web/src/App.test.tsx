@@ -5,6 +5,7 @@ import { APP, detailOf, mockApi, NETWORK } from './test/fixtures';
 
 beforeEach(() => {
   window.history.replaceState(null, '', '/');
+  window.localStorage.clear();
   vi.stubGlobal(
     'fetch',
     vi.fn(
@@ -24,12 +25,12 @@ describe('the cockpit', () => {
 
     expect(await screen.findByRole('img', { name: 'Plan du réseau de terminus' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ligne Moteur' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Spike CLI, Mergée' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Spike CLI, Intégrée au projet' })).toBeInTheDocument();
     const inbox = screen.getByRole('region', { name: 'À toi de jouer' });
     expect(within(inbox).getByText('tout le réseau')).toBeInTheDocument();
     expect(within(inbox).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      expect.stringContaining('Zoom'),
       expect.stringContaining('Rendu SVG'),
+      expect.stringContaining('Zoom'),
     ]);
   });
 
@@ -51,6 +52,8 @@ describe('the cockpit', () => {
     expect(within(platform).getByText('Attend ta review')).toBeInTheDocument();
     expect(within(platform).getByText(/Dessiner les lignes en SVG\.\s+Une couleur par ligne\./)).toBeInTheDocument();
     expect(window.location.search).toBe('?app=app-1&line=ui&task=i1');
+    expect(within(screen.getByRole('main')).getByRole('region', { name: 'Quai de Rendu SVG' })).toBeInTheDocument();
+    expect(screen.getByText('Afficher la carte de repérage').closest('details')).not.toHaveAttribute('open');
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(window.location.search).toBe('?app=app-1&line=ui');

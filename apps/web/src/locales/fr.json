@@ -17,7 +17,9 @@
     "planned": "En projet",
     "progress": "{{done}}/{{total}} mergées",
     "hideDelivered": "Masquer les lignes livrées",
-    "allDelivered": "Toutes les lignes sont livrées."
+    "allDelivered": "Toutes les lignes sont livrées.",
+    "remaining_one": "{{count}} station restante",
+    "remaining_other": "{{count}} stations restantes"
   },
   "trip": {
     "label": "Où je suis",
@@ -41,13 +43,33 @@
     "scopeNetwork": "tout le réseau",
     "scopeLine": "ligne {{code}}",
     "empty": "Rien ne t’attend ici.",
-    "unblocks_one": "débloque {{count}} tâche",
-    "unblocks_other": "débloque {{count}} tâches"
+    "unblocks_one": "Cette station conditionne {{count}} tâche suivante.",
+    "unblocks_other": "Cette station conditionne {{count}} tâches suivantes.",
+    "group": {
+      "decision": "Décisions attendues",
+      "blocked": "À débloquer",
+      "available": "Prêts à démarrer"
+    },
+    "elsewhere": "Sur les autres lignes · {{count}}",
+    "attention_one": "{{count}} intervention attendue sur le réseau",
+    "attention_other": "{{count}} interventions attendues sur le réseau",
+    "why": {
+      "decision": "Ton choix permet de poursuivre le parcours.",
+      "blocked": "Une intervention est nécessaire pour reprendre.",
+      "available": "Dépendances satisfaites. Ouvre la station pour choisir de démarrer."
+    }
   },
   "platform": {
     "label": "Quai de {{title}}",
     "eyebrow": "Quai · {{line}}",
-    "close": "Remonter à la ligne"
+    "close": "Remonter à la ligne",
+    "options": "Parcours et autres actions",
+    "agent": "Réglages de l’agent",
+    "map": "Afficher la carte de repérage",
+    "mapHint": "Tu peux changer de ligne ou de station depuis la carte.",
+    "loading": "Chargement de la station…",
+    "loadError": "Impossible de charger les actions de cette station.",
+    "retry": "Réessayer"
   },
   "phase": {
     "spec": "Spec",
@@ -71,7 +93,7 @@
     "awaiting-decision": "Attend ta réponse",
     "blocked": "Besoin de toi",
     "manual": "Entre tes mains",
-    "done": "Mergée",
+    "done": "Intégrée au projet",
     "gate": {
       "plan-approval": "Attend ta validation du plan",
       "human-review": "Attend ta review",
@@ -207,8 +229,8 @@
   },
   "todo": {
     "eyebrow": "Station pas encore ouverte",
-    "ready": "Toutes ses dépendances sont mergées.",
-    "waiting": "Elle attend que ses dépendances soient mergées.",
+    "ready": "Ses dépendances sont satisfaites : tu peux démarrer.",
+    "waiting": "Cette station attend que ses dépendances soient satisfaites.",
     "open": "Ouvrir la station"
   },
   "manual": {
@@ -217,8 +239,8 @@
     "resume": "Rendre la main à l’agent"
   },
   "done": {
-    "eyebrow": "Mergée",
-    "body": "Toutes les barrières sont passées et la PR est mergée."
+    "eyebrow": "Intégrée au projet",
+    "body": "Le parcours est terminé. La mise en production se suit séparément dans Production."
   },
   "create": {
     "cancel": "Annuler",
@@ -319,7 +341,7 @@
     "submit": "Clôturer",
     "closedAs": "Clôturée · {{reason}}",
     "reason": {
-      "already-done": "Déjà fait",
+      "already-done": "Déjà réalisée",
       "obsolete": "Obsolète",
       "duplicate": "Doublon",
       "abandoned": "Abandonnée"
@@ -520,7 +542,7 @@
   },
   "production": {
     "eyebrow": "Production",
-    "latest": "En production : v{{version}} ({{date}})",
+    "latest": "Version publiée : v{{version}} ({{date}})",
     "none": "Aucune release publiée",
     "pending": "Prête à livrer : v{{version}}",
     "noDeploy": "La release ne déploie pas encore : pas de job de déploiement dans release.yml.",
@@ -544,5 +566,29 @@
       "failed": "v{{version}} en échec",
       "cancelled": "v{{version}} annulée"
     }
+  },
+  "progress": {
+    "total": "{{complete}} réalisées sur {{total}} stations",
+    "integrated": "Intégrées au projet",
+    "existing": "Déjà réalisées",
+    "active": "En cours",
+    "todo": "À faire",
+    "abandoned": "Abandonnées",
+    "obsolete": "Obsolètes",
+    "duplicate": "Doublons",
+    "productionHint": "La réalisation ne confirme pas la mise en production."
+  },
+  "journey": {
+    "title": "Depuis ta dernière visite",
+    "resume": "Reprendre là où j’en étais : {{title}}",
+    "dismiss": "J’ai vu",
+    "completed_one": "{{count}} réalisée",
+    "completed_other": "{{count}} réalisées",
+    "closed_one": "{{count}} clôturée sans réalisation",
+    "closed_other": "{{count}} clôturées sans réalisation",
+    "added_one": "{{count}} nouvelle station",
+    "added_other": "{{count}} nouvelles stations",
+    "attention_one": "{{count}} nouvelle intervention",
+    "attention_other": "{{count}} nouvelles interventions"
   }
 }

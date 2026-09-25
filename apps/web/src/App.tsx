@@ -7,6 +7,7 @@ import { NewAppForm } from './components/NewAppForm';
 import { appPhaseOf } from './network/app-phase';
 import { AppSelector } from './components/AppSelector';
 import { Inbox } from './components/Inbox';
+import { JourneyRecap } from './components/JourneyRecap';
 import { LineCard } from './components/LineCard';
 import { NetworkMap } from './components/NetworkMap';
 import { NetworkSummary } from './components/NetworkSummary';
@@ -50,7 +51,6 @@ function Cockpit() {
   const { t } = useTranslation();
   const apps = useApps();
   const [place, go] = usePlace();
-  const [inboxOpen, setInboxOpen] = useState(false);
   const [adopting, setAdopting] = useState(false);
   const [founding, setFounding] = useState(false);
   const [panel, setPanel] = useState<'settings' | 'memory' | null>(null);
@@ -104,6 +104,7 @@ function Cockpit() {
         )}
         {apps.error && <span className="offline" role="status">{t('app.daemon.offline')}</span>}
       </header>
+      {network.data && <JourneyRecap key={network.data.app.id} network={network.data} taskId={place.task} hidden={founding || adopting || panel !== null} onOpen={openStation} />}
       {founding ? (
         <div className="adoption-stage">
           <NewAppForm
@@ -156,30 +157,44 @@ function Cockpit() {
       ) : (
         <>
           <Trip network={network.data} place={{ ...place, app: appId }} go={go} />
-          <div className="stage">
-            <section className="map-box">
-              <NetworkMap
-                network={network.data}
-                place={place}
-                onLine={(line) => go({ app: appId, line, task: null })}
-                onStation={openStation}
-                onBackground={() => go(up({ ...place, app: appId }))}
-              />
-            </section>
+          <div className={`stage ${level === 'platform' ? 'stage-platform' : ''}`}>
+            {level === 'platform' && place.task && (
+              <main className="workspace">
+                <Platform key={place.task} network={network.data} taskId={place.task} onClose={() => go({ ...place, app: appId, task: null })} />
+              </main>
+            )}
+            {level === 'platform' ? (
+              <details className="map-box workspace-map">
+                <summary>{t('platform.map')}</summary>
+                <p className="muted small map-hint">{t('platform.mapHint')}</p>
+                <NetworkMap
+                  network={network.data}
+                  place={place}
+                  onLine={(line) => go({ app: appId, line, task: null })}
+                  onStation={openStation}
+                  onBackground={() => go(up({ ...place, app: appId }))}
+                />
+              </details>
+            ) : (
+              <section className="map-box">
+                <NetworkMap
+                  network={network.data}
+                  place={place}
+                  onLine={(line) => go({ app: appId, line, task: null })}
+                  onStation={openStation}
+                  onBackground={() => go(up({ ...place, app: appId }))}
+                />
+              </section>
+            )}
             <aside className="rail">
               {level === 'network' && <ProductionCard key={network.data.app.id} appId={network.data.app.id} />}
               {level === 'network' && <NetworkSummary network={network.data} onStation={openStation} onLine={(line) => go({ app: appId, line, task: null })} onMemory={() => setPanel('memory')} />}
               {level === 'line' && place.line && <LineCard network={network.data} lineId={place.line} onStation={openStation} />}
-              {level === 'platform' && place.task && (
-                <Platform network={network.data} taskId={place.task} onClose={() => go({ ...place, app: appId, task: null })} />
-              )}
               <Inbox
                 network={network.data}
                 lineId={level === 'network' ? null : place.line}
                 onOpen={openStation}
-                collapsible={level === 'platform'}
-                open={level !== 'platform' || inboxOpen}
-                onToggle={() => setInboxOpen(!inboxOpen)}
+                onMemory={() => setPanel('memory')}
               />
             </aside>
           </div>

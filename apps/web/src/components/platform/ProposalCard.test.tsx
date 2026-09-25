@@ -31,7 +31,7 @@ describe('a proposal from the spec agent', () => {
   it('offers to close with the evidence, and sends the acceptance', async () => {
     render(<ActionPanel detail={proposing({ kind: 'close', reason: 'already-done', evidence: 'PR #26' })} live={[]} />);
 
-    expect(screen.getByText('Clôturer : Déjà fait')).toBeInTheDocument();
+    expect(screen.getByText('Clôturer : Déjà réalisée')).toBeInTheDocument();
     expect(screen.getByText('The sync phase already does this.')).toBeInTheDocument();
     expect(screen.getByText('PR #26')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Clôturer la tâche' }));

@@ -23,7 +23,7 @@ describe('CloseTask', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clôturer sans merge…' }));
     expect(screen.getByRole('button', { name: 'Clôturer' })).toBeDisabled();
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Déjà fait' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Déjà réalisée' }));
     fireEvent.change(screen.getByLabelText('PR, commit ou raison (facultatif)'), { target: { value: 'Covered by #26' } });
     fireEvent.click(screen.getByRole('button', { name: 'Clôturer' }));
 

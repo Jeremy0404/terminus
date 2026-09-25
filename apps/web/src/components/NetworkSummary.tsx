@@ -4,6 +4,7 @@ import type { NetworkDto } from '@terminus/contracts';
 import { nextStep } from '../network/next-step';
 import { NewLineForm } from './NewLineForm';
 import { NextStep } from './NextStep';
+import { ProgressSummary } from './ProgressSummary';
 
 interface Props {
   readonly network: NetworkDto;
@@ -15,17 +16,17 @@ interface Props {
 export function NetworkSummary({ network, onStation, onLine, onMemory }: Props) {
   const { t } = useTranslation();
   const [adding, setAdding] = useState(false);
-  const merged = network.tasks.filter((task) => task.status.kind === 'done').length;
   const running = network.tasks.filter((task) => task.status.kind === 'running').length;
   const step = network.inbox.length === 0 && !adding ? nextStep(network) : null;
   return (
     <section className="card">
       <span className="eyebrow">{t('summary.eyebrow', { app: network.app.name })}</span>
-      <div className="stats">
+      <div className="stats network-stats">
         <div><b>{network.epics.length}</b><span>{t('summary.lines')}</span></div>
-        <div><b>{merged}/{network.tasks.length}</b><span>{t('summary.merged')}</span></div>
+
         <div><b>{running}</b><span>{t('summary.running', { count: running })}</span></div>
       </div>
+      <ProgressSummary tasks={network.tasks} />
       {step && (
         <NextStep
           step={step}
