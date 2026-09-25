@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AgentChoiceDto, AgentSettingsDto } from '@terminus/contracts';
 import { api } from '../../api/client';
-import { AgentChoiceFields, describeChoice } from '../agent/AgentChoiceFields';
+import { AgentChoiceFields } from '../agent/AgentChoiceFields';
 import { useAction } from '../platform/useAction';
 
 export function AgentSettings({ onClose }: { onClose: () => void }) {
@@ -40,7 +40,6 @@ export function AgentSettings({ onClose }: { onClose: () => void }) {
     });
   };
 
-  const inherited = settings ? (describeChoice(settings.fallback, t) ?? t('agent.account')) : '';
   const fallbackLabel = t('settings.fallback');
 
   return (
@@ -69,6 +68,8 @@ export function AgentSettings({ onClose }: { onClose: () => void }) {
           </li>
           {settings.phases.map((phase) => {
             const label = t(`settings.phases.${phase.key}`, { defaultValue: phase.key });
+            const inheritedModel = phase.inherited.model ? t(`agent.models.${phase.inherited.model}`, { defaultValue: phase.inherited.model }) : t('agent.account');
+            const inheritedEffort = phase.inherited.effort ? t(`agent.efforts.${phase.inherited.effort}`) : t('agent.account');
             return (
               <li key={phase.key}>
                 <span>{label}</span>
@@ -77,8 +78,8 @@ export function AgentSettings({ onClose }: { onClose: () => void }) {
                   onChange={(choice) => edit({ ...settings, phases: settings.phases.map((candidate) => (candidate.key === phase.key ? { ...candidate, choice } : candidate)) })}
                   disabled={save.busy}
                   label={label}
-                  emptyModel={t('agent.inherit', { value: inherited })}
-                  emptyEffort={t('agent.inherit', { value: inherited })}
+                  emptyModel={t('agent.inherit', { value: inheritedModel })}
+                  emptyEffort={t('agent.inherit', { value: inheritedEffort })}
                 />
               </li>
             );
