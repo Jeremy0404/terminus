@@ -1,6 +1,6 @@
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
 
-export const STEP = 150;
+export const STEP = 80;
 export const ROW = 130;
 export const LEFT = 230;
 export const TOP = 110;
@@ -9,13 +9,17 @@ export const ROUNDEL_RADIUS = 17;
 const RIGHT_MARGIN = 140;
 const BOTTOM_MARGIN = 70;
 const MIN_ZOOM_SHARE = 0.55;
+const MIN_LINE_VIEW = 750;
 const MIN_WIDTH = 1000;
 const MIN_HEIGHT = 380;
+
+export type LabelSide = 'below' | 'above';
 
 export interface StationPosition {
   readonly task: TaskSummaryDto;
   readonly x: number;
   readonly y: number;
+  readonly labelSide: LabelSide;
 }
 
 export interface LinePosition {
@@ -48,7 +52,9 @@ export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSum
 
   const lines = orderedEpics.map((epic): LinePosition => {
     const y = rows.get(epic.id) ?? TOP;
-    const stations = tasks.filter((task) => task.epicId === epic.id).map((task) => ({ task, x: xOf(task.id), y }));
+    const stations = tasks
+      .filter((task) => task.epicId === epic.id)
+      .map((task, index): StationPosition => ({ task, x: xOf(task.id), y, labelSide: index % 2 === 0 ? 'below' : 'above' }));
     const xs = stations.map((station) => station.x);
     const startX = xs.length > 0 ? Math.min(...xs) : LEFT;
     const endX = xs.length > 0 ? Math.max(...xs) + STEP / 2 : LEFT + STEP;
@@ -107,7 +113,7 @@ export function lineViewBox(layout: NetworkLayout, epicId: string, aspect: numbe
   const line = layout.lines.find((candidate) => candidate.epic.id === epicId);
   if (!line) return fullViewBox(layout);
   const x = line.startX - LEFT - 10;
-  const width = Math.max(line.endX - x + 80, STEP * 5, layout.width * MIN_ZOOM_SHARE);
+  const width = Math.max(line.endX - x + 80, MIN_LINE_VIEW, layout.width * MIN_ZOOM_SHARE);
   const height = width / aspect;
   return [x, line.y - height / 2, width, height];
 }

@@ -7,6 +7,8 @@ import { isActive, statusKey, toneOf } from '../../network/tone';
 import type { Level } from '../../state/location';
 
 const LABEL_CHARS = 18;
+const LABEL_BELOW = 32;
+const LABEL_ABOVE = 26;
 
 interface Props {
   readonly layout: NetworkLayout;
@@ -54,7 +56,7 @@ export const MapDrawing = memo(function MapDrawing({ layout, tasks, level, openL
                 {planned ? t('map.planned') : t('map.progress', { done, total: line.stations.length })}
               </text>
             </g>
-            {line.stations.map(({ task, x, y }) => {
+            {line.stations.map(({ task, x, y, labelSide }) => {
               const tone = toneOf(task.status);
               const active = isActive(task.status);
               const selected = selectedTask === task.id;
@@ -72,7 +74,7 @@ export const MapDrawing = memo(function MapDrawing({ layout, tasks, level, openL
                     </>
                   )}
                   {selected && <circle cx={x} cy={y} r={21} className="station-selected" />}
-                  <text x={x} y={y + 32} textAnchor="middle" className={`station-label ${active ? 'active' : ''}`}>
+                  <text x={x} y={labelSide === 'below' ? y + LABEL_BELOW : y - LABEL_ABOVE} textAnchor="middle" className={`station-label ${active ? 'active' : ''}`}>
                     <title>{task.title}</title>
                     {task.title.length > LABEL_CHARS ? `${task.title.slice(0, LABEL_CHARS - 1)}…` : task.title}
                   </text>

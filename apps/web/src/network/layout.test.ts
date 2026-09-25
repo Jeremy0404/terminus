@@ -62,5 +62,19 @@ describe('layoutNetwork', () => {
     const [x, , width] = lineViewBox(layout, 'b', 2);
     expect(x).toBeLessThan(LEFT - STEP);
     expect(width).toBeGreaterThanOrEqual(layout.width * 0.55);
+    expect(width).toBe(750);
+  });
+
+  it('keeps stations of a line close together', () => {
+    const layout = layoutNetwork([epic('a', 1)], [task('a1', 'a'), task('a2', 'a'), task('a3', 'a')]);
+    expect(layout.lines[0]?.stations.map((station) => station.x)).toEqual([230, 310, 390]);
+  });
+
+  it('alternates station labels below and above within each line', () => {
+    const layout = layoutNetwork([epic('a', 1), epic('b', 2)], [task('a1', 'a'), task('a2', 'a'), task('a3', 'a'), task('b1', 'b'), task('b2', 'b')]);
+    expect(layout.lines.map((line) => line.stations.map((station) => station.labelSide))).toEqual([
+      ['below', 'above', 'below'],
+      ['below', 'above'],
+    ]);
   });
 });
