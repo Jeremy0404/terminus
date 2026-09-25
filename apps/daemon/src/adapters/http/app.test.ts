@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { AgentSettingsDto, NetworkDto, StationDraftDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type { AgentSettingsDto, LessonDto, MemoryDto, NetworkDto, StationDraftDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
 import { HealthResponse } from '@terminus/contracts';
 import type { AgentEvent } from '../../application/ports/agent-runner.js';
 import type { CheckResult, CheckRunner } from '../../application/ports/check-runner.js';
@@ -12,6 +12,7 @@ import {
   InMemoryAppRepository,
   InMemoryDecisionRepository,
   InMemoryEpicRepository,
+  InMemoryMemoryRepository,
   InMemoryQuotaStore,
   InMemoryRunRepository,
   InMemoryTaskRepository,
@@ -48,6 +49,8 @@ function start(...scripts: AgentScript[]): void {
       instructions: { localOnly: () => '' },
       agent: new ScriptedAgentRunner(...scripts),
       agentDefaults: new InMemoryAgentDefaultsStore(),
+      memory: new InMemoryMemoryRepository(),
+      knowledge: { contextDoc: () => 'Glossary of the demo repo.', decisions: () => [{ path: 'docs/adr/0001-use-sqlite.md', title: 'Use SQLite' }] },
       checks: greenChecks,
       codeHost,
       scanner: { scan: (repoPath) => ({ repoPath, name: 'demo', isGitRepo: true, hasOrigin: false, defaultBranch: 'main', packageManager: 'pnpm', ciWorkflows: [], agentDocs: [], suggestedVerification: [{ name: 'test', command: 'pnpm run test' }], todos: [] }) },
@@ -113,6 +116,25 @@ describe('HTTP API', () => {
 
     expect(task.agent).toEqual({ model: 'haiku', effort: 'low' });
     expect((await call<AgentSettingsDto>('GET', '/api/settings/agents')).json.phases.map((phase) => phase.key)).toEqual(expect.arrayContaining(['epic.breakdown', 'epic.station-draft']));
+  });
+
+  it('keeps the project memory and shows the pack agents receive', async () => {
+    const { appId } = await givenTask();
+
+    const lesson = await call<LessonDto>('POST', `/api/apps/${appId}/lessons`, { text: 'Run the migrations first.' });
+    await call('POST', `/api/apps/${appId}/terms`, { term: 'Station', definition: 'A task on a line.' });
+    expect(lesson.status).toBe(201);
+    expect((await call('POST', `/api/apps/${appId}/terms`, { term: '', definition: 'x' })).status).toBe(400);
+
+    const memory = (await call<MemoryDto>('GET', `/api/apps/${appId}/memory`)).json;
+    expect(memory.lessons.map((entry) => entry.text)).toEqual(['Run the migrations first.']);
+    expect(memory.terms.map((entry) => entry.term)).toEqual(['Station']);
+    expect(memory.pack).toContain('- **Station**: A task on a line.');
+    expect(memory.pack).toContain('Glossary of the demo repo.');
+    expect(memory.pack).toContain('- docs/adr/0001-use-sqlite.md: Use SQLite');
+
+    expect((await call('DELETE', `/api/lessons/${lesson.json.id}`)).status).toBe(204);
+    expect((await call('DELETE', `/api/lessons/${lesson.json.id}`)).status).toBe(409);
   });
 
   it('creates an app, a line and a station, and draws the network', async () => {

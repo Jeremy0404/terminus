@@ -4,10 +4,13 @@ import { createHttpApp } from './adapters/http/app.js';
 import { Adoption } from './application/adoption.js';
 import { AgentSettings } from './application/agent-settings.js';
 import { Catalog } from './application/catalog.js';
+import { ContextPack } from './application/context-pack.js';
 import { EpicPlanner } from './application/epic-planner.js';
 import { PhaseRunner, type RunBudget } from './application/phase-runner.js';
 import type { AgentDefaultsStore } from './application/ports/agent-defaults-store.js';
 import type { AgentRunner } from './application/ports/agent-runner.js';
+import type { MemoryRepository } from './application/ports/memory-repository.js';
+import type { RepositoryKnowledge } from './application/ports/repository-knowledge.js';
 import type { CheckRunner } from './application/ports/check-runner.js';
 import type { CodeHost } from './application/ports/code-host.js';
 import type { IssueTracker } from './application/ports/issue-tracker.js';
@@ -26,6 +29,7 @@ import type { RepositoryInstructions } from './application/ports/repository-inst
 import type { TaskNotes } from './application/ports/task-notes.js';
 import type { TranscriptStore } from './application/ports/transcript-store.js';
 import type { Workspace } from './application/ports/workspace.js';
+import { ProjectMemory } from './application/project-memory.js';
 import { Queries } from './application/queries.js';
 import { QuotaTrackingRunner } from './application/quota-tracker.js';
 import { Scheduler } from './application/scheduler.js';
@@ -46,6 +50,8 @@ export interface Adapters {
   readonly instructions: RepositoryInstructions;
   readonly agent: AgentRunner;
   readonly agentDefaults: AgentDefaultsStore;
+  readonly memory: MemoryRepository;
+  readonly knowledge: RepositoryKnowledge;
   readonly checks: CheckRunner;
   readonly codeHost: CodeHost;
   readonly scanner: RepoScanner;
@@ -72,7 +78,7 @@ export interface Services {
 
 export function compose(given: Adapters, settings: Settings): Services {
   const bus = new EmitterBus();
-  const adapters = { ...given, agent: new QuotaTrackingRunner(given.agent, given.quota, bus, given.clock) };
+  const adapters = { ...given, agent: new QuotaTrackingRunner(given.agent, given.quota, bus, given.clock), context: new ContextPack(given) };
   const phases = new PhaseRunner({
     ...adapters,
     bus,
@@ -97,6 +103,7 @@ export function compose(given: Adapters, settings: Settings): Services {
     drafter,
     actions,
     agentSettings: new AgentSettings(adapters),
+    memory: new ProjectMemory(adapters),
     runs: phases,
     scheduler,
     events: bus,

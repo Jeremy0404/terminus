@@ -132,3 +132,27 @@ export const agentDefaults = sqliteTable('agent_defaults', {
   model: text('model'),
   effort: text('effort', { enum: EFFORTS }),
 });
+
+export const lessons = sqliteTable(
+  'lessons',
+  {
+    id: text('id').primaryKey(),
+    appId: text('app_id').notNull().references(() => apps.id),
+    text: text('text').notNull(),
+    sourceTaskId: text('source_task_id'),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [index('lessons_app_idx').on(table.appId)],
+);
+
+export const terms = sqliteTable(
+  'terms',
+  {
+    id: text('id').primaryKey(),
+    appId: text('app_id').notNull().references(() => apps.id),
+    term: text('term').notNull(),
+    definition: text('definition').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [index('terms_app_idx').on(table.appId)],
+);

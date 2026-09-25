@@ -5,6 +5,8 @@ import {
   AcceptBreakdownBody,
   AgentChoiceBody,
   AgentDefaultsBody,
+  LessonBody,
+  TermBody,
   AnswerBody,
   BreakdownBody,
   CloseBody,
@@ -24,6 +26,7 @@ import {
 } from '@terminus/contracts';
 import type { Adoption } from '../../application/adoption.js';
 import type { AgentSettings } from '../../application/agent-settings.js';
+import type { ProjectMemory } from '../../application/project-memory.js';
 import type { Catalog } from '../../application/catalog.js';
 import type { EpicPlanner } from '../../application/epic-planner.js';
 import type { RunUpdate } from '../../application/ports/system.js';
@@ -31,7 +34,7 @@ import { NotFound, type Queries } from '../../application/queries.js';
 import type { StationDrafter } from '../../application/station-drafter.js';
 import type { TaskActions } from '../../application/task-actions.js';
 import { DomainError } from '../../domain/errors.js';
-import { toAgentSettingsDto, toAppDto, toEpicDto, toNetworkDto, toQuotaDto, toServerEventDto, toTaskDetailDto, toTaskSummaryDto } from './dto.js';
+import { toAgentSettingsDto, toAppDto, toLessonDto, toTermDto, toEpicDto, toNetworkDto, toQuotaDto, toServerEventDto, toTaskDetailDto, toTaskSummaryDto } from './dto.js';
 
 const KEEPALIVE_MS = 15_000;
 
@@ -44,6 +47,7 @@ export interface HttpDeps {
   readonly drafter: StationDrafter;
   readonly actions: TaskActions;
   readonly agentSettings: AgentSettings;
+  readonly memory: ProjectMemory;
   readonly runs: { interrupt(taskId: string): boolean };
   readonly scheduler: { tick(): unknown; release(taskId: string): void };
   readonly events: { subscribe(listener: (update: RunUpdate) => void): () => void };
@@ -81,6 +85,24 @@ export function createHttpApp(deps: HttpDeps): Hono {
     return c.json(quota ? toQuotaDto(quota) : null);
   });
   app.post('/api/apps', async (c) => c.json(toAppDto(catalog.createApp(await body(c, CreateAppBody))), 201));
+  app.get('/api/apps/:appId/memory', (c) => {
+    const appId = c.req.param('appId');
+    const { lessons, terms } = deps.memory.view(appId);
+    return c.json({ lessons: lessons.map(toLessonDto), terms: terms.map(toTermDto), pack: deps.memory.pack(appId) });
+  });
+  app.post('/api/apps/:appId/lessons', async (c) => c.json(toLessonDto(deps.memory.addLesson(c.req.param('appId'), (await body(c, LessonBody)).text)), 201));
+  app.delete('/api/lessons/:lessonId', (c) => {
+    deps.memory.removeLesson(c.req.param('lessonId'));
+    return c.body(null, 204);
+  });
+  app.post('/api/apps/:appId/terms', async (c) => {
+    const { term, definition } = await body(c, TermBody);
+    return c.json(toTermDto(deps.memory.setTerm(c.req.param('appId'), term, definition)));
+  });
+  app.delete('/api/terms/:termId', (c) => {
+    deps.memory.removeTerm(c.req.param('termId'));
+    return c.body(null, 204);
+  });
   app.get('/api/apps/:appId/network', (c) => c.json(toNetworkDto(queries.network(c.req.param('appId')))));
   app.post('/api/apps/:appId/epics', async (c) => c.json(toEpicDto(catalog.createEpic(c.req.param('appId'), await body(c, CreateEpicBody))), 201));
   app.post('/api/epics/:epicId/breakdown', async (c) => {

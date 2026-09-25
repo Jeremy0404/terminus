@@ -43,13 +43,14 @@ const stuck: AgentRunner = {
   },
 };
 
+let apps: InMemoryAppRepository;
 let epics: InMemoryEpicRepository;
 let tasks: InMemoryTaskRepository;
 let transcripts: InMemoryTranscriptStore;
 let drafter: (agent: AgentRunner, agentDefaults?: InMemoryAgentDefaultsStore) => StationDrafter;
 
 beforeEach(() => {
-  const apps = new InMemoryAppRepository();
+  apps = new InMemoryAppRepository();
   epics = new InMemoryEpicRepository();
   tasks = new InMemoryTaskRepository(epics);
   transcripts = new InMemoryTranscriptStore();
@@ -64,7 +65,7 @@ beforeEach(() => {
   tasks.save({ ...drawn, status: { kind: 'closed', reason: 'obsolete', evidence: '' } });
   catalog.createTask('epic-2', { title: 'Run the CLI', dependsOn: [], autonomy: 'up-to-pr' });
   drafter = (agent, agentDefaults = new InMemoryAgentDefaultsStore()) =>
-    new StationDrafter({ epics, tasks, agent, agentDefaults, transcripts, ids, playbooks, notes: new FakeTaskNotes(), timeoutMs: 1_000 });
+    new StationDrafter({ apps, epics, tasks, agent, agentDefaults, transcripts, ids, playbooks, context: { forApp: (app) => `memory of ${app.name}` }, notes: new FakeTaskNotes(), timeoutMs: 1_000 });
 });
 
 describe('StationDrafter', () => {
@@ -98,7 +99,7 @@ describe('StationDrafter', () => {
     await drafter(agent).draft('epic-1', TEXT);
 
     const request = agent.requests[0];
-    expect(request).toMatchObject({ skill: 'station-draft', outputSchema: STATION_DRAFT_OUTPUT_SCHEMA, systemPromptAppend: '', resume: false });
+    expect(request).toMatchObject({ skill: 'station-draft', outputSchema: STATION_DRAFT_OUTPUT_SCHEMA, systemPromptAppend: 'memory of app', resume: false });
     expect(request?.runId).toMatch(/^run-\d+$/);
     expect(request?.cwd).toBe(`/notes/draft-${request?.runId}`);
     expect(request?.notesDir).toBe(request?.cwd);
@@ -137,7 +138,7 @@ describe('StationDrafter', () => {
   });
 
   it('interrupts a run that takes too long', async () => {
-    const slow = new StationDrafter({ epics, tasks, transcripts, agent: stuck, agentDefaults: new InMemoryAgentDefaultsStore(), ids: new SequentialIds(), playbooks: new FsPlaybookRegistry(PLAYBOOKS), notes: new FakeTaskNotes(), timeoutMs: 10 });
+    const slow = new StationDrafter({ apps, context: { forApp: () => '' }, epics, tasks, transcripts, agent: stuck, agentDefaults: new InMemoryAgentDefaultsStore(), ids: new SequentialIds(), playbooks: new FsPlaybookRegistry(PLAYBOOKS), notes: new FakeTaskNotes(), timeoutMs: 10 });
     await expect(slow.draft('epic-1', TEXT)).rejects.toThrow(/took longer/);
   });
 

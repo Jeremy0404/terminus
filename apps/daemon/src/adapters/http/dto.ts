@@ -1,4 +1,4 @@
-import type { AgentPhaseDto, AgentSettingsDto, AppDto, DecisionDto, EpicDto, InboxItemDto, NetworkDto, QuotaDto, RunDto, ServerEventDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type { AgentPhaseDto, AgentSettingsDto, AppDto, LessonDto, TermDto, DecisionDto, EpicDto, InboxItemDto, NetworkDto, QuotaDto, RunDto, ServerEventDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
 import type { AgentPhase, AgentSettingsView } from '../../application/agent-settings.js';
 import type { RunUpdate } from '../../application/ports/system.js';
 import type { Network, TaskDetail } from '../../application/queries.js';
@@ -7,6 +7,7 @@ import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
 import { appliesTo } from '../../domain/lifecycle.js';
 import type { InboxItem } from '../../domain/inbox.js';
+import type { Lesson, Term } from '../../domain/memory.js';
 import type { Quota } from '../../domain/quota.js';
 import type { Run } from '../../domain/run.js';
 import type { Task } from '../../domain/task.js';
@@ -56,6 +57,10 @@ export const toTaskDetailDto = (detail: TaskDetail): TaskDetailDto => ({
   runs: detail.runs.map(toRunDto),
   decisions: detail.decisions.map(toDecisionDto),
 });
+
+export const toLessonDto = ({ id, text, sourceTaskId, createdAt }: Lesson): LessonDto => ({ id, text, sourceTaskId, createdAt });
+
+export const toTermDto = ({ id, term, definition, updatedAt }: Term): TermDto => ({ id, term, definition, updatedAt });
 
 export const toQuotaDto = ({ limited, windows, observedAt }: Quota): QuotaDto => ({ limited, windows, observedAt });
 
