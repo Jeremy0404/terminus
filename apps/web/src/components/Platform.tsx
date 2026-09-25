@@ -17,12 +17,13 @@ interface Props {
 
 export function Platform({ network, taskId, onClose }: Props) {
   const { t } = useTranslation();
-  const { data, live } = useTask(taskId);
+  const { data, live, error, reload } = useTask(taskId);
   const summary = network.tasks.find((task) => task.id === taskId);
   const epic = network.epics.find((candidate) => candidate.id === summary?.epicId);
   if (!summary || !epic) return null;
-  const task = data?.task ?? summary;
+  const task = data?.task.id === taskId ? data.task : summary;
   const reached = task.status.kind === 'done' ? task.phases.length : task.phaseIndex;
+  const closed = task.status.kind === 'closed';
   return (
     <section className="card platform" style={{ ['--lc' as string]: lineColor(epic.position) }} aria-label={t('platform.label', { title: task.title })}>
       <div className="platform-head">
@@ -36,25 +37,27 @@ export function Platform({ network, taskId, onClose }: Props) {
       <div className="row">
         <StatusPill status={task.status} />
         <span className="track-chip">{t(`track.${task.track}`)}</span>
-        <AgentPicker key={task.id} task={task} />
+        <details className="platform-agent"><summary>{t('platform.agent')}</summary><AgentPicker key={task.id} task={task} /></details>
       </div>
       {network.obsoleteFlags
         .filter((flag) => flag.taskId === taskId)
         .map((flag) => (
           <ObsoleteFlag key={flag.proposalId} flag={flag} />
         ))}
-      <ol className="phase-strip" style={{ gridTemplateColumns: `repeat(${task.phases.length}, 1fr)`, ['--n' as string]: task.phases.length }}>
+      {!closed && <ol className="phase-strip" style={{ gridTemplateColumns: `repeat(${task.phases.length}, 1fr)`, ['--n' as string]: task.phases.length }}>
         {task.phases.map((phase, index) => (
           <li key={phase} className={`${index < reached ? 'passed' : index === reached && task.status.kind !== 'todo' ? 'current' : ''} ${task.phasesInTrack.includes(phase) ? '' : 'off'}`}>
             <i />
             <span title={t(`phase.${phase}`)}>{t(`phaseShort.${phase}`)}</span>
           </li>
         ))}
-      </ol>
+      </ol>}
+      {!data && !error && <p role="status" className="muted">{t('platform.loading')}</p>}
+      {error && <div role="alert"><p>{t('platform.loadError')}</p><button type="button" className="btn" onClick={reload}>{t('platform.retry')}</button></div>}
       {data && data.task.id === taskId && (
         <>
           <ActionPanel detail={data} live={live} />
-          <TaskDeviations detail={data} />
+          {task.status.kind !== 'closed' && task.status.kind !== 'done' && <details className="platform-options"><summary>{t('platform.options')}</summary><TaskDeviations detail={data} /></details>}
           <RunHistory runs={data.runs} checkpoints={data.checkpoints} phases={data.task.phases} />
         </>
       )}

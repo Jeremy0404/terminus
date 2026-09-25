@@ -279,7 +279,7 @@ describe('NetworkMap origin and interchanges', () => {
 
     expect(zoom).toHaveClass('interchange', 'tone-stop');
     expect(adapter).toHaveClass('interchange', 'tone-go');
-    expect(screen.getByRole('button', { name: 'Spike CLI, Mergée' })).not.toHaveClass('interchange');
+    expect(screen.getByRole('button', { name: 'Spike CLI, Intégrée au projet' })).not.toHaveClass('interchange');
     fireEvent.click(zoom);
     expect(handlers.onStation).toHaveBeenCalledWith('ui', 'i2');
   });

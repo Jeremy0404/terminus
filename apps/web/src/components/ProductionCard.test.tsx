@@ -32,7 +32,7 @@ describe('ProductionCard', () => {
     });
     render(<ProductionCard appId="app-1" />);
 
-    expect(await screen.findByText(/En production : v0\.2\.0/)).toBeInTheDocument();
+    expect(await screen.findByText(/Version publiée : v0\.2\.0/)).toBeInTheDocument();
     expect(screen.getByText('v0.2.0 livrée')).toHaveAttribute('href', 'https://github.com/o/r/actions/runs/31');
     expect(screen.getByText('Prête à livrer : v1.0.0')).toHaveAttribute('href', 'https://github.com/o/r/pull/87');
     expect(screen.getByText(/pas de job de déploiement/)).toBeInTheDocument();

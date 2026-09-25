@@ -40,7 +40,7 @@ export function Trip({ network, place, go: navigate, panel }: Props) {
         <>
           <span className="trip-sep" style={{ background: lineColor(epic.position) }} />
           {panel ? <button type="button" onClick={() => go(place)}>{task.title}</button> : <span className="trip-current">{task.title}</span>}
-          {!panel && task.status.kind !== 'done' && task.status.kind !== 'todo' && (
+          {!panel && task.status.kind !== 'done' && task.status.kind !== 'todo' && task.status.kind !== 'closed' && (
             <>
               <span className="trip-sep" />
               <span className="trip-phase">{t(`phase.${task.phases[task.phaseIndex] ?? ''}`)}</span>

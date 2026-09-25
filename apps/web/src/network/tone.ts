@@ -24,6 +24,7 @@ export function toneOf(status: TaskStatusDto): Tone {
 }
 
 export function statusKey(status: TaskStatusDto): string {
+  if (status.kind === 'closed') return `closeTask.reason.${status.reason}`;
   return status.kind === 'awaiting-gate' ? `status.gate.${status.gate}` : `status.${status.kind}`;
 }
 

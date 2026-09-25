@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { progressOf } from '../../network/progress';
 import { useTranslation } from 'react-i18next';
 import type { TaskSummaryDto } from '@terminus/contracts';
 import { ROUNDEL_RADIUS, type NetworkLayout, type Point } from '../../network/layout';
@@ -51,7 +52,8 @@ export const MapDrawing = memo(function MapDrawing({ layout, appName, tasks, lev
       {layout.lines.map((line) => {
         const color = lineColor(line.epic.position);
         const planned = line.epic.status === 'planned';
-        const done = line.stations.filter((station) => station.task.status.kind === 'done').length;
+        const progress = progressOf(line.stations.map((station) => station.task));
+        const remaining = progress.todo + progress.active;
         return (
           <g key={line.epic.id} className={`line ${dimmed(line.epic.id) ? 'dim' : ''}`} style={{ color }}>
             <g className="line-hit" role="button" tabIndex={0} aria-label={t('map.line', { name: line.epic.name })} onClick={() => onLine(line.epic.id)}
@@ -64,7 +66,7 @@ export const MapDrawing = memo(function MapDrawing({ layout, appName, tasks, lev
                 {line.epic.name}
               </text>
               <text x={line.startX + ROUNDEL_RADIUS + LINE_LABEL_GAP} y={line.y - LINE_META_RISE} className="line-meta">
-                {planned ? t('map.planned') : t('map.progress', { done, total: line.stations.length })}
+                {t('map.remaining', { count: remaining })}
               </text>
             </g>
             {line.stations.map(({ task, x, y, labelSide, interchange }) => {
