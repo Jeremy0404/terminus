@@ -315,6 +315,13 @@ export interface RitualStartedDto {
   readonly task: TaskSummaryDto;
 }
 
+export interface ReleaseStateDto {
+  readonly deploysOnRelease: boolean;
+  readonly pending: { readonly number: number; readonly version: string | null; readonly title: string; readonly url: string; readonly notes: string } | null;
+  readonly latest: { readonly version: string; readonly publishedAt: string; readonly url: string } | null;
+  readonly lastRun: { readonly id: number; readonly version: string | null; readonly state: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'; readonly startedAt: string; readonly url: string } | null;
+}
+
 export type ServerEventDto =
   | { readonly type: 'task-changed'; readonly task: TaskSummaryDto }
   | { readonly type: 'epic-changed'; readonly epic: EpicDto }

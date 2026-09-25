@@ -15,6 +15,7 @@ import type { RepositoryKnowledge } from './application/ports/repository-knowled
 import type { RepositoryCreator } from './application/ports/repository-creator.js';
 import type { Vault } from './application/ports/vault.js';
 import type { SkillCatalog } from './application/ports/skill-catalog.js';
+import type { DeployTarget } from './application/ports/deploy-target.js';
 import type { CheckRunner } from './application/ports/check-runner.js';
 import type { CodeHost } from './application/ports/code-host.js';
 import type { IssueTracker } from './application/ports/issue-tracker.js';
@@ -35,6 +36,7 @@ import type { TranscriptStore } from './application/ports/transcript-store.js';
 import type { Workspace } from './application/ports/workspace.js';
 import { PlaybookRitual } from './application/playbook-ritual.js';
 import { ProjectMemory } from './application/project-memory.js';
+import { Releases } from './application/releases.js';
 import { Queries } from './application/queries.js';
 import { QuotaTrackingRunner } from './application/quota-tracker.js';
 import { Scheduler } from './application/scheduler.js';
@@ -61,6 +63,7 @@ export interface Adapters {
   readonly repositories: RepositoryCreator;
   readonly vault: Vault | null;
   readonly skills: SkillCatalog;
+  readonly deployTarget: DeployTarget;
   readonly checks: CheckRunner;
   readonly codeHost: CodeHost;
   readonly scanner: RepoScanner;
@@ -122,6 +125,7 @@ export function compose(given: Adapters, settings: Settings): Services {
     drafter,
     actions,
     agentSettings: new AgentSettings(adapters),
+    releases: new Releases({ apps: adapters.apps, target: adapters.deployTarget, clock: adapters.clock }),
     ritual: new PlaybookRitual({ ...adapters, catalog, playbooksRepo: settings.playbooksRepo }),
     memory: new ProjectMemory({ ...adapters, bus, closer: actions }),
     runs: phases,

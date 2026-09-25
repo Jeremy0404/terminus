@@ -517,5 +517,19 @@
     "update": "Mettre à jour",
     "pending_one": "{{count}} skill à revoir",
     "pending_other": "{{count}} skills à revoir"
+  },
+  "production": {
+    "eyebrow": "Production",
+    "latest": "En production : v{{version}} ({{date}})",
+    "none": "Aucune release publiée",
+    "pending": "Prête à livrer : v{{version}}",
+    "noDeploy": "La release ne déploie pas encore : pas de job de déploiement dans release.yml.",
+    "run": {
+      "queued": "v{{version}} en file",
+      "running": "v{{version}} en cours",
+      "succeeded": "v{{version}} livrée",
+      "failed": "v{{version}} en échec",
+      "cancelled": "v{{version}} annulée"
+    }
   }
 }

@@ -282,6 +282,11 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .settings-rows li { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--rule); }
 .settings-rows li > span:first-child { font-weight: 700; }
 .ritual { margin-top: 24px; }
+.production p { margin: 8px 0 0; }
+.production-live { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-weight: 700; }
+.tag.run-succeeded { background: var(--go-soft); color: var(--go); }
+.tag.run-failed { background: var(--stop-soft); color: var(--stop); }
+.tag.run-running, .tag.run-queued { background: var(--signal-soft); color: var(--signal); }
 .settings-rows li.settings-fallback { border-bottom: 2px solid var(--ink-3); }
 .track-chip { font-family: var(--display); font-weight: 800; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 999px; padding: 2px 9px; }
 .phase-strip li.off { opacity: 0.35; }

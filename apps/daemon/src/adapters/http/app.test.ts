@@ -59,6 +59,7 @@ function start(...scripts: AgentScript[]): void {
       repositories: { create: (path, name, visibility) => void founded.push({ path, name, visibility }) },
       vault: null,
       skills: { skills: () => [{ name: 'spec', playbook: 'task', researched: '2026-08-01' }] },
+      deployTarget: { state: () => ({ deploysOnRelease: true, pending: null, latest: { version: '0.2.0', publishedAt: '2026-08-10T16:54:07Z', url: 'u' }, lastRun: null }) },
       knowledge: { contextDoc: () => 'Glossary of the demo repo.', decisions: () => [{ path: 'docs/adr/0001-use-sqlite.md', title: 'Use SQLite' }] },
       checks: greenChecks,
       codeHost,
@@ -152,6 +153,12 @@ describe('HTTP API', () => {
 
     expect(started.status).toBe(201);
     expect(started.json).toMatchObject({ appId, task: { title: 'Mettre à jour la skill spec', lifecycleId: 'playbook-update' } });
+  });
+
+  it('reports the production state of an app', async () => {
+    const { appId } = await givenTask();
+    expect((await call<{ latest: { version: string } }>('GET', `/api/apps/${appId}/release`)).json.latest.version).toBe('0.2.0');
+    expect((await call('GET', '/api/apps/ghost/release')).status).toBe(409);
   });
 
   it('keeps the project memory and shows the pack agents receive', async () => {

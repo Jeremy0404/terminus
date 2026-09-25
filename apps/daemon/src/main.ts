@@ -12,6 +12,7 @@ import { FsPlaybookRegistry } from './adapters/fs-playbooks/fs-playbook-registry
 import { FsSkillCatalog } from './adapters/fs-playbooks/fs-skill-catalog.js';
 import { GitWorkspace } from './adapters/git/git-workspace.js';
 import { GhCodeHost, GhIssueTracker } from './adapters/github/gh-code-host.js';
+import { GhReleaseTarget } from './adapters/github/gh-release-target.js';
 import { GhRepositoryCreator } from './adapters/github/gh-repository-creator.js';
 import { GitVault } from './adapters/vault/git-vault.js';
 import { DemoAgentRunner } from './adapters/in-memory/demo-agent-runner.js';
@@ -115,6 +116,7 @@ const { http, scheduler } = compose(
     repositories: new GhRepositoryCreator(),
     vault: vault ? new GitVault(vault) : null,
     skills: new FsSkillCatalog(playbooksDir),
+    deployTarget: new GhReleaseTarget(),
     checks: new ShellCheckRunner(CHECK_TIMEOUT_MS),
     codeHost: new GhCodeHost(),
     scanner: new FsRepoScanner(),

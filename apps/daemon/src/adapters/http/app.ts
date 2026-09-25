@@ -32,6 +32,7 @@ import type { Adoption } from '../../application/adoption.js';
 import type { AppFounder } from '../../application/app-founder.js';
 import type { AgentSettings } from '../../application/agent-settings.js';
 import type { PlaybookRitual } from '../../application/playbook-ritual.js';
+import type { Releases } from '../../application/releases.js';
 import type { ProjectMemory } from '../../application/project-memory.js';
 import type { Catalog } from '../../application/catalog.js';
 import type { EpicPlanner } from '../../application/epic-planner.js';
@@ -58,6 +59,7 @@ export interface HttpDeps {
   readonly actions: TaskActions;
   readonly agentSettings: AgentSettings;
   readonly ritual: PlaybookRitual;
+  readonly releases: Releases;
   readonly memory: ProjectMemory;
   readonly runs: { interrupt(taskId: string): boolean };
   readonly scheduler: { tick(): unknown; release(taskId: string): void };
@@ -93,6 +95,7 @@ export function createHttpApp(deps: HttpDeps): Hono {
     const { fallback, defaults } = await body(c, AgentDefaultsBody);
     return c.json(toAgentSettingsDto(deps.agentSettings.update(fallback, defaults)));
   });
+  app.get('/api/apps/:appId/release', (c) => c.json(deps.releases.state(c.req.param('appId'), c.req.query('fresh') === '1')));
   app.get('/api/playbooks/skills', (c) => c.json(deps.ritual.list()));
   app.post('/api/playbooks/skills/:name/update', (c) => {
     const { app: owner, task } = deps.ritual.update(c.req.param('name'));
