@@ -24,6 +24,7 @@ export interface AgentPhaseDto {
   readonly lifecycleId: string;
   readonly phaseId: string;
   readonly choice: AgentChoiceDto;
+  readonly inherited: AgentChoiceDto;
 }
 
 export interface AgentSettingsDto {

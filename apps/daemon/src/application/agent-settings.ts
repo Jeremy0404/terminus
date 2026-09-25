@@ -1,4 +1,4 @@
-import { choiceKey, fallbackOf, FALLBACK_KEY, NO_CHOICE, type AgentChoice, type AgentDefaults } from '../domain/agent-choice.js';
+import { choiceKey, fallbackOf, FALLBACK_KEY, NO_CHOICE, resolveChoice, type AgentChoice, type AgentDefaults } from '../domain/agent-choice.js';
 import { DomainError } from '../domain/errors.js';
 import type { AgentDefaultsStore } from './ports/agent-defaults-store.js';
 import type { PlaybookRegistry } from './ports/playbook-registry.js';
@@ -8,6 +8,7 @@ export interface AgentPhase {
   readonly lifecycleId: string;
   readonly phaseId: string;
   readonly choice: AgentChoice;
+  readonly inherited: AgentChoice;
 }
 
 export interface AgentSettingsView {
@@ -20,15 +21,16 @@ export class AgentSettings {
 
   view(): AgentSettingsView {
     const defaults = this.deps.agentDefaults.all();
+    const fallback = fallbackOf(defaults);
     const phases = this.deps.playbooks.lifecycles().flatMap((lifecycle) =>
       lifecycle.phases
         .filter((phase) => phase.skill !== undefined)
         .map((phase) => {
           const key = choiceKey(lifecycle.id, phase.id);
-          return { key, lifecycleId: lifecycle.id, phaseId: phase.id, choice: defaults[key] ?? NO_CHOICE };
+          return { key, lifecycleId: lifecycle.id, phaseId: phase.id, choice: defaults[key] ?? NO_CHOICE, inherited: resolveChoice(phase, fallback) };
         }),
     );
-    return { fallback: fallbackOf(defaults), phases };
+    return { fallback, phases };
   }
 
   update(fallback: AgentChoice, defaults: AgentDefaults): AgentSettingsView {

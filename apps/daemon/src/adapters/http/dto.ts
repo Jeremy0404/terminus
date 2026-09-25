@@ -37,7 +37,7 @@ const toInboxItemDto = (item: InboxItem): InboxItemDto => item;
 
 const toRunDto = ({ id, phaseIndex, status, startedAt, endedAt, usage, output, agent }: Run): RunDto => ({ id, phaseIndex, status, startedAt, endedAt, usage, output, agent: agent ?? null });
 
-const toAgentPhaseDto = ({ key, lifecycleId, phaseId, choice }: AgentPhase): AgentPhaseDto => ({ key, lifecycleId, phaseId, choice });
+const toAgentPhaseDto = ({ key, lifecycleId, phaseId, choice, inherited }: AgentPhase): AgentPhaseDto => ({ key, lifecycleId, phaseId, choice, inherited });
 
 export const toAgentSettingsDto = ({ fallback, phases }: AgentSettingsView): AgentSettingsDto => ({ fallback, phases: phases.map(toAgentPhaseDto) });
 

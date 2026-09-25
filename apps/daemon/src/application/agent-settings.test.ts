@@ -17,6 +17,8 @@ describe('AgentSettings', () => {
     expect(view.phases.map((phase) => phase.key)).toEqual(expect.arrayContaining(['epic.breakdown', 'task.spec', 'task.execute', 'task.sync']));
     expect(view.phases.find((phase) => phase.key === 'task.spec')?.choice).toEqual({ model: 'sonnet', effort: null });
     expect(view.phases.find((phase) => phase.key === 'task.plan')?.choice).toEqual({ model: null, effort: null });
+    expect(view.phases.find((phase) => phase.key === 'task.plan')?.inherited).toEqual({ model: 'opus', effort: 'xhigh' });
+    expect(view.phases.find((phase) => phase.key === 'epic.station-draft')?.inherited).toEqual({ model: 'haiku', effort: 'low' });
   });
 
   it('saves the global default and only the phases that set something, and refuses unknown phases', () => {
