@@ -74,6 +74,7 @@ Other modes:
 - `TERMINUS_AGENT_ISOLATION=off` — run agents on your own Claude Code configuration instead.
 - `TERMINUS_HOME`, `TERMINUS_PORT`, `TERMINUS_CONCURRENCY` — data folder, daemon port, parallel runs.
 - `TERMINUS_PROJECTS_DIR` — where "Nouvelle app" creates repositories (default `~/dev/projects`).
+- `TERMINUS_DISCORD_WEBHOOK` — a Discord webhook (a dedicated channel) told when a production deploy starts, succeeds or fails; also read from `~/.terminus/.env`.
 - `TERMINUS_VAULT_DIR` — an Obsidian vault (a git repository) to export approved briefs, architecture decisions and validated plans into, under `Projects/<app>/`, each export in its own commit; also read from `~/.terminus/.env`. Unset, nothing is exported.
 
 ## Scripts

@@ -530,6 +530,19 @@
       "succeeded": "v{{version}} livrée",
       "failed": "v{{version}} en échec",
       "cancelled": "v{{version}} annulée"
+    },
+    "deploy": "Déployer v{{version}}",
+    "confirmTitle": "Déployer v{{version}} en production ?",
+    "confirmDeploy": "Terminus merge la pull request de release ; le tag qui en sort lance release.yml, qui construit, signe et déploie l’image sur le serveur.",
+    "confirmPublishOnly": "Terminus merge la pull request de release : la version est publiée, mais release.yml ne déploie pas encore sur le serveur.",
+    "confirm": "Oui, déployer",
+    "runLink": "voir le run",
+    "deployment": {
+      "requested": "v{{version}} demandée",
+      "running": "v{{version}} en cours",
+      "succeeded": "v{{version}} en production",
+      "failed": "v{{version}} en échec",
+      "cancelled": "v{{version}} annulée"
     }
   }
 }

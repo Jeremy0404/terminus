@@ -13,6 +13,7 @@ import {
   SqliteAgentDefaultsStore,
   SqliteAppRepository,
   SqliteDecisionRepository,
+  SqliteDeploymentRepository,
   SqliteEpicRepository,
   SqliteMemoryRepository,
   SqliteQuotaStore,
@@ -208,5 +209,17 @@ describe('SqliteMemoryRepository', () => {
     expect(memory.removeLesson('l1')).toBe(false);
     expect(memory.removeTerm('t-a')).toBe(true);
     expect(memory.terms('terminus').map((term) => term.term)).toEqual(['station']);
+  });
+});
+
+describe('SqliteDeploymentRepository', () => {
+  it('lists the deployments of an app, newest first, and updates them in place', () => {
+    const repository = new SqliteDeploymentRepository(db);
+    const first = { id: 'd1', appId: 'terminus', version: '1.0.0', pullRequest: 87, requestedAt: '2026-09-25T10:00:00Z', state: 'requested' as const, runUrl: null, finishedAt: null };
+    repository.save(first);
+    repository.save({ ...first, id: 'd2', version: '1.1.0', requestedAt: '2026-09-26T10:00:00Z' });
+    repository.save({ ...first, state: 'succeeded', runUrl: 'run', finishedAt: '2026-09-25T10:05:00Z' });
+
+    expect(repository.listByApp('terminus').map((deployment) => [deployment.id, deployment.state])).toEqual([['d2', 'requested'], ['d1', 'succeeded']]);
   });
 });

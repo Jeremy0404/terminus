@@ -15,6 +15,7 @@ import {
   CloseBody,
   CreateAppBody,
   CutOverBody,
+  DeployBody,
   FoundAppBody,
   HealthCheckBody,
   RepoPathBody,
@@ -96,6 +97,11 @@ export function createHttpApp(deps: HttpDeps): Hono {
     return c.json(toAgentSettingsDto(deps.agentSettings.update(fallback, defaults)));
   });
   app.get('/api/apps/:appId/release', (c) => c.json(deps.releases.state(c.req.param('appId'), c.req.query('fresh') === '1')));
+  app.post('/api/apps/:appId/release/deploy', async (c) => {
+    const { version } = await body(c, DeployBody);
+    const { appId: _appId, ...deployment } = deps.releases.deploy(c.req.param('appId'), version);
+    return c.json(deployment, 202);
+  });
   app.get('/api/playbooks/skills', (c) => c.json(deps.ritual.list()));
   app.post('/api/playbooks/skills/:name/update', (c) => {
     const { app: owner, task } = deps.ritual.update(c.req.param('name'));

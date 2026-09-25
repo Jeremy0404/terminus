@@ -12,6 +12,7 @@ import { FsPlaybookRegistry } from './adapters/fs-playbooks/fs-playbook-registry
 import { FsSkillCatalog } from './adapters/fs-playbooks/fs-skill-catalog.js';
 import { GitWorkspace } from './adapters/git/git-workspace.js';
 import { GhCodeHost, GhIssueTracker } from './adapters/github/gh-code-host.js';
+import { DiscordNotifier, SILENT } from './adapters/discord/discord-notifier.js';
 import { GhReleaseTarget } from './adapters/github/gh-release-target.js';
 import { GhRepositoryCreator } from './adapters/github/gh-repository-creator.js';
 import { GitVault } from './adapters/vault/git-vault.js';
@@ -24,6 +25,7 @@ import {
   SqliteAgentDefaultsStore,
   SqliteAppRepository,
   SqliteDecisionRepository,
+  SqliteDeploymentRepository,
   SqliteEpicRepository,
   SqliteMemoryRepository,
   SqliteQuotaStore,
@@ -91,6 +93,8 @@ mkdirSync(home, { recursive: true });
 const db = openDatabase(join(home, 'terminus.db'));
 const playbooks = new FsPlaybookRegistry(playbooksDir);
 const vault = vaultDir();
+const discordWebhook = env['TERMINUS_DISCORD_WEBHOOK'] ?? readEnvFile(join(home, '.env'))['TERMINUS_DISCORD_WEBHOOK'] ?? null;
+console.log(discordWebhook ? 'deploy notifications: Discord' : 'deploy notifications: off (set TERMINUS_DISCORD_WEBHOOK)');
 const builtWeb = env['TERMINUS_WEB_DIR'] ?? fileURLToPath(new URL('../../web/dist', import.meta.url));
 const webDir = existsSync(join(builtWeb, 'index.html')) ? builtWeb : null;
 console.log(webDir ? `web app: ${webDir}` : 'web app: not built (use the Vite dev server)');
@@ -117,6 +121,8 @@ const { http, scheduler } = compose(
     vault: vault ? new GitVault(vault) : null,
     skills: new FsSkillCatalog(playbooksDir),
     deployTarget: new GhReleaseTarget(),
+    deployments: new SqliteDeploymentRepository(db),
+    notifier: discordWebhook ? new DiscordNotifier(discordWebhook, (error) => console.error('discord notification failed', error)) : SILENT,
     checks: new ShellCheckRunner(CHECK_TIMEOUT_MS),
     codeHost: new GhCodeHost(),
     scanner: new FsRepoScanner(),

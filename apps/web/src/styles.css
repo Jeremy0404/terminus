@@ -283,6 +283,11 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .settings-rows li > span:first-child { font-weight: 700; }
 .ritual { margin-top: 24px; }
 .production p { margin: 8px 0 0; }
+.production .row { margin-top: 8px; }
+.deploy-confirm { margin-top: 10px; padding: 12px; border-radius: 12px; border: 1.5px solid var(--signal); background: var(--signal-soft); display: grid; gap: 6px; }
+.release-notes { max-height: 30vh; margin: 0; }
+.deployments { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; }
+.deployments li { display: flex; gap: 8px; align-items: center; }
 .production-live { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-weight: 700; }
 .tag.run-succeeded { background: var(--go-soft); color: var(--go); }
 .tag.run-failed { background: var(--stop-soft); color: var(--stop); }
