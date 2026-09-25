@@ -1,6 +1,8 @@
 import type {
   AgentChoiceDto,
   AgentSettingsDto,
+  PlaybookSkillDto,
+  RitualStartedDto,
   LessonDto,
   MemoryDto,
   TermDto,
@@ -58,6 +60,8 @@ export const api = {
   acceptProposal: (proposalId: string) => post<null>(`/memory-proposals/${proposalId}/accept`),
   dismissProposal: (proposalId: string) => post<null>(`/memory-proposals/${proposalId}/dismiss`),
   agentSettings: () => request<AgentSettingsDto>('/settings/agents'),
+  playbookSkills: () => request<PlaybookSkillDto[]>('/playbooks/skills'),
+  updateSkill: (name: string) => post<RitualStartedDto>(`/playbooks/skills/${name}/update`),
   saveAgentSettings: (fallback: AgentChoiceDto, defaults: Record<string, AgentChoiceDto>) =>
     request<AgentSettingsDto>('/settings/agents', { method: 'PUT', body: JSON.stringify({ fallback, defaults }) }),
   chooseAgent: (taskId: string, choice: AgentChoiceDto) => post<TaskSummaryDto>(`/tasks/${taskId}/agent`, choice),

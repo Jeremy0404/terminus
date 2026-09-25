@@ -4,8 +4,9 @@ import type { AgentChoiceDto, AgentSettingsDto } from '@terminus/contracts';
 import { api } from '../../api/client';
 import { AgentChoiceFields } from '../agent/AgentChoiceFields';
 import { useAction } from '../platform/useAction';
+import { PlaybookRitual } from './PlaybookRitual';
 
-export function AgentSettings({ onClose }: { onClose: () => void }) {
+export function AgentSettings({ onClose, onOpenStation }: { onClose: () => void; onOpenStation: (appId: string, lineId: string, taskId: string) => void }) {
   const { t } = useTranslation();
   const [settings, setSettings] = useState<AgentSettingsDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -93,6 +94,7 @@ export function AgentSettings({ onClose }: { onClose: () => void }) {
         {saved && !save.busy && <span className="tag good" role="status">{t('settings.saved')}</span>}
         {save.error && <p className="action-error" role="alert">{save.error}</p>}
       </div>
+      <PlaybookRitual onOpenStation={onOpenStation} />
     </section>
   );
 }

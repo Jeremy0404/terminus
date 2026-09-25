@@ -54,6 +54,7 @@ function start(...scripts: AgentScript[]): void {
       memory: new InMemoryMemoryRepository(),
       repositories: { create: (path, name, visibility) => void founded.push({ path, name, visibility }) },
       vault: null,
+      skills: { skills: () => [{ name: 'spec', playbook: 'task', researched: '2026-08-01' }] },
       knowledge: { contextDoc: () => 'Glossary of the demo repo.', decisions: () => [{ path: 'docs/adr/0001-use-sqlite.md', title: 'Use SQLite' }] },
       checks: greenChecks,
       codeHost,
@@ -63,7 +64,7 @@ function start(...scripts: AgentScript[]): void {
       clock: new FixedClock(),
       ids: new SequentialIds(),
     },
-    { version: '9.9.9', baseRef: 'main', concurrency: 2, budget: { maxTokens: 400_000, maxTurns: 80 }, systemPromptAppend: '', projectsDir: '/projects' },
+    { version: '9.9.9', baseRef: 'main', concurrency: 2, budget: { maxTokens: 400_000, maxTurns: 80 }, systemPromptAppend: '', projectsDir: '/projects', playbooksRepo: '/repo' },
   );
 }
 
@@ -135,6 +136,18 @@ describe('HTTP API', () => {
       expect.objectContaining({ title: 'Poser le socle', lifecycleId: 'app-scaffold' }),
     ]);
     expect((await call('POST', '/api/apps/found', { name: 'x', idea: '' })).status).toBe(400);
+  });
+
+  it('lists the playbook skills and opens an update station on the app holding them', async () => {
+    const skills = (await call<{ name: string; stale: boolean }[]>('GET', '/api/playbooks/skills')).json;
+    expect(skills).toEqual([{ name: 'spec', playbook: 'task', researched: '2026-08-01', stale: true }]);
+    expect((await call('POST', '/api/playbooks/skills/spec/update')).status).toBe(409);
+
+    const { appId } = await givenTask();
+    const started = await call<{ appId: string; task: TaskSummaryDto }>('POST', '/api/playbooks/skills/spec/update');
+
+    expect(started.status).toBe(201);
+    expect(started.json).toMatchObject({ appId, task: { title: 'Mettre à jour la skill spec', lifecycleId: 'playbook-update' } });
   });
 
   it('keeps the project memory and shows the pack agents receive', async () => {

@@ -17,8 +17,10 @@ beforeEach(() => {
   calls = [];
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+      if (String(input).includes('/playbooks/skills/spec/update')) return Response.json({ appId: 'app-1', task: { id: 'task-9', epicId: 'epic-pb' } }, { status: 201 });
+      if (String(input).includes('/playbooks/skills')) return Response.json([{ name: 'spec', playbook: 'task', researched: '2026-08-01', stale: true }]);
       calls.push({ method: init?.method ?? 'GET', body });
       return Response.json(SETTINGS);
     }),
@@ -28,7 +30,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('AgentSettings', () => {
   it('edits the global default and each agent phase, and saves them together', async () => {
-    render(<AgentSettings onClose={() => {}} />);
+    render(<AgentSettings onClose={() => {}} onOpenStation={() => {}} />);
 
     const fallbackModel = await screen.findByRole('combobox', { name: 'Modèle · Par défaut, toutes phases' });
     expect(fallbackModel).toHaveValue('opus');
@@ -46,5 +48,15 @@ describe('AgentSettings', () => {
         defaults: { 'epic.breakdown': { model: 'haiku', effort: null }, 'epic.station-draft': { model: null, effort: null }, 'task.execute': { model: 'opus', effort: 'high' } },
       },
     });
+  });
+
+  it('opens the update station of a skill from the playbook ritual', async () => {
+    const onOpenStation = vi.fn();
+    render(<AgentSettings onClose={() => {}} onOpenStation={onOpenStation} />);
+
+    expect(await screen.findByText('à revoir')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Mettre à jour' }));
+
+    await waitFor(() => expect(onOpenStation).toHaveBeenCalledWith('app-1', 'epic-pb', 'task-9'));
   });
 });

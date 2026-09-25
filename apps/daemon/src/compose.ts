@@ -14,6 +14,7 @@ import type { MemoryRepository } from './application/ports/memory-repository.js'
 import type { RepositoryKnowledge } from './application/ports/repository-knowledge.js';
 import type { RepositoryCreator } from './application/ports/repository-creator.js';
 import type { Vault } from './application/ports/vault.js';
+import type { SkillCatalog } from './application/ports/skill-catalog.js';
 import type { CheckRunner } from './application/ports/check-runner.js';
 import type { CodeHost } from './application/ports/code-host.js';
 import type { IssueTracker } from './application/ports/issue-tracker.js';
@@ -32,6 +33,7 @@ import type { RepositoryInstructions } from './application/ports/repository-inst
 import type { TaskNotes } from './application/ports/task-notes.js';
 import type { TranscriptStore } from './application/ports/transcript-store.js';
 import type { Workspace } from './application/ports/workspace.js';
+import { PlaybookRitual } from './application/playbook-ritual.js';
 import { ProjectMemory } from './application/project-memory.js';
 import { Queries } from './application/queries.js';
 import { QuotaTrackingRunner } from './application/quota-tracker.js';
@@ -58,6 +60,7 @@ export interface Adapters {
   readonly knowledge: RepositoryKnowledge;
   readonly repositories: RepositoryCreator;
   readonly vault: Vault | null;
+  readonly skills: SkillCatalog;
   readonly checks: CheckRunner;
   readonly codeHost: CodeHost;
   readonly scanner: RepoScanner;
@@ -74,6 +77,7 @@ export interface Settings {
   readonly budget: RunBudget;
   readonly systemPromptAppend: string;
   readonly projectsDir: string;
+  readonly playbooksRepo: string;
 }
 
 export interface Services {
@@ -114,6 +118,7 @@ export function compose(given: Adapters, settings: Settings): Services {
     drafter,
     actions,
     agentSettings: new AgentSettings(adapters),
+    ritual: new PlaybookRitual({ ...adapters, catalog, playbooksRepo: settings.playbooksRepo }),
     memory: new ProjectMemory({ ...adapters, bus, closer: actions }),
     runs: phases,
     scheduler,

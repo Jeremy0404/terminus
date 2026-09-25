@@ -28,6 +28,7 @@ import {
 import type { Adoption } from '../../application/adoption.js';
 import type { AppFounder } from '../../application/app-founder.js';
 import type { AgentSettings } from '../../application/agent-settings.js';
+import type { PlaybookRitual } from '../../application/playbook-ritual.js';
 import type { ProjectMemory } from '../../application/project-memory.js';
 import type { Catalog } from '../../application/catalog.js';
 import type { EpicPlanner } from '../../application/epic-planner.js';
@@ -50,6 +51,7 @@ export interface HttpDeps {
   readonly drafter: StationDrafter;
   readonly actions: TaskActions;
   readonly agentSettings: AgentSettings;
+  readonly ritual: PlaybookRitual;
   readonly memory: ProjectMemory;
   readonly runs: { interrupt(taskId: string): boolean };
   readonly scheduler: { tick(): unknown; release(taskId: string): void };
@@ -82,6 +84,11 @@ export function createHttpApp(deps: HttpDeps): Hono {
   app.put('/api/settings/agents', async (c) => {
     const { fallback, defaults } = await body(c, AgentDefaultsBody);
     return c.json(toAgentSettingsDto(deps.agentSettings.update(fallback, defaults)));
+  });
+  app.get('/api/playbooks/skills', (c) => c.json(deps.ritual.list()));
+  app.post('/api/playbooks/skills/:name/update', (c) => {
+    const { app: owner, task } = deps.ritual.update(c.req.param('name'));
+    return c.json({ appId: owner.id, task: toTaskSummaryDto(task) }, 201);
   });
   app.get('/api/quota', (c) => {
     const quota = queries.quota();

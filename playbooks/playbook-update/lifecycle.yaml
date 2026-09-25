@@ -1,0 +1,20 @@
+id: playbook-update
+phases:
+  - id: research
+    skill: playbook-research
+  - id: execute
+    skill: playbook-edit
+  - id: verify
+    executor: checks
+    retryFrom: execute
+  - id: review
+    skill: review
+    output: review
+    gate: human-review
+  - id: sync
+    executor: sync
+    skill: resolve-conflicts
+    retryFrom: execute
+  - id: merge
+    executor: code-host
+    gate: merge
