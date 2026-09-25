@@ -4,6 +4,7 @@ import {
   InMemoryAppRepository,
   InMemoryDecisionRepository,
   InMemoryEpicRepository,
+  InMemoryMemoryRepository,
   InMemoryRunRepository,
   InMemoryTaskRepository,
   InMemoryTranscriptStore,
@@ -70,6 +71,7 @@ let workspace: FakeWorkspace;
 let bus: RecordingBus;
 let checks: StubCheckRunner;
 let codeHost: FakeCodeHost;
+let memory: InMemoryMemoryRepository;
 
 beforeEach(() => {
   apps = new InMemoryAppRepository();
@@ -82,6 +84,7 @@ beforeEach(() => {
   bus = new RecordingBus();
   checks = new StubCheckRunner();
   codeHost = new FakeCodeHost();
+  memory = new InMemoryMemoryRepository();
   apps.save({ id: 'app', name: 'app', repoPath: '/repo', verification: [{ name: 'test', command: 'pnpm test' }, { name: 'build', command: 'pnpm build' }], createdAt: '2026-09-24T09:00:00Z' });
   epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'Interface', status: 'active', position: 1, description: '', breakdown: { status: 'idle' } });
 });
@@ -94,7 +97,7 @@ function givenTask(phaseIndex: number, status: TaskStatus = { kind: 'ready', mod
 
 function runner(agent: ScriptedAgentRunner, budget = { maxTokens: 400_000, maxTurns: 80 }, agentDefaults = new InMemoryAgentDefaultsStore()): PhaseRunner {
   return new PhaseRunner({
-    apps, epics, tasks, runs, decisions, transcripts, workspace, agent, bus, budget, agentDefaults,
+    apps, epics, tasks, runs, decisions, transcripts, workspace, agent, bus, budget, agentDefaults, memory,
     clock: new FixedClock(),
     ids: new SequentialIds(),
     failurePolicy: DEFAULT_FAILURE_POLICY,
@@ -109,6 +112,25 @@ function runner(agent: ScriptedAgentRunner, budget = { maxTokens: 400_000, maxTu
 }
 
 describe('PhaseRunner', () => {
+  it('turns the retro output into memory proposals, finishes the task and removes its worktree', async () => {
+    const withRetro = { ...GRILL_LIFECYCLE, phases: [...GRILL_LIFECYCLE.phases, { id: 'retro', skill: 'retro', output: 'memory' as const, skippable: true }] };
+    givenTask(withRetro.phases.length - 1, { kind: 'ready', mode: 'fresh' }, { lifecycle: withRetro });
+    const output = { summary: 'Learned', lessons: [{ text: 'Run the migrations first.', why: 'Tests failed twice.' }], terms: [{ term: 'Station', definition: 'A task on a line.', why: 'Used in the UI.' }] };
+    const agent = new ScriptedAgentRunner(script(success(output)));
+
+    const task = await runner(agent).run('t1');
+
+    expect(agent.requests[0]).toMatchObject({ skill: 'retro', outputSchema: expect.objectContaining({ required: ['summary', 'lessons', 'terms'] }) });
+    expect(task.status).toEqual({ kind: 'done' });
+    expect(memory.pendingProposals('app').map((proposal) => proposal.proposed)).toEqual([
+      { kind: 'lesson', text: 'Run the migrations first.' },
+      { kind: 'term', term: 'Station', definition: 'A task on a line.' },
+    ]);
+    expect(memory.pendingProposals('app')[0]).toMatchObject({ sourceTaskId: 't1', why: 'Tests failed twice.', status: 'pending' });
+    expect(bus.updates).toContainEqual({ kind: 'memory-changed', appId: 'app' });
+    expect(workspace.removed).toEqual(['t1']);
+  });
+
   it('runs an ungated phase, checkpoints it and moves on', async () => {
     givenTask(3);
     const agent = new ScriptedAgentRunner(script({ type: 'text', text: 'working' }, usage(1000, 200), success()));

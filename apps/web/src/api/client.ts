@@ -55,6 +55,8 @@ export const api = {
   removeLesson: (lessonId: string) => request<null>(`/lessons/${lessonId}`, { method: 'DELETE' }),
   setTerm: (appId: string, term: string, definition: string) => post<TermDto>(`/apps/${appId}/terms`, { term, definition }),
   removeTerm: (termId: string) => request<null>(`/terms/${termId}`, { method: 'DELETE' }),
+  acceptProposal: (proposalId: string) => post<null>(`/memory-proposals/${proposalId}/accept`),
+  dismissProposal: (proposalId: string) => post<null>(`/memory-proposals/${proposalId}/dismiss`),
   agentSettings: () => request<AgentSettingsDto>('/settings/agents'),
   saveAgentSettings: (fallback: AgentChoiceDto, defaults: Record<string, AgentChoiceDto>) =>
     request<AgentSettingsDto>('/settings/agents', { method: 'PUT', body: JSON.stringify({ fallback, defaults }) }),

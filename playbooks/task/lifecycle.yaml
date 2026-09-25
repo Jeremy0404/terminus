@@ -31,3 +31,7 @@ phases:
   - id: merge
     executor: code-host
     gate: merge
+  - id: retro
+    skill: retro
+    output: memory
+    skippable: true

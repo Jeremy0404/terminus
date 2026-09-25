@@ -28,3 +28,17 @@ export function memoryText(value: string, max: number, what: string): string {
 }
 
 export const sameTerm = (a: string, b: string): boolean => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+export type ProposedMemory =
+  | { readonly kind: 'lesson'; readonly text: string }
+  | { readonly kind: 'term'; readonly term: string; readonly definition: string };
+
+export interface MemoryProposal {
+  readonly id: string;
+  readonly appId: string;
+  readonly sourceTaskId: string;
+  readonly proposed: ProposedMemory;
+  readonly why: string;
+  readonly status: 'pending' | 'accepted' | 'dismissed';
+  readonly createdAt: string;
+}

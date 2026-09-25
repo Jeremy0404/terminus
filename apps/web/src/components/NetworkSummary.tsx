@@ -9,9 +9,10 @@ interface Props {
   readonly network: NetworkDto;
   readonly onStation: (epicId: string, taskId: string) => void;
   readonly onLine: (epicId: string) => void;
+  readonly onMemory: () => void;
 }
 
-export function NetworkSummary({ network, onStation, onLine }: Props) {
+export function NetworkSummary({ network, onStation, onLine, onMemory }: Props) {
   const { t } = useTranslation();
   const [adding, setAdding] = useState(false);
   const merged = network.tasks.filter((task) => task.status.kind === 'done').length;
@@ -31,6 +32,7 @@ export function NetworkSummary({ network, onStation, onLine }: Props) {
           onAct={() => {
             if (step.kind === 'open-station') onStation(step.epicId, step.taskId);
             else if (step.kind === 'break-down') onLine(step.epicId);
+            else if (step.kind === 'review-memory') onMemory();
             else setAdding(true);
           }}
         />

@@ -1,5 +1,6 @@
-import type { AgentPhaseDto, AgentSettingsDto, AppDto, LessonDto, TermDto, DecisionDto, EpicDto, InboxItemDto, NetworkDto, QuotaDto, RunDto, ServerEventDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type { AgentPhaseDto, AgentSettingsDto, AppDto, LessonDto, MemoryProposalDto, TermDto, DecisionDto, EpicDto, InboxItemDto, NetworkDto, QuotaDto, RunDto, ServerEventDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
 import type { AgentPhase, AgentSettingsView } from '../../application/agent-settings.js';
+import type { ReviewedProposal } from '../../application/project-memory.js';
 import type { RunUpdate } from '../../application/ports/system.js';
 import type { Network, TaskDetail } from '../../application/queries.js';
 import type { App } from '../../domain/app.js';
@@ -47,6 +48,7 @@ export const toNetworkDto = (network: Network): NetworkDto => ({
   epics: network.epics.map(toEpicDto),
   tasks: network.tasks.map(toTaskSummaryDto),
   inbox: network.inbox.map(toInboxItemDto),
+  memoryProposals: network.memoryProposals,
 });
 
 export const toTaskDetailDto = (detail: TaskDetail): TaskDetailDto => ({
@@ -61,6 +63,8 @@ export const toTaskDetailDto = (detail: TaskDetail): TaskDetailDto => ({
 export const toLessonDto = ({ id, text, sourceTaskId, createdAt }: Lesson): LessonDto => ({ id, text, sourceTaskId, createdAt });
 
 export const toTermDto = ({ id, term, definition, updatedAt }: Term): TermDto => ({ id, term, definition, updatedAt });
+
+export const toMemoryProposalDto = ({ id, sourceTaskId, sourceTitle, proposed, why }: ReviewedProposal): MemoryProposalDto => ({ id, sourceTaskId, sourceTitle, proposed, why });
 
 export const toQuotaDto = ({ limited, windows, observedAt }: Quota): QuotaDto => ({ limited, windows, observedAt });
 
@@ -80,5 +84,7 @@ export const toServerEventDto = (update: RunUpdate): ServerEventDto => {
       return { type: 'check-result', runId: update.runId, taskId: update.taskId, result: update.result };
     case 'quota-changed':
       return { type: 'quota-changed', quota: toQuotaDto(update.quota) };
+    case 'memory-changed':
+      return { type: 'memory-changed', appId: update.appId };
   }
 };

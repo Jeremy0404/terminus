@@ -8,7 +8,7 @@ let memory: MemoryDto;
 let calls: { method: string; path: string; body: unknown }[];
 
 beforeEach(() => {
-  memory = { lessons: [{ id: 'l1', text: 'Run the migrations first.', sourceTaskId: null, createdAt: 'x' }], terms: [], pack: '# Project memory' };
+  memory = { lessons: [{ id: 'l1', text: 'Run the migrations first.', sourceTaskId: null, createdAt: 'x' }], terms: [], proposals: [], pack: '# Project memory' };
   calls = [];
   vi.stubGlobal(
     'fetch',
@@ -45,5 +45,19 @@ describe('ProjectMemory', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retirer « Run the migrations first. »' }));
     await waitFor(() => expect(screen.getByText('Aucune leçon pour l’instant.')).toBeInTheDocument());
     expect(screen.getByText('# Project memory')).toBeInTheDocument();
+  });
+
+  it('lists proposals from the retrospective and accepts one', async () => {
+    memory = {
+      ...memory,
+      proposals: [{ id: 'p1', sourceTaskId: 't1', sourceTitle: 'Zoom', proposed: { kind: 'lesson', text: 'Keep phases in YAML.' }, why: 'Decided in the grill.' }],
+    };
+    render(<ProjectMemory app={APP} onClose={() => {}} />);
+
+    expect(await screen.findByText('Leçon proposée après « Zoom »')).toBeInTheDocument();
+    expect(screen.getByText('Decided in the grill.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter à la mémoire' }));
+
+    await waitFor(() => expect(calls).toContainEqual({ method: 'POST', path: '/api/memory-proposals/p1/accept', body: undefined }));
   });
 });

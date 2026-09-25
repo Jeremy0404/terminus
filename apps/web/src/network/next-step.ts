@@ -3,7 +3,8 @@ import type { NetworkDto, TaskSummaryDto } from '@terminus/contracts';
 export type NextStep =
   | { readonly kind: 'open-station'; readonly epicId: string; readonly taskId: string; readonly title: string }
   | { readonly kind: 'break-down'; readonly epicId: string; readonly name: string }
-  | { readonly kind: 'create-line' };
+  | { readonly kind: 'create-line' }
+  | { readonly kind: 'review-memory'; readonly count: number };
 
 const SATISFYING = ['already-done', 'obsolete', 'duplicate'];
 
@@ -14,6 +15,7 @@ function settled(task: TaskSummaryDto | undefined): boolean {
 
 export function nextStep(network: NetworkDto, lineId: string | null = null): NextStep | null {
   const epics = [...network.epics].filter((epic) => lineId === null || epic.id === lineId).sort((a, b) => a.position - b.position);
+  if (lineId === null && network.memoryProposals > 0) return { kind: 'review-memory', count: network.memoryProposals };
   if (lineId === null && epics.length === 0) return { kind: 'create-line' };
   const byId = new Map(network.tasks.map((task) => [task.id, task]));
   for (const epic of epics) {

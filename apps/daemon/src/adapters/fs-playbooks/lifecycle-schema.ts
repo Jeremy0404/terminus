@@ -9,7 +9,7 @@ const PhaseSchema = z.strictObject({
   skill: z.string().regex(PHASE_ID).optional(),
   model: z.string().min(1).optional(),
   effort: z.enum(EFFORTS).optional(),
-  output: z.enum(['decisions', 'review', 'verdict']).optional(),
+  output: z.enum(['decisions', 'review', 'verdict', 'memory']).optional(),
   executor: z.enum(['agent', 'checks', 'sync', 'code-host']).optional(),
   retryFrom: z.string().regex(PHASE_ID).optional(),
   tracks: z.array(z.enum(['standard', 'light'])).min(1).optional(),

@@ -8,6 +8,7 @@ import type { Run } from '../domain/run.js';
 import { suggestedActions, type SuggestedAction } from '../domain/suggestions.js';
 import type { Task } from '../domain/task.js';
 import type { AppRepository, DecisionRepository, EpicRepository, RunRepository, TaskRepository } from './ports/repositories.js';
+import type { MemoryRepository } from './ports/memory-repository.js';
 import type { QuotaStore } from './ports/quota-store.js';
 import type { TranscriptStore } from './ports/transcript-store.js';
 
@@ -16,6 +17,7 @@ export interface Network {
   readonly epics: readonly Epic[];
   readonly tasks: readonly Task[];
   readonly inbox: readonly InboxItem[];
+  readonly memoryProposals: number;
 }
 
 export interface TaskDetail {
@@ -33,6 +35,7 @@ export interface QueriesDeps {
   readonly decisions: DecisionRepository;
   readonly transcripts: TranscriptStore;
   readonly quota: QuotaStore;
+  readonly memory: MemoryRepository;
 }
 
 export class Queries {
@@ -46,7 +49,7 @@ export class Queries {
     const app = this.deps.apps.get(appId);
     if (!app) throw new NotFound(`Unknown app ${appId}`);
     const tasks = this.deps.tasks.listByApp(appId);
-    return { app, epics: this.deps.epics.listByApp(appId), tasks, inbox: buildInbox(tasks) };
+    return { app, epics: this.deps.epics.listByApp(appId), tasks, inbox: buildInbox(tasks), memoryProposals: this.deps.memory.pendingProposals(appId).length };
   }
 
   task(taskId: string): TaskDetail {
