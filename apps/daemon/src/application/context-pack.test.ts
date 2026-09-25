@@ -35,6 +35,12 @@ describe('ContextPack', () => {
     expect(pack).toBe('# Project memory (kept in Terminus for demo)\n\n## Product brief (approved)\n\n## Problem\n\nToo many tabs.');
   });
 
+  it('adds the approved stack and its decisions', () => {
+    const stack = { id: 'stack-ts-fastify-vue', name: 'Fastify and Vue', decisions: [{ title: 'Accounts', decision: 'None', why: 'Solo use' }] };
+    const pack = new ContextPack({ memory: new InMemoryMemoryRepository(), knowledge: bare }).forApp({ ...app, stack });
+    expect(pack).toContain('## Stack and architecture (approved)\n\nStack: Fastify and Vue (follow the `stack-ts-fastify-vue` skill)\n- Accounts: None (Solo use)');
+  });
+
   it('keeps only the most recent lessons', () => {
     const memory = new InMemoryMemoryRepository();
     for (let index = 0; index < 45; index += 1) {

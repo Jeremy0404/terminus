@@ -1,0 +1,9 @@
+id: app-stack
+phases:
+  - id: options
+    skill: stack-options
+    output: decisions
+  - id: architecture
+    skill: architecture-record
+    output: stack
+    gate: plan-approval

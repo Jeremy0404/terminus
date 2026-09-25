@@ -1,6 +1,6 @@
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { EFFORTS } from '../../domain/agent-choice.js';
-import type { VerificationCommand } from '../../domain/app.js';
+import type { AppStack, VerificationCommand } from '../../domain/app.js';
 import type { Breakdown } from '../../domain/epic.js';
 import type { DecisionAnswer, DecisionOption, Proposal } from '../../domain/decision.js';
 import type { Failure } from '../../domain/failure.js';
@@ -15,6 +15,7 @@ export const apps = sqliteTable('apps', {
   repoPath: text('repo_path').notNull(),
   verification: text('verification', { mode: 'json' }).$type<VerificationCommand[]>().notNull().default([]),
   brief: text('brief').notNull().default(''),
+  stack: text('stack', { mode: 'json' }).$type<AppStack>(),
   createdAt: text('created_at').notNull(),
 });
 

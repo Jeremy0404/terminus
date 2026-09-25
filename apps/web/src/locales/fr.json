@@ -59,7 +59,9 @@
     "merge": "Merge",
     "sync": "Synchro",
     "retro": "Rétrospective",
-    "brief": "Brief produit"
+    "brief": "Brief produit",
+    "options": "Options de stack",
+    "architecture": "Architecture"
   },
   "status": {
     "todo": "À faire",
@@ -87,7 +89,9 @@
     "merge": "Merge",
     "sync": "Sync",
     "retro": "Rétro",
-    "brief": "Brief"
+    "brief": "Brief",
+    "options": "Options",
+    "architecture": "Archi"
   },
   "decision": {
     "eyebrow": "Grill · question {{position}} sur {{total}}",
@@ -167,6 +171,11 @@
     "brief": {
       "eyebrow": "Brief à valider",
       "title": "Relis le brief : validé, il accompagnera chaque agent de l’app"
+    },
+    "stack": {
+      "eyebrow": "Stack à valider",
+      "title": "Relis la stack et les décisions : validées, elles guident chaque agent de l’app",
+      "checks": "Vérifications de l’app : {{commands}}"
     }
   },
   "run": {
@@ -410,7 +419,9 @@
       "task.sync": "Résolution de conflits",
       "task.retro": "Rétrospective",
       "app-framing.grill": "Cadrage : questions",
-      "app-framing.brief": "Cadrage : brief"
+      "app-framing.brief": "Cadrage : brief",
+      "app-stack.options": "Stack : options",
+      "app-stack.architecture": "Stack : décisions"
     },
     "save": "Enregistrer",
     "saving": "Enregistrement…",

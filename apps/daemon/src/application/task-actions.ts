@@ -24,6 +24,7 @@ import { phaseAt, type Track } from '../domain/lifecycle.js';
 import type { ChecksState, CodeHost, PullRequest } from './ports/code-host.js';
 import type { Workspace } from './ports/workspace.js';
 import { readBrief } from './brief-output.js';
+import { readStack } from './stack-output.js';
 
 export interface TaskActionsDeps {
   readonly apps: AppRepository;
@@ -102,20 +103,32 @@ export class TaskActions {
     const task = this.load(taskId);
     if (task.status.kind === 'awaiting-gate' && task.status.gate === 'merge') throw new DomainError(`Task ${taskId} is merged with merge, not approve`);
     const approved = approveGate(task);
-    if (phaseAt(task.lifecycle, task.phaseIndex).output === 'brief') this.adoptBrief(task);
+    const output = phaseAt(task.lifecycle, task.phaseIndex).output;
+    if (output === 'brief') this.adoptBrief(task);
+    if (output === 'stack') this.adoptStack(task);
     const saved = this.save(approved);
     if (saved.status.kind === 'done') this.deps.workspace.remove(this.appOf(task).repoPath, this.workspaceOf(task));
     return saved;
   }
 
   private adoptBrief(task: Task): void {
-    const run = this.deps.runs
-      .listByTask(task.id)
-      .filter((candidate) => candidate.phaseIndex === task.phaseIndex && candidate.status === 'succeeded')
-      .at(-1);
-    const brief = readBrief(run?.output);
+    const brief = readBrief(this.lastOutput(task));
     if (!brief) throw new DomainError(`Task ${task.id} has no brief to approve`);
     this.deps.apps.save({ ...this.appOf(task), brief });
+  }
+
+  private adoptStack(task: Task): void {
+    const chosen = readStack(this.lastOutput(task));
+    if (!chosen) throw new DomainError(`Task ${task.id} has no stack to approve`);
+    const app = this.appOf(task);
+    this.deps.apps.save({ ...app, stack: chosen.stack, verification: chosen.verification.length > 0 ? chosen.verification : app.verification });
+  }
+
+  private lastOutput(task: Task): unknown {
+    return this.deps.runs
+      .listByTask(task.id)
+      .filter((candidate) => candidate.phaseIndex === task.phaseIndex && candidate.status === 'succeeded')
+      .at(-1)?.output;
   }
 
   merge(taskId: string): Task {

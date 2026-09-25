@@ -128,7 +128,10 @@ describe('HTTP API', () => {
     expect(founded).toEqual([{ path: '/projects/carnet', name: 'carnet', visibility: 'private' }]);
     const network = (await call<NetworkDto>('GET', `/api/apps/${created.json.id}/network`)).json;
     expect(network.epics.map((epic) => epic.name)).toEqual(['Fondations']);
-    expect(network.tasks).toEqual([expect.objectContaining({ title: 'Cadrer l’idée', description: 'Log my rides.', phases: ['grill', 'brief'] })]);
+    expect(network.tasks).toEqual([
+      expect.objectContaining({ title: 'Cadrer l’idée', description: 'Log my rides.', phases: ['grill', 'brief'], lifecycleId: 'app-framing' }),
+      expect.objectContaining({ title: 'Choisir la stack et l’architecture', phases: ['options', 'architecture'], lifecycleId: 'app-stack' }),
+    ]);
     expect((await call('POST', '/api/apps/found', { name: 'x', idea: '' })).status).toBe(400);
   });
 

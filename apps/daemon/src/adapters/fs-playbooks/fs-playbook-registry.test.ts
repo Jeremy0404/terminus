@@ -73,7 +73,7 @@ describe('FsPlaybookRegistry', () => {
   it('accepts the playbooks shipped in the repository', () => {
     root = mkdtempSync(join(tmpdir(), 'unused-'));
     const registry = new FsPlaybookRegistry(REPO_PLAYBOOKS);
-    expect(registry.lifecycles().map((lifecycle) => lifecycle.id).sort()).toEqual(['app', 'app-framing', 'epic', 'task']);
+    expect(registry.lifecycles().map((lifecycle) => lifecycle.id).sort()).toEqual(['app', 'app-framing', 'app-stack', 'epic', 'task']);
     expect(registry.lifecycle('task').phases.map((phase) => phase.id)).toEqual([
       'spec',
       'grill',
