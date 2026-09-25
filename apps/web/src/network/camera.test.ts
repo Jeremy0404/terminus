@@ -8,6 +8,7 @@ const task = (id: string, epicId: string, status: TaskSummaryDto['status'] = { k
   id,
   epicId,
   title: id,
+  description: '',
   autonomy: 'up-to-pr',
   track: 'standard',
   agent: { model: null, effort: null },
