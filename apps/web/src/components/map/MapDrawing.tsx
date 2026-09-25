@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TaskSummaryDto } from '@terminus/contracts';
-import { ROUNDEL_OFFSET, ROUNDEL_RADIUS, type NetworkLayout } from '../../network/layout';
+import { ROUNDEL_RADIUS, type NetworkLayout, type Point } from '../../network/layout';
 import { lineColor } from '../../network/line-colors';
 import { isActive, statusKey, toneOf } from '../../network/tone';
 import type { Level } from '../../state/location';
@@ -9,18 +9,30 @@ import type { Level } from '../../state/location';
 const LABEL_CHARS = 18;
 const LABEL_BELOW = 32;
 const LABEL_ABOVE = 26;
+const ORIGIN_R = 11;
+const INTERCHANGE_R = 17;
+const ORIGIN_LABEL_GAP = 12;
+const LINE_LABEL_GAP = 8;
+const LINE_NAME_RISE = 30;
+const LINE_META_RISE = 15;
+
+const pathData = (points: readonly Point[]): string => points.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x} ${point.y}`).join(' ');
+
+const shorten = (text: string): string => (text.length > LABEL_CHARS ? `${text.slice(0, LABEL_CHARS - 1)}…` : text);
 
 interface Props {
   readonly layout: NetworkLayout;
+  readonly appName: string;
   readonly tasks: readonly TaskSummaryDto[];
   readonly level: Level;
   readonly openLine: string | null;
   readonly selectedTask: string | null;
   readonly onLine: (epicId: string) => void;
   readonly onStation: (epicId: string, taskId: string) => void;
+  readonly onBackground: () => void;
 }
 
-export const MapDrawing = memo(function MapDrawing({ layout, tasks, level, openLine, selectedTask, onLine, onStation }: Props) {
+export const MapDrawing = memo(function MapDrawing({ layout, appName, tasks, level, openLine, selectedTask, onLine, onStation, onBackground }: Props) {
   const { t } = useTranslation();
   const dimmed = (epicId: string): boolean => level !== 'network' && openLine !== epicId;
 
@@ -32,8 +44,7 @@ export const MapDrawing = memo(function MapDrawing({ layout, tasks, level, openL
         const dim = level !== 'network' && openLine !== fromEpic && openLine !== toEpic;
         return (
           <g key={`${transfer.fromTaskId}-${transfer.toTaskId}`} className={`transfer ${dim ? 'dim' : ''}`}>
-            <line x1={transfer.from.x} y1={transfer.from.y} x2={transfer.to.x} y2={transfer.to.y} className="transfer-outer" />
-            <line x1={transfer.from.x} y1={transfer.from.y} x2={transfer.to.x} y2={transfer.to.y} className="transfer-inner" />
+            <line x1={transfer.from.x} y1={transfer.from.y} x2={transfer.to.x} y2={transfer.to.y} className="interchange-link" />
           </g>
         );
       })}
@@ -45,26 +56,27 @@ export const MapDrawing = memo(function MapDrawing({ layout, tasks, level, openL
           <g key={line.epic.id} className={`line ${dimmed(line.epic.id) ? 'dim' : ''}`} style={{ color }}>
             <g className="line-hit" role="button" tabIndex={0} aria-label={t('map.line', { name: line.epic.name })} onClick={() => onLine(line.epic.id)}
               onKeyDown={(event) => event.key === 'Enter' && onLine(line.epic.id)}>
-              <line x1={line.startX} y1={line.y} x2={line.endX} y2={line.y} className="line-hit-area" />
-              <line x1={line.startX} y1={line.y} x2={line.endX} y2={line.y} className={`line-track ${planned ? 'planned' : ''}`} />
+              <path d={pathData(line.path)} className="line-hit-area" />
+              <path d={pathData(line.path)} className={`line-track ${planned ? 'planned' : ''}`} />
               <line x1={line.endX} y1={line.y - 13} x2={line.endX} y2={line.y + 13} className="line-terminus" />
-              <LineRoundel x={line.startX - ROUNDEL_OFFSET} y={line.y} code={line.epic.code} />
-              <text x={line.startX - 70} y={line.y + 6} textAnchor="end" className="line-name">
+              <LineRoundel x={line.startX} y={line.y} code={line.epic.code} />
+              <text x={line.startX + ROUNDEL_RADIUS + LINE_LABEL_GAP} y={line.y - LINE_NAME_RISE} className="line-name">
                 {line.epic.name}
               </text>
-              <text x={line.startX - 70} y={line.y + 22} textAnchor="end" className="line-meta">
+              <text x={line.startX + ROUNDEL_RADIUS + LINE_LABEL_GAP} y={line.y - LINE_META_RISE} className="line-meta">
                 {planned ? t('map.planned') : t('map.progress', { done, total: line.stations.length })}
               </text>
             </g>
-            {line.stations.map(({ task, x, y, labelSide }) => {
+            {line.stations.map(({ task, x, y, labelSide, interchange }) => {
               const tone = toneOf(task.status);
               const active = isActive(task.status);
               const selected = selectedTask === task.id;
               return (
-                <g key={task.id} className={`station tone-${tone}`} role="button" tabIndex={0}
+                <g key={task.id} className={`station tone-${tone} ${interchange ? 'interchange' : ''}`} role="button" tabIndex={0}
                   aria-label={`${task.title}, ${t(statusKey(task.status))}`}
                   onClick={() => onStation(line.epic.id, task.id)}
                   onKeyDown={(event) => event.key === 'Enter' && onStation(line.epic.id, task.id)}>
+                  {interchange && <circle cx={x} cy={y} r={INTERCHANGE_R} className="interchange-ring" />}
                   {(tone === 'signal' || tone === 'stop') && <circle cx={x} cy={y} r={13} className="station-pulse" />}
                   <circle cx={x} cy={y} r={active ? 12 : 9} className="station-dot" />
                   {task.status.kind === 'running' && (
@@ -76,7 +88,7 @@ export const MapDrawing = memo(function MapDrawing({ layout, tasks, level, openL
                   {selected && <circle cx={x} cy={y} r={21} className="station-selected" />}
                   <text x={x} y={labelSide === 'below' ? y + LABEL_BELOW : y - LABEL_ABOVE} textAnchor="middle" className={`station-label ${active ? 'active' : ''}`}>
                     <title>{task.title}</title>
-                    {task.title.length > LABEL_CHARS ? `${task.title.slice(0, LABEL_CHARS - 1)}…` : task.title}
+                    {shorten(task.title)}
                   </text>
                 </g>
               );
@@ -84,6 +96,13 @@ export const MapDrawing = memo(function MapDrawing({ layout, tasks, level, openL
           </g>
         );
       })}
+      <g className="origin" onClick={onBackground}>
+        <rect x={layout.origin.x - ORIGIN_R} y={layout.origin.top - ORIGIN_R} width={2 * ORIGIN_R} height={layout.origin.bottom - layout.origin.top + 2 * ORIGIN_R} rx={ORIGIN_R} className="origin-station" />
+        <text x={layout.origin.x - ORIGIN_R - ORIGIN_LABEL_GAP} y={layout.origin.y + 6} textAnchor="end" className="origin-name">
+          <title>{t('map.origin', { app: appName })}</title>
+          {shorten(t('map.origin', { app: appName }))}
+        </text>
+      </g>
     </>
   );
 });

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EpicDto, NetworkDto, TaskSummaryDto } from '@terminus/contracts';
-import { LEFT, STEP } from '../network/layout';
+import { layoutNetwork } from '../network/layout';
 import { APP, NETWORK, task } from '../test/fixtures';
 import type { Place } from '../state/location';
 import { NetworkMap } from './NetworkMap';
@@ -100,7 +100,7 @@ function drawn(container: HTMLElement) {
   };
 }
 
-const stationX = (index: number): number => LEFT + index * STEP;
+const stationX = (index: number): number => layoutNetwork([line('a', 1)], stations('a', index + 1)).lines[0]?.stations[index]?.x ?? NaN;
 
 describe('NetworkMap scale and scroll', () => {
   it('draws twenty lines at the same scale as one, taller than the box', () => {
@@ -238,5 +238,49 @@ describe('NetworkMap pinned roundels', () => {
     await waitFor(() => expect(container.querySelectorAll('.pinned-roundel')).toHaveLength(2));
     expect(container.querySelector('.pinned-roundel[aria-label="Ligne a"]')).not.toHaveClass('dim');
     expect(container.querySelector('.pinned-roundel[aria-label="Ligne b"]')).toHaveClass('dim');
+  });
+});
+
+const renderNetwork = () => {
+  const handlers = { onLine: vi.fn(), onStation: vi.fn(), onBackground: vi.fn() };
+  const { container } = render(<NetworkMap network={NETWORK} place={NETWORK_PLACE} {...handlers} />);
+  return { ...handlers, container };
+};
+
+describe('NetworkMap origin and interchanges', () => {
+  it('shows the origin station labelled with the app name', () => {
+    renderNetwork();
+    expect(screen.getByText('terminus', { selector: 'title' }).closest('text')).toHaveClass('origin-name');
+  });
+
+  it('reads a click on the origin as a click on the background', () => {
+    const handlers = renderNetwork();
+    fireEvent.click(screen.getByText('terminus', { selector: 'title' }));
+    expect(handlers.onBackground).toHaveBeenCalledOnce();
+    expect(handlers.onLine).not.toHaveBeenCalled();
+    expect(handlers.onStation).not.toHaveBeenCalled();
+  });
+
+  it('opens a line when it is clicked', () => {
+    const handlers = renderNetwork();
+    fireEvent.click(screen.getByRole('button', { name: 'Ligne Moteur' }));
+    expect(handlers.onLine).toHaveBeenCalledWith('engine');
+  });
+
+  it('links the two stations of a cross-line dependency with one capsule', () => {
+    const { container } = renderNetwork();
+    expect(container.querySelectorAll('.interchange-link')).toHaveLength(1);
+  });
+
+  it('draws both ends of an interchange as interchange stations that keep their tone and click', () => {
+    const handlers = renderNetwork();
+    const zoom = screen.getByRole('button', { name: 'Zoom, Besoin de toi' });
+    const adapter = screen.getByRole('button', { name: 'Adaptateur CLI, Agent en route' });
+
+    expect(zoom).toHaveClass('interchange', 'tone-stop');
+    expect(adapter).toHaveClass('interchange', 'tone-go');
+    expect(screen.getByRole('button', { name: 'Spike CLI, Mergée' })).not.toHaveClass('interchange');
+    fireEvent.click(zoom);
+    expect(handlers.onStation).toHaveBeenCalledWith('ui', 'i2');
   });
 });

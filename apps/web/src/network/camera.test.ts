@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
 import { canvasFor, lineView, mapHeight, networkScale, networkView, pinnedLines, reveal, viewOf, type Frame, type ViewBox } from './camera';
-import { layoutNetwork, LEFT, MIN_WIDTH, STEP } from './layout';
+import { layoutNetwork, LEFT, MIN_WIDTH, ROUNDEL_RADIUS, STEP } from './layout';
 
 const epic = (id: string, position: number): EpicDto => ({ id, appId: 'app', code: id.toUpperCase(), name: id, status: 'active', position, description: '', breakdown: { status: 'idle' } });
 const task = (id: string, epicId: string, status: TaskSummaryDto['status'] = { kind: 'todo' }): TaskSummaryDto => ({
@@ -145,20 +145,17 @@ describe('scroll round trip', () => {
 });
 
 describe('pinned lines', () => {
-  const dependent = { ...task('b1', 'b'), dependsOn: ['a3'] };
-  const layout = layoutNetwork([epic('a', 1), epic('b', 2)], [...longLine(10), dependent]);
+  const layout = layoutNetwork([epic('a', 1), epic('b', 2), epic('c', 3)], [...longLine(10), task('b1', 'b'), task('c1', 'c')]);
   const pinned = (x: number): string[] => pinnedLines(layout, [x, 0, 1000, 500]).map((line) => line.epic.id);
+  const roundelEdge = (index: number): number => (layout.lines[index]?.startX ?? 0) - ROUNDEL_RADIUS;
 
   it('pins nothing while the line starts are in view', () => {
     expect(pinned(-10)).toEqual([]);
   });
 
-  it('pins a line once its roundel has scrolled out on the left', () => {
-    expect(pinned(300)).toEqual(['a']);
-  });
-
-  it('pins a line that starts further right only once its own start has scrolled out', () => {
-    expect(layout.lines[1]?.startX).toBe(LEFT + 3 * STEP);
-    expect(pinned(500)).toEqual(['a', 'b']);
+  it('pins a line once its own roundel has scrolled out on the left', () => {
+    expect(roundelEdge(1)).toBeLessThan(roundelEdge(0));
+    expect(pinned((roundelEdge(1) + roundelEdge(0)) / 2)).toEqual(['b']);
+    expect(pinned(roundelEdge(0) + 1)).toEqual(['a', 'b', 'c']);
   });
 });

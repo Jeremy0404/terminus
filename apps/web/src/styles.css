@@ -92,18 +92,20 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .line, .transfer, .pinned-roundel { transition: opacity 0.45s ease; }
 .line.dim, .transfer.dim, .pinned-roundel.dim { opacity: 0.13; pointer-events: none; }
 .line-hit { cursor: pointer; }
-.line-hit-area { stroke: transparent; stroke-width: 30; }
-.line-track { stroke: currentColor; stroke-width: 11; stroke-linecap: round; }
+.line-hit-area { fill: none; stroke: transparent; stroke-width: 30; stroke-linejoin: round; }
+.line-track { fill: none; stroke: currentColor; stroke-width: 11; stroke-linecap: round; stroke-linejoin: round; }
 .line-track.planned { stroke-dasharray: 18 10; stroke-linecap: butt; }
 .line-terminus { stroke: currentColor; stroke-width: 6; stroke-linecap: round; }
 .line-roundel { fill: currentColor; }
 .pinned-roundel { cursor: pointer; }
 .pinned-roundel .line-roundel { stroke: var(--surface); stroke-width: 4; }
 .line-code { fill: #fff; font: 900 16px var(--display); }
-.line-name { fill: var(--ink); font: 900 16px var(--display); }
-.line-meta { fill: var(--ink-3); font: 800 10px var(--display); letter-spacing: 0.1em; text-transform: uppercase; }
-.transfer-outer { stroke: var(--ink); stroke-width: 12; stroke-linecap: round; }
-.transfer-inner { stroke: var(--station); stroke-width: 5; stroke-linecap: round; }
+.line-name { fill: var(--ink); font: 900 16px var(--display); paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+.line-meta { fill: var(--ink-3); font: 800 10px var(--display); letter-spacing: 0.1em; text-transform: uppercase; paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+.origin-station { fill: var(--station); stroke: var(--ink); stroke-width: 5; }
+.origin-name { fill: var(--ink); font: 900 18px var(--display); paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+.interchange-link { stroke: var(--ink); stroke-width: 16; stroke-linecap: round; }
+.interchange-ring { fill: var(--station); stroke: var(--ink); stroke-width: 4; }
 .station { cursor: pointer; }
 .station-dot { fill: var(--station); stroke: currentColor; stroke-width: 4; }
 .station:hover .station-dot { stroke-width: 6; }
