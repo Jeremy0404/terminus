@@ -11,6 +11,7 @@ import { LineCard } from './components/LineCard';
 import { NetworkMap } from './components/NetworkMap';
 import { NetworkSummary } from './components/NetworkSummary';
 import { Platform } from './components/Platform';
+import { ProductionCard } from './components/ProductionCard';
 import { QuotaGauge } from './components/QuotaGauge';
 import { AgentSettings } from './components/settings/AgentSettings';
 import { ProjectMemory } from './components/memory/ProjectMemory';
@@ -166,6 +167,7 @@ function Cockpit() {
               />
             </section>
             <aside className="rail">
+              {level === 'network' && <ProductionCard key={network.data.app.id} appId={network.data.app.id} />}
               {level === 'network' && <NetworkSummary network={network.data} onStation={openStation} onLine={(line) => go({ app: appId, line, task: null })} onMemory={() => setPanel('memory')} />}
               {level === 'line' && place.line && <LineCard network={network.data} lineId={place.line} onStation={openStation} />}
               {level === 'platform' && place.task && (
