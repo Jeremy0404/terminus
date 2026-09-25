@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono, type Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { ZodError, type ZodType } from 'zod';
@@ -43,6 +46,7 @@ const KEEPALIVE_MS = 15_000;
 
 export interface HttpDeps {
   readonly version: string;
+  readonly webDir?: string | null;
   readonly queries: Queries;
   readonly catalog: Catalog;
   readonly adoption: Adoption;
@@ -229,7 +233,25 @@ export function createHttpApp(deps: HttpDeps): Hono {
     }),
   );
 
+  if (deps.webDir) serveWeb(app, deps.webDir);
+
   return app;
+}
+
+function serveWeb(app: Hono, webDir: string): void {
+  const index = join(webDir, 'index.html');
+  const page = (c: Context): Response | Promise<Response> => {
+    if (c.req.path.startsWith('/api/') || !existsSync(index)) return c.notFound();
+    c.header('Cache-Control', 'no-cache');
+    return c.html(readFileSync(index, 'utf8'));
+  };
+  app.get('/', page);
+  app.use('/assets/*', async (c, next) => {
+    await next();
+    if (c.res.ok) c.res.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  });
+  app.use('*', serveStatic({ root: webDir }));
+  app.get('*', page);
 }
 
 async function body<T>(c: Context, schema: ZodType<T>): Promise<T> {

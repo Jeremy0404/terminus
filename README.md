@@ -20,6 +20,9 @@ pnpm dev
 `pnpm dev` starts the daemon on `http://127.0.0.1:4317` and the web UI on Vite's dev server,
 which proxies `/api` to the daemon. Set `TERMINUS_PORT` to use another daemon port.
 
+For daily use, build once (`pnpm run build`) and run the daemon alone (`node apps/daemon/dist/main.js`):
+it serves the built web app itself at `http://localhost:4317` (`TERMINUS_WEB_DIR` points elsewhere).
+
 ## Running agents
 
 Terminus drives the Claude Code CLI headless, isolated from your own Claude Code configuration:
