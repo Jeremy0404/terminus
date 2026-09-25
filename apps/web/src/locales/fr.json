@@ -13,6 +13,7 @@
   "map": {
     "label": "Plan du réseau de {{app}}",
     "line": "Ligne {{name}}",
+    "origin": "{{app}}",
     "planned": "En projet",
     "progress": "{{done}}/{{total}} mergées"
   },
