@@ -25,6 +25,7 @@ import type { ChecksState, CodeHost, PullRequest } from './ports/code-host.js';
 import type { Workspace } from './ports/workspace.js';
 import { readBrief } from './brief-output.js';
 import { readStack } from './stack-output.js';
+import type { ExportHooks } from './vault-export.js';
 
 export interface TaskActionsDeps {
   readonly apps: AppRepository;
@@ -38,6 +39,7 @@ export interface TaskActionsDeps {
   readonly ids: IdGenerator;
   readonly bus: RunEventBus;
   readonly baseRef: string;
+  readonly exporter: ExportHooks;
 }
 
 export interface Closed {
@@ -103,9 +105,10 @@ export class TaskActions {
     const task = this.load(taskId);
     if (task.status.kind === 'awaiting-gate' && task.status.gate === 'merge') throw new DomainError(`Task ${taskId} is merged with merge, not approve`);
     const approved = approveGate(task);
-    const output = phaseAt(task.lifecycle, task.phaseIndex).output;
-    if (output === 'brief') this.adoptBrief(task);
-    if (output === 'stack') this.adoptStack(task);
+    const phase = phaseAt(task.lifecycle, task.phaseIndex);
+    if (phase.output === 'brief') this.adoptBrief(task);
+    if (phase.output === 'stack') this.adoptStack(task);
+    if (phase.id === 'plan' && phase.gate === 'plan-approval') this.deps.exporter.planApproved(this.appOf(task), task);
     const saved = this.save(approved);
     if (saved.status.kind === 'done') this.deps.workspace.remove(this.appOf(task).repoPath, this.workspaceOf(task));
     return saved;
@@ -114,14 +117,18 @@ export class TaskActions {
   private adoptBrief(task: Task): void {
     const brief = readBrief(this.lastOutput(task));
     if (!brief) throw new DomainError(`Task ${task.id} has no brief to approve`);
-    this.deps.apps.save({ ...this.appOf(task), brief });
+    const app = { ...this.appOf(task), brief };
+    this.deps.apps.save(app);
+    this.deps.exporter.briefApproved(app, brief);
   }
 
   private adoptStack(task: Task): void {
     const chosen = readStack(this.lastOutput(task));
     if (!chosen) throw new DomainError(`Task ${task.id} has no stack to approve`);
-    const app = this.appOf(task);
-    this.deps.apps.save({ ...app, stack: chosen.stack, verification: chosen.verification.length > 0 ? chosen.verification : app.verification });
+    const current = this.appOf(task);
+    const app = { ...current, stack: chosen.stack, verification: chosen.verification.length > 0 ? chosen.verification : current.verification };
+    this.deps.apps.save(app);
+    this.deps.exporter.stackApproved(app, chosen.records, task);
   }
 
   private lastOutput(task: Task): unknown {
@@ -147,6 +154,7 @@ export class TaskActions {
       throw new DomainError(`GitHub refused to merge pull request #${pullRequest.number}: ${typeof stderr === 'string' && stderr.trim() ? stderr.trim() : String(error)}`);
     }
     const merged = this.save(approveGate(task));
+    this.deps.exporter.taskMerged(app, task);
     if (merged.status.kind === 'done') this.deps.workspace.remove(app.repoPath, this.workspaceOf(task));
     return merged;
   }

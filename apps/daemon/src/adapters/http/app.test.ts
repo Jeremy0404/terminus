@@ -53,6 +53,7 @@ function start(...scripts: AgentScript[]): void {
       agentDefaults: new InMemoryAgentDefaultsStore(),
       memory: new InMemoryMemoryRepository(),
       repositories: { create: (path, name, visibility) => void founded.push({ path, name, visibility }) },
+      vault: null,
       knowledge: { contextDoc: () => 'Glossary of the demo repo.', decisions: () => [{ path: 'docs/adr/0001-use-sqlite.md', title: 'Use SQLite' }] },
       checks: greenChecks,
       codeHost,

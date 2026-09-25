@@ -13,6 +13,7 @@ import type { AgentRunner } from './application/ports/agent-runner.js';
 import type { MemoryRepository } from './application/ports/memory-repository.js';
 import type { RepositoryKnowledge } from './application/ports/repository-knowledge.js';
 import type { RepositoryCreator } from './application/ports/repository-creator.js';
+import type { Vault } from './application/ports/vault.js';
 import type { CheckRunner } from './application/ports/check-runner.js';
 import type { CodeHost } from './application/ports/code-host.js';
 import type { IssueTracker } from './application/ports/issue-tracker.js';
@@ -37,6 +38,7 @@ import { QuotaTrackingRunner } from './application/quota-tracker.js';
 import { Scheduler } from './application/scheduler.js';
 import { STATION_DRAFT_TIMEOUT_MS, StationDrafter } from './application/station-drafter.js';
 import { TaskActions } from './application/task-actions.js';
+import { NO_EXPORT, VaultExport } from './application/vault-export.js';
 import { DEFAULT_FAILURE_POLICY } from './domain/failure.js';
 
 export interface Adapters {
@@ -55,6 +57,7 @@ export interface Adapters {
   readonly memory: MemoryRepository;
   readonly knowledge: RepositoryKnowledge;
   readonly repositories: RepositoryCreator;
+  readonly vault: Vault | null;
   readonly checks: CheckRunner;
   readonly codeHost: CodeHost;
   readonly scanner: RepoScanner;
@@ -94,7 +97,10 @@ export function compose(given: Adapters, settings: Settings): Services {
   const scheduler = new Scheduler(adapters.apps, adapters.tasks, phases, settings.concurrency, (taskId, error) => {
     console.error(`run of ${taskId} crashed`, error);
   });
-  const actions = new TaskActions({ ...adapters, bus, baseRef: settings.baseRef });
+  const exporter = adapters.vault
+    ? new VaultExport({ vault: adapters.vault, notes: adapters.notes, clock: adapters.clock, onError: (error) => console.error('vault export failed', error) })
+    : NO_EXPORT;
+  const actions = new TaskActions({ ...adapters, bus, baseRef: settings.baseRef, exporter });
   const catalog = new Catalog({ ...adapters, bus });
   const planner = new EpicPlanner({ ...adapters, catalog, bus, budget: settings.budget, baseRef: settings.baseRef });
   const drafter = new StationDrafter({ ...adapters, timeoutMs: STATION_DRAFT_TIMEOUT_MS });

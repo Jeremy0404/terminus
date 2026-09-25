@@ -103,7 +103,13 @@ export class FakeCodeHost implements CodeHost {
 }
 
 export class FakeTaskNotes implements TaskNotes {
+  readonly files = new Map<string, string>();
+
   directoryFor(taskId: string): string {
     return `/notes/${taskId}`;
+  }
+
+  read(taskId: string, file: string): string | null {
+    return this.files.get(`${taskId}/${file}`) ?? null;
   }
 }

@@ -10,10 +10,12 @@ describe('readStack', () => {
         stackName: 'Static site',
         decisions: [{ title: 'Hosting', decision: 'nginx', why: 'Simple' }, { title: '', decision: 'x', why: '' }],
         verification: [{ name: 'html', command: 'npx --yes html-validate "**/*.html"' }],
+        records: [{ slug: 'serve-with-nginx', title: 'Serve the site with nginx', context: 'Static pages.', decision: 'We serve with nginx.', consequences: 'No server code.' }],
       }),
     ).toEqual({
       stack: { id: 'stack-static-site', name: 'Static site', decisions: [{ title: 'Hosting', decision: 'nginx', why: 'Simple' }] },
       verification: [{ name: 'html', command: 'npx --yes html-validate "**/*.html"' }],
+      records: [{ slug: 'serve-with-nginx', title: 'Serve the site with nginx', context: 'Static pages.', decision: 'We serve with nginx.', consequences: 'No server code.' }],
     });
   });
 

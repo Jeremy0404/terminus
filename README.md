@@ -56,6 +56,8 @@ Other modes:
 - `TERMINUS_AGENT=demo` — a scripted demo agent, no Claude involved (the default for `pnpm dev`).
 - `TERMINUS_AGENT_ISOLATION=off` — run agents on your own Claude Code configuration instead.
 - `TERMINUS_HOME`, `TERMINUS_PORT`, `TERMINUS_CONCURRENCY` — data folder, daemon port, parallel runs.
+- `TERMINUS_PROJECTS_DIR` — where "Nouvelle app" creates repositories (default `~/dev/projects`).
+- `TERMINUS_VAULT_DIR` — an Obsidian vault (a git repository) to export approved briefs, architecture decisions and validated plans into, under `Projects/<app>/`, each export in its own commit; also read from `~/.terminus/.env`. Unset, nothing is exported.
 
 ## Scripts
 
