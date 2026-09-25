@@ -6,6 +6,7 @@ import { layoutNetwork, STEP, withoutDeliveredLines, type NetworkLayout } from '
 import { levelOf, type Place } from '../state/location';
 import { useHideDelivered } from '../state/preferences';
 import { MapDrawing } from './map/MapDrawing';
+import { PinnedRoundels } from './map/PinnedRoundels';
 import { useDragPan } from './map/useDragPan';
 import { useFrame } from './map/useFrame';
 
@@ -57,6 +58,8 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground }: 
   const shown = useRef<Shown | null>(null);
   const animation = useRef<number | null>(null);
   const layoutNow = useRef<NetworkLayout>(layout);
+  const [view, setView] = useState<ViewBox | null>(null);
+  const scrollFrame = useRef<number | null>(null);
   const level = levelOf(place);
   const stopZoom = useCallback(() => {
     if (animation.current !== null) cancelAnimationFrame(animation.current);
@@ -72,6 +75,7 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground }: 
     const current = viewOf(canvas.current, { left: box.scrollLeft, top: box.scrollTop }, frame);
     canvas.current = canvasFor(current, layout, frame);
     paint(element, box, canvas.current);
+    setView(current);
   }, [layout, box, frame]);
 
   useLayoutEffect(() => {
@@ -91,6 +95,7 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground }: 
     const show = (view: ViewBox): void => {
       canvas.current = canvasFor(view, layoutNow.current, frame);
       paint(element, box, canvas.current);
+      setView(view);
     };
     if (!from || resized || prefersReducedMotion() || typeof requestAnimationFrame === 'undefined') {
       show(to);
@@ -106,6 +111,21 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground }: 
     animation.current = requestAnimationFrame(step);
     return stopZoom;
   }, [box, network.app.id, place.line, place.task, frame, stopZoom]);
+
+  const followScroll = useCallback(() => {
+    if (scrollFrame.current !== null || typeof requestAnimationFrame === 'undefined') return;
+    scrollFrame.current = requestAnimationFrame(() => {
+      scrollFrame.current = null;
+      if (box && canvas.current) setView(viewOf(canvas.current, { left: box.scrollLeft, top: box.scrollTop }, frame));
+    });
+  }, [box, frame]);
+
+  useLayoutEffect(
+    () => () => {
+      if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current);
+    },
+    [],
+  );
 
   const allHidden = layout.lines.length === 0 && network.epics.length > 0;
 
@@ -125,10 +145,12 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground }: 
           style={{ height: mapHeight(layout, frame.width) }}
           onPointerDown={pan.onPointerDown}
           onClickCapture={pan.onClickCapture}
+          onScroll={followScroll}
         >
           <svg ref={svg} className="network-map" preserveAspectRatio="xMinYMin meet" role="img" aria-label={t('map.label', { app: network.app.name })}>
             <rect className="map-background" x={-5000} y={-5000} width={10000} height={10000} onClick={onBackground} />
             <MapDrawing layout={layout} tasks={network.tasks} level={level} openLine={place.line} selectedTask={place.task} onLine={onLine} onStation={onStation} />
+            {view && <PinnedRoundels layout={layout} view={view} level={level} openLine={place.line} onLine={onLine} />}
           </svg>
         </div>
       )}

@@ -89,14 +89,16 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .map-empty { margin: 0; padding: 60px 24px; text-align: center; color: var(--ink-2); }
 .network-map { display: block; }
 .map-background { fill: transparent; }
-.line, .transfer { transition: opacity 0.45s ease; }
-.line.dim, .transfer.dim { opacity: 0.13; pointer-events: none; }
+.line, .transfer, .pinned-roundel { transition: opacity 0.45s ease; }
+.line.dim, .transfer.dim, .pinned-roundel.dim { opacity: 0.13; pointer-events: none; }
 .line-hit { cursor: pointer; }
 .line-hit-area { stroke: transparent; stroke-width: 30; }
 .line-track { stroke: currentColor; stroke-width: 11; stroke-linecap: round; }
 .line-track.planned { stroke-dasharray: 18 10; stroke-linecap: butt; }
 .line-terminus { stroke: currentColor; stroke-width: 6; stroke-linecap: round; }
 .line-roundel { fill: currentColor; }
+.pinned-roundel { cursor: pointer; }
+.pinned-roundel .line-roundel { stroke: var(--surface); stroke-width: 4; }
 .line-code { fill: #fff; font: 900 16px var(--display); }
 .line-name { fill: var(--ink); font: 900 16px var(--display); }
 .line-meta { fill: var(--ink-3); font: 800 10px var(--display); letter-spacing: 0.1em; text-transform: uppercase; }

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EpicDto, NetworkDto, TaskSummaryDto } from '@terminus/contracts';
 import { LEFT, STEP } from '../network/layout';
@@ -206,5 +206,37 @@ describe('NetworkMap drag to pan', () => {
     drag(screen.getByRole('button', { name: /^a 1,/ }), 40, 'touch');
 
     expect(box.scrollLeft).toBe(0);
+  });
+});
+
+describe('NetworkMap pinned roundels', () => {
+  const network = networkOf([line('a', 1), line('b', 2)], [...stations('a', 30), ...stations('b', 30)]);
+
+  function scrollRight(container: HTMLElement) {
+    const { box } = drawn(container);
+    box.scrollLeft += 400;
+    fireEvent.scroll(box);
+  }
+
+  it('pins the roundel of a line scrolled past its start, and it opens the line', async () => {
+    const onLine = vi.fn();
+    const { container } = render(<NetworkMap network={network} place={NETWORK_PLACE} onLine={onLine} onStation={vi.fn()} onBackground={vi.fn()} />);
+    expect(screen.getAllByRole('button', { name: 'Ligne a' })).toHaveLength(1);
+
+    scrollRight(container);
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Ligne a' })).toHaveLength(2));
+
+    const pin = container.querySelector('.pinned-roundel[aria-label="Ligne a"]') as Element;
+    fireEvent.click(pin);
+    expect(onLine).toHaveBeenCalledWith('a');
+  });
+
+  it('dims the pins of the other lines in line view', async () => {
+    const { container } = renderMap(network, { app: APP.id, line: 'a', task: null });
+    scrollRight(container);
+
+    await waitFor(() => expect(container.querySelectorAll('.pinned-roundel')).toHaveLength(2));
+    expect(container.querySelector('.pinned-roundel[aria-label="Ligne a"]')).not.toHaveClass('dim');
+    expect(container.querySelector('.pinned-roundel[aria-label="Ligne b"]')).toHaveClass('dim');
   });
 });

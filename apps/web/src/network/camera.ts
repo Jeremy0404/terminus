@@ -1,4 +1,4 @@
-import { LEFT, MIN_WIDTH, STEP, type NetworkLayout } from './layout';
+import { LEFT, MIN_WIDTH, ROUNDEL_OFFSET, ROUNDEL_RADIUS, STEP, type LinePosition, type NetworkLayout } from './layout';
 
 export type ViewBox = readonly [x: number, y: number, width: number, height: number];
 
@@ -76,4 +76,8 @@ export function canvasFor(view: ViewBox, layout: NetworkLayout, frame: Frame): C
 export function viewOf(canvas: Canvas, scroll: { readonly left: number; readonly top: number }, frame: Frame): ViewBox {
   const scale = canvas.width / canvas.viewBox[2];
   return [canvas.viewBox[0] + scroll.left / scale, canvas.viewBox[1] + scroll.top / scale, frame.width / scale, frame.height / scale];
+}
+
+export function pinnedLines(layout: NetworkLayout, view: ViewBox): readonly LinePosition[] {
+  return layout.lines.filter((line) => line.startX - ROUNDEL_OFFSET - ROUNDEL_RADIUS < view[0]);
 }
