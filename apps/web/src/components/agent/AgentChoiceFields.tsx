@@ -9,9 +9,11 @@ interface Props {
   readonly onChange: (choice: AgentChoiceDto) => void;
   readonly disabled?: boolean;
   readonly label: string;
+  readonly emptyModel?: string;
+  readonly emptyEffort?: string;
 }
 
-export function AgentChoiceFields({ choice, onChange, disabled = false, label }: Props) {
+export function AgentChoiceFields({ choice, onChange, disabled = false, label, emptyModel, emptyEffort }: Props) {
   const { t } = useTranslation();
   const models = choice.model && !(MODELS as readonly string[]).includes(choice.model) ? [...MODELS, choice.model] : MODELS;
   return (
@@ -22,7 +24,7 @@ export function AgentChoiceFields({ choice, onChange, disabled = false, label }:
         disabled={disabled}
         onChange={(event) => onChange({ ...choice, model: event.target.value || null })}
       >
-        <option value="">{t('agent.defaultModel')}</option>
+        <option value="">{emptyModel ?? t('agent.defaultModel')}</option>
         {models.map((model) => (
           <option key={model} value={model}>
             {t(`agent.models.${model}`, { defaultValue: model })}
@@ -35,7 +37,7 @@ export function AgentChoiceFields({ choice, onChange, disabled = false, label }:
         disabled={disabled}
         onChange={(event) => onChange({ ...choice, effort: (event.target.value || null) as EffortDto | null })}
       >
-        <option value="">{t('agent.defaultEffort')}</option>
+        <option value="">{emptyEffort ?? t('agent.defaultEffort')}</option>
         {EFFORT_LEVELS.map((effort) => (
           <option key={effort} value={effort}>
             {t(`agent.efforts.${effort}`)}

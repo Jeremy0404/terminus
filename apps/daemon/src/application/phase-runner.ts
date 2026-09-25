@@ -1,4 +1,4 @@
-import { choiceKey, resolveChoice, type AgentChoice } from '../domain/agent-choice.js';
+import { choiceFor, choiceKey, type AgentChoice } from '../domain/agent-choice.js';
 import type { Decision } from '../domain/decision.js';
 import { DomainError } from '../domain/errors.js';
 import { isLooping, type Failure, type FailurePolicy } from '../domain/failure.js';
@@ -182,7 +182,7 @@ export class PhaseRunner {
   }
 
   private choiceFor(task: Task, phase: PhaseDefinition): AgentChoice {
-    return resolveChoice(task.agent, this.deps.agentDefaults.all()[choiceKey(task.lifecycle.id, phase.id)], phase);
+    return choiceFor(this.deps.agentDefaults.all(), choiceKey(task.lifecycle.id, phase.id), phase, task.agent);
   }
 
   private async runSync(ready: Task, app: App, phase: PhaseDefinition, taskWorkspace: TaskWorkspace): Promise<Task> {

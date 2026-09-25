@@ -1,6 +1,6 @@
 import type {
   AgentChoiceDto,
-  AgentPhaseDto,
+  AgentSettingsDto,
   AppDto,
   ChecksResponseDto,
   CheckResultDto,
@@ -47,9 +47,9 @@ export type TaskAction = 'open' | 'approve' | 'merge' | 'resume-from-manual' | '
 export const api = {
   apps: () => request<AppDto[]>('/apps'),
   quota: () => request<QuotaDto | null>('/quota'),
-  agentSettings: () => request<AgentPhaseDto[]>('/settings/agents'),
-  saveAgentSettings: (defaults: Record<string, AgentChoiceDto>) =>
-    request<AgentPhaseDto[]>('/settings/agents', { method: 'PUT', body: JSON.stringify({ defaults }) }),
+  agentSettings: () => request<AgentSettingsDto>('/settings/agents'),
+  saveAgentSettings: (fallback: AgentChoiceDto, defaults: Record<string, AgentChoiceDto>) =>
+    request<AgentSettingsDto>('/settings/agents', { method: 'PUT', body: JSON.stringify({ fallback, defaults }) }),
   chooseAgent: (taskId: string, choice: AgentChoiceDto) => post<TaskSummaryDto>(`/tasks/${taskId}/agent`, choice),
   network: (appId: string) => request<NetworkDto>(`/apps/${appId}/network`),
   task: (taskId: string) => request<TaskDetailDto>(`/tasks/${taskId}`),

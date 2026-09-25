@@ -1,4 +1,4 @@
-import { choiceKey, resolveChoice } from '../domain/agent-choice.js';
+import { choiceFor, choiceKey } from '../domain/agent-choice.js';
 import type { Epic } from '../domain/epic.js';
 import { IDLE_BREAKDOWN } from '../domain/epic.js';
 import { DomainError } from '../domain/errors.js';
@@ -101,7 +101,7 @@ export class EpicPlanner {
       const notesDir = this.deps.notes.directoryFor(`epic-${epic.id}`);
       const lifecycle = this.deps.playbooks.lifecycle('epic');
       const phase = lifecycle.phases.find((candidate) => candidate.id === BREAKDOWN_PHASE);
-      const choice = resolveChoice(this.deps.agentDefaults.all()[choiceKey(lifecycle.id, BREAKDOWN_PHASE)], phase);
+      const choice = choiceFor(this.deps.agentDefaults.all(), choiceKey(lifecycle.id, BREAKDOWN_PHASE), phase);
       const handle = this.deps.agent.start({
         runId,
         sessionId: this.deps.ids.uuid(),
