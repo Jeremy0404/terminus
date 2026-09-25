@@ -5,6 +5,7 @@ import type { Breakdown } from '../../domain/epic.js';
 import type { DecisionAnswer, DecisionOption, Proposal } from '../../domain/decision.js';
 import type { Failure } from '../../domain/failure.js';
 import type { PhaseDefinition } from '../../domain/lifecycle.js';
+import type { ProposedMemory } from '../../domain/memory.js';
 import type { QuotaWindow } from '../../domain/quota.js';
 import type { TaskStatus } from '../../domain/task.js';
 
@@ -155,4 +156,18 @@ export const terms = sqliteTable(
     updatedAt: text('updated_at').notNull(),
   },
   (table) => [index('terms_app_idx').on(table.appId)],
+);
+
+export const memoryProposals = sqliteTable(
+  'memory_proposals',
+  {
+    id: text('id').primaryKey(),
+    appId: text('app_id').notNull().references(() => apps.id),
+    sourceTaskId: text('source_task_id').notNull(),
+    proposed: text('proposed', { mode: 'json' }).$type<ProposedMemory>().notNull(),
+    why: text('why').notNull(),
+    status: text('status', { enum: ['pending', 'accepted', 'dismissed'] }).notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [index('memory_proposals_app_idx').on(table.appId)],
 );

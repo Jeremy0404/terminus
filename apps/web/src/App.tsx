@@ -84,6 +84,7 @@ function Cockpit() {
         {current && (
           <button type="button" className="btn small" aria-pressed={panel === 'memory'} onClick={() => setPanel(panel === 'memory' ? null : 'memory')}>
             {t('memory.open')}
+            {(network.data?.memoryProposals ?? 0) > 0 && <span className="badge" aria-label={t('memory.pending', { count: network.data?.memoryProposals })}>{network.data?.memoryProposals}</span>}
           </button>
         )}
         <button type="button" className="btn small" aria-pressed={panel === 'settings'} onClick={() => setPanel(panel === 'settings' ? null : 'settings')}>
@@ -132,7 +133,7 @@ function Cockpit() {
               />
             </section>
             <aside className="rail">
-              {level === 'network' && <NetworkSummary network={network.data} onStation={openStation} onLine={(line) => go({ app: appId, line, task: null })} />}
+              {level === 'network' && <NetworkSummary network={network.data} onStation={openStation} onLine={(line) => go({ app: appId, line, task: null })} onMemory={() => setPanel('memory')} />}
               {level === 'line' && place.line && <LineCard network={network.data} lineId={place.line} onStation={openStation} />}
               {level === 'platform' && place.task && (
                 <Platform network={network.data} taskId={place.task} onClose={() => go({ ...place, app: appId, task: null })} />

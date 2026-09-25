@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AppDto, MemoryDto } from '@terminus/contracts';
 import { api } from '../../api/client';
+import { useServerEvents } from '../../api/events';
 import { useAction } from '../platform/useAction';
 
 export function ProjectMemory({ app, onClose }: { app: AppDto; onClose: () => void }) {
@@ -13,6 +14,9 @@ export function ProjectMemory({ app, onClose }: { app: AppDto; onClose: () => vo
   const [definition, setDefinition] = useState('');
   const [lesson, setLesson] = useState('');
   const { busy, error, run } = useAction();
+  useServerEvents((event) => {
+    if (event.type === 'memory-changed' && event.appId === app.id) setVersion((current) => current + 1);
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -50,6 +54,26 @@ export function ProjectMemory({ app, onClose }: { app: AppDto; onClose: () => vo
       {loadError && <p className="action-error" role="alert">{loadError}</p>}
       {memory && (
         <>
+          {memory.proposals.length > 0 && (
+            <>
+              <h3>{t('memory.proposals.title')}</h3>
+              <ul className="memory-list proposals">
+                {memory.proposals.map((proposal) => (
+                  <li key={proposal.id}>
+                    <span>
+                      <span className="eyebrow">{t(`memory.proposals.${proposal.proposed.kind}`, { task: proposal.sourceTitle })}</span>
+                      {proposal.proposed.kind === 'lesson' ? proposal.proposed.text : <><b>{proposal.proposed.term}</b> {proposal.proposed.definition}</>}
+                      {proposal.why && <span className="muted small proposal-why">{proposal.why}</span>}
+                    </span>
+                    <span className="row">
+                      <button type="button" className="btn small primary" disabled={busy} onClick={() => change(() => api.acceptProposal(proposal.id))}>{t('memory.proposals.accept')}</button>
+                      <button type="button" className="btn small" disabled={busy} onClick={() => change(() => api.dismissProposal(proposal.id))}>{t('memory.proposals.dismiss')}</button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
           <h3>{t('memory.terms.title')}</h3>
           <ul className="memory-list">
             {memory.terms.map((entry) => (

@@ -37,6 +37,7 @@ export const NETWORK: NetworkDto = {
     { taskId: 'i2', epicId: 'ui', reason: { kind: 'blocked' }, unblocks: 0 },
     { taskId: 'i1', epicId: 'ui', reason: { kind: 'gate', gate: 'human-review' }, unblocks: 1 },
   ],
+  memoryProposals: 0,
 };
 
 export const detailOf = (summary: TaskSummaryDto): TaskDetailDto => ({ task: summary, checkpoints: [], failures: [], actions: [], runs: [], decisions: [] });

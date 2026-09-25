@@ -64,6 +64,13 @@
       "when": 1790337506970,
       "tag": "0008_project_memory",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790337979659,
+      "tag": "0009_memory_proposals",
+      "breakpoints": true
     }
   ]
 }

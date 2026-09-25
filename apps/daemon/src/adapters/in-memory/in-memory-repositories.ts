@@ -13,7 +13,7 @@ import type { AgentDefaults } from '../../domain/agent-choice.js';
 import type { App } from '../../domain/app.js';
 import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
-import type { Lesson, Term } from '../../domain/memory.js';
+import type { Lesson, MemoryProposal, Term } from '../../domain/memory.js';
 import type { Quota } from '../../domain/quota.js';
 import type { Run } from '../../domain/run.js';
 import type { Task } from '../../domain/task.js';
@@ -87,6 +87,7 @@ export class InMemoryAgentDefaultsStore implements AgentDefaultsStore {
 export class InMemoryMemoryRepository implements MemoryRepository {
   private readonly lessonsById = new Map<string, Lesson>();
   private readonly termsById = new Map<string, Term>();
+  private readonly proposalsById = new Map<string, MemoryProposal>();
 
   lessons(appId: string): Lesson[] {
     return [...this.lessonsById.values()].filter((lesson) => lesson.appId === appId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -110,6 +111,18 @@ export class InMemoryMemoryRepository implements MemoryRepository {
 
   removeTerm(id: string): boolean {
     return this.termsById.delete(id);
+  }
+
+  pendingProposals(appId: string): MemoryProposal[] {
+    return [...this.proposalsById.values()].filter((proposal) => proposal.appId === appId && proposal.status === 'pending');
+  }
+
+  proposal(id: string): MemoryProposal | null {
+    return this.proposalsById.get(id) ?? null;
+  }
+
+  saveProposal(proposal: MemoryProposal): void {
+    this.proposalsById.set(proposal.id, proposal);
   }
 }
 

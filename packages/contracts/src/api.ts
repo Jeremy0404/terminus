@@ -167,6 +167,7 @@ export interface NetworkDto {
   readonly epics: readonly EpicDto[];
   readonly tasks: readonly TaskSummaryDto[];
   readonly inbox: readonly InboxItemDto[];
+  readonly memoryProposals: number;
 }
 
 export type SuggestedActionDto =
@@ -265,9 +266,22 @@ export interface TermDto {
   readonly updatedAt: string;
 }
 
+export type ProposedMemoryDto =
+  | { readonly kind: 'lesson'; readonly text: string }
+  | { readonly kind: 'term'; readonly term: string; readonly definition: string };
+
+export interface MemoryProposalDto {
+  readonly id: string;
+  readonly sourceTaskId: string;
+  readonly sourceTitle: string;
+  readonly proposed: ProposedMemoryDto;
+  readonly why: string;
+}
+
 export interface MemoryDto {
   readonly lessons: readonly LessonDto[];
   readonly terms: readonly TermDto[];
+  readonly proposals: readonly MemoryProposalDto[];
   readonly pack: string;
 }
 
@@ -278,7 +292,8 @@ export type ServerEventDto =
   | { readonly type: 'check-started'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string }
   | { readonly type: 'check-output'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string; readonly outputTail: string }
   | { readonly type: 'check-result'; readonly runId: string; readonly taskId: string; readonly result: unknown }
-  | { readonly type: 'quota-changed'; readonly quota: QuotaDto };
+  | { readonly type: 'quota-changed'; readonly quota: QuotaDto }
+  | { readonly type: 'memory-changed'; readonly appId: string };
 
 const VerificationCommandSchema = z.object({ name: z.string().min(1), command: z.string().min(1) });
 

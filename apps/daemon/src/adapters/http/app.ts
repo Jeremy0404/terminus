@@ -34,7 +34,7 @@ import { NotFound, type Queries } from '../../application/queries.js';
 import type { StationDrafter } from '../../application/station-drafter.js';
 import type { TaskActions } from '../../application/task-actions.js';
 import { DomainError } from '../../domain/errors.js';
-import { toAgentSettingsDto, toAppDto, toLessonDto, toTermDto, toEpicDto, toNetworkDto, toQuotaDto, toServerEventDto, toTaskDetailDto, toTaskSummaryDto } from './dto.js';
+import { toAgentSettingsDto, toAppDto, toLessonDto, toMemoryProposalDto, toTermDto, toEpicDto, toNetworkDto, toQuotaDto, toServerEventDto, toTaskDetailDto, toTaskSummaryDto } from './dto.js';
 
 const KEEPALIVE_MS = 15_000;
 
@@ -87,8 +87,16 @@ export function createHttpApp(deps: HttpDeps): Hono {
   app.post('/api/apps', async (c) => c.json(toAppDto(catalog.createApp(await body(c, CreateAppBody))), 201));
   app.get('/api/apps/:appId/memory', (c) => {
     const appId = c.req.param('appId');
-    const { lessons, terms } = deps.memory.view(appId);
-    return c.json({ lessons: lessons.map(toLessonDto), terms: terms.map(toTermDto), pack: deps.memory.pack(appId) });
+    const { lessons, terms, proposals } = deps.memory.view(appId);
+    return c.json({ lessons: lessons.map(toLessonDto), terms: terms.map(toTermDto), proposals: proposals.map(toMemoryProposalDto), pack: deps.memory.pack(appId) });
+  });
+  app.post('/api/memory-proposals/:proposalId/accept', (c) => {
+    deps.memory.accept(c.req.param('proposalId'));
+    return c.body(null, 204);
+  });
+  app.post('/api/memory-proposals/:proposalId/dismiss', (c) => {
+    deps.memory.dismiss(c.req.param('proposalId'));
+    return c.body(null, 204);
   });
   app.post('/api/apps/:appId/lessons', async (c) => c.json(toLessonDto(deps.memory.addLesson(c.req.param('appId'), (await body(c, LessonBody)).text)), 201));
   app.delete('/api/lessons/:lessonId', (c) => {

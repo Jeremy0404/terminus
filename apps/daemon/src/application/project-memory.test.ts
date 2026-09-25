@@ -1,16 +1,29 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { FixedClock, SequentialIds } from '../adapters/in-memory/fakes.js';
-import { InMemoryAppRepository, InMemoryMemoryRepository } from '../adapters/in-memory/in-memory-repositories.js';
+import { FixedClock, RecordingBus, SequentialIds } from '../adapters/in-memory/fakes.js';
+import { InMemoryAppRepository, InMemoryEpicRepository, InMemoryMemoryRepository, InMemoryTaskRepository } from '../adapters/in-memory/in-memory-repositories.js';
+import { createTask } from '../domain/task.js';
+import { TASK_LIFECYCLE } from '../domain/test-fixtures.js';
 import { DomainError } from '../domain/errors.js';
 import { ProjectMemory } from './project-memory.js';
 
 let memory: ProjectMemory;
+let store: InMemoryMemoryRepository;
+let bus: RecordingBus;
 
 beforeEach(() => {
   const apps = new InMemoryAppRepository();
   apps.save({ id: 'app', name: 'demo', repoPath: '/repo', verification: [], createdAt: 'x' });
-  memory = new ProjectMemory({ apps, memory: new InMemoryMemoryRepository(), context: { forApp: (app) => `pack of ${app.name}` }, clock: new FixedClock(), ids: new SequentialIds() });
+  const epics = new InMemoryEpicRepository();
+  epics.save({ id: 'epic', appId: 'app', code: 'C', name: 'Context', status: 'active', position: 1, description: '', breakdown: { status: 'idle' } });
+  const tasks = new InMemoryTaskRepository(epics);
+  tasks.save(createTask({ id: 't1', epicId: 'epic', title: 'Build the context pack', lifecycle: TASK_LIFECYCLE }));
+  store = new InMemoryMemoryRepository();
+  bus = new RecordingBus();
+  memory = new ProjectMemory({ apps, tasks, bus, memory: store, context: { forApp: (app) => `pack of ${app.name}` }, clock: new FixedClock(), ids: new SequentialIds() });
 });
+
+const proposal = (id: string, proposed: { kind: 'lesson'; text: string } | { kind: 'term'; term: string; definition: string }) =>
+  store.saveProposal({ id, appId: 'app', sourceTaskId: 't1', proposed, why: 'Seen during the task', status: 'pending', createdAt: 'x' });
 
 describe('ProjectMemory', () => {
   it('adds and removes lessons, cleaned of extra spaces', () => {
@@ -37,5 +50,23 @@ describe('ProjectMemory', () => {
 
   it('shows the pack agents receive for the app', () => {
     expect(memory.pack('app')).toBe('pack of demo');
+  });
+
+  it('turns an accepted proposal into memory and forgets a dismissed one', () => {
+    proposal('p1', { kind: 'lesson', text: 'Run the migrations first.' });
+    proposal('p2', { kind: 'term', term: 'Station', definition: 'A task on a line.' });
+    proposal('p3', { kind: 'lesson', text: 'Not useful.' });
+    expect(memory.view('app').proposals.map((entry) => [entry.id, entry.sourceTitle])).toEqual([['p1', 'Build the context pack'], ['p2', 'Build the context pack'], ['p3', 'Build the context pack']]);
+
+    memory.accept('p1');
+    memory.accept('p2');
+    memory.dismiss('p3');
+
+    const view = memory.view('app');
+    expect(view.lessons).toEqual([expect.objectContaining({ text: 'Run the migrations first.', sourceTaskId: 't1' })]);
+    expect(view.terms).toEqual([expect.objectContaining({ term: 'Station' })]);
+    expect(view.proposals).toEqual([]);
+    expect(bus.updates).toHaveLength(3);
+    expect(() => memory.accept('p3')).toThrow(/already dismissed/);
   });
 });

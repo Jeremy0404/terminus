@@ -1,4 +1,4 @@
-import { asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type {
   AppRepository,
   DecisionRepository,
@@ -13,12 +13,12 @@ import type { AgentDefaults } from '../../domain/agent-choice.js';
 import type { App } from '../../domain/app.js';
 import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
-import type { Lesson, Term } from '../../domain/memory.js';
+import type { Lesson, MemoryProposal, Term } from '../../domain/memory.js';
 import type { Quota } from '../../domain/quota.js';
 import type { Run } from '../../domain/run.js';
 import type { Task } from '../../domain/task.js';
 import type { TerminusDatabase } from './database.js';
-import { agentDefaults, apps, checkpoints, decisions, epics, lessons, playbookVersions, quota, runs, taskDependencies, tasks, terms } from './schema.js';
+import { agentDefaults, apps, checkpoints, decisions, epics, lessons, memoryProposals, playbookVersions, quota, runs, taskDependencies, tasks, terms } from './schema.js';
 
 export class SqliteAppRepository implements AppRepository {
   constructor(private readonly db: TerminusDatabase) {}
@@ -264,5 +264,22 @@ export class SqliteMemoryRepository implements MemoryRepository {
 
   removeTerm(id: string): boolean {
     return this.db.delete(terms).where(eq(terms.id, id)).run().changes > 0;
+  }
+
+  pendingProposals(appId: string): MemoryProposal[] {
+    return this.db
+      .select()
+      .from(memoryProposals)
+      .where(and(eq(memoryProposals.appId, appId), eq(memoryProposals.status, 'pending')))
+      .orderBy(asc(memoryProposals.createdAt), sql`rowid`)
+      .all();
+  }
+
+  proposal(id: string): MemoryProposal | null {
+    return this.db.select().from(memoryProposals).where(eq(memoryProposals.id, id)).get() ?? null;
+  }
+
+  saveProposal(proposal: MemoryProposal): void {
+    this.db.insert(memoryProposals).values(proposal).onConflictDoUpdate({ target: memoryProposals.id, set: proposal }).run();
   }
 }

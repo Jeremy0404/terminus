@@ -56,7 +56,8 @@
     "verify": "Vérification",
     "review": "Review",
     "merge": "Merge",
-    "sync": "Synchro"
+    "sync": "Synchro",
+    "retro": "Rétrospective"
   },
   "status": {
     "todo": "À faire",
@@ -82,7 +83,8 @@
     "verify": "Vérif.",
     "review": "Review",
     "merge": "Merge",
-    "sync": "Sync"
+    "sync": "Sync",
+    "retro": "Rétro"
   },
   "decision": {
     "eyebrow": "Grill · question {{position}} sur {{total}}",
@@ -413,7 +415,9 @@
     "eyebrow": "Prochain arrêt",
     "open": "Ouvrir « {{title}} »",
     "breakDown": "Découper « {{name}} »",
-    "createLine": "Tracer une première ligne"
+    "createLine": "Tracer une première ligne",
+    "reviewMemory_one": "Relire {{count}} proposition de mémoire",
+    "reviewMemory_other": "Relire {{count}} propositions de mémoire"
   },
   "memory": {
     "open": "Mémoire",
@@ -434,6 +438,15 @@
     "add": "Ajouter",
     "remove": "Retirer « {{what}} »",
     "pack": "Ce que reçoit l’agent",
-    "packEmpty": "Rien pour l’instant."
+    "packEmpty": "Rien pour l’instant.",
+    "pending_one": "{{count}} proposition à relire",
+    "pending_other": "{{count}} propositions à relire",
+    "proposals": {
+      "title": "À relire",
+      "lesson": "Leçon proposée après « {{task}} »",
+      "term": "Terme proposé après « {{task}} »",
+      "accept": "Ajouter à la mémoire",
+      "dismiss": "Écarter"
+    }
   }
 }
