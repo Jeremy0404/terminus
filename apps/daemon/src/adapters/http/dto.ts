@@ -19,6 +19,7 @@ export const toTaskSummaryDto = (task: Task): TaskSummaryDto => ({
   id: task.id,
   epicId: task.epicId,
   title: task.title,
+  description: task.description,
   autonomy: task.autonomy,
   track: task.track,
   agent: task.agent,

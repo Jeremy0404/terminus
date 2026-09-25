@@ -84,5 +84,6 @@ describe('FsPlaybookRegistry', () => {
       'sync',
       'merge',
     ]);
+    expect(registry.lifecycle('epic').phases.find((phase) => phase.id === 'station-draft')).toEqual({ id: 'station-draft', skill: 'station-draft', model: 'haiku', effort: 'low' });
   });
 });

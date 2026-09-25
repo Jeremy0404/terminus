@@ -5,6 +5,10 @@ phases:
   - id: breakdown
     skill: epic-breakdown
     gate: plan-approval
+  - id: station-draft
+    skill: station-draft
+    model: haiku
+    effort: low
   - id: in-progress
   - id: validated
     gate: human-review

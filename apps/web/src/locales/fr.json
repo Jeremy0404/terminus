@@ -215,8 +215,15 @@
     "station": {
       "open": "Ajouter une station",
       "title": "Nouvelle station",
-      "name": "Tâche",
-      "placeholder": "Ex. : Détection de boucle",
+      "text": "Ce qu’il faut faire",
+      "placeholder": "Ex. : quand un agent tourne en rond, l’arrêter et me prévenir",
+      "format": "Mettre en forme",
+      "understanding": "Ce que j’ai compris",
+      "name": "Titre",
+      "summary": "Résumé",
+      "rerun": "Relancer",
+      "asTyped": "Ajouter tel quel",
+      "failed": "La mise en forme a échoué : {{error}}",
       "dependsOn": "Correspondances (attend ces tâches)",
       "submit": "Ajouter"
     }
@@ -381,6 +388,7 @@
     },
     "phases": {
       "epic.breakdown": "Découpage d'épique",
+      "epic.station-draft": "Mise en forme de station",
       "task.spec": "Spec",
       "task.grill": "Grill",
       "task.plan": "Plan",

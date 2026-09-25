@@ -65,6 +65,7 @@ function BreakdownReview({ epic, description, proposed }: { epic: EpicDto; descr
         description: text,
         stations: kept.map((station) => ({
           title: station.title.trim(),
+          why: station.why,
           dependsOn: station.dependsOn.flatMap((dependency) => (position.has(dependency) ? [position.get(dependency) as number] : [])),
         })),
         track: light ? 'light' : 'standard',

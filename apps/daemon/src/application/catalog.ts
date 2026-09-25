@@ -36,7 +36,7 @@ export class Catalog {
     return epic;
   }
 
-  createTask(epicId: string, input: { title: string; dependsOn: readonly string[]; autonomy: Autonomy; track?: Track }): Task {
+  createTask(epicId: string, input: { title: string; description?: string; dependsOn: readonly string[]; autonomy: Autonomy; track?: Track }): Task {
     const epic = this.deps.epics.get(epicId);
     if (!epic) throw new DomainError(`Unknown epic ${epicId}`);
     const existing = this.deps.tasks.listByApp(epic.appId);

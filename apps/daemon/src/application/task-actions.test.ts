@@ -299,9 +299,9 @@ describe('TaskActions', () => {
 
       expect(task.status).toEqual({ kind: 'closed', reason: 'obsolete', evidence: 'Split into: Part A · Part B' });
       const created = tasks.listByEpic('epic').filter((candidate) => ['Part A', 'Part B'].includes(candidate.title));
-      expect(created.map((candidate) => [candidate.title, candidate.status.kind, candidate.lifecycle])).toEqual([
-        ['Part A', 'todo', FLEXIBLE],
-        ['Part B', 'todo', FLEXIBLE],
+      expect(created.map((candidate) => [candidate.title, candidate.description, candidate.status.kind, candidate.lifecycle])).toEqual([
+        ['Part A', 'a', 'todo', FLEXIBLE],
+        ['Part B', 'b', 'todo', FLEXIBLE],
       ]);
       expect(tasks.get('t9')?.dependsOn).toEqual(created.map((candidate) => candidate.id));
     });

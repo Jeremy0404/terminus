@@ -16,9 +16,11 @@ import {
   CreateTaskBody,
   RecoverBody,
   SendBackBody,
+  StationDraftBody,
   TrackBody,
   type ChecksResponseDto,
   type HealthResponse,
+  type StationDraftDto,
 } from '@terminus/contracts';
 import type { Adoption } from '../../application/adoption.js';
 import type { AgentSettings } from '../../application/agent-settings.js';
@@ -26,6 +28,7 @@ import type { Catalog } from '../../application/catalog.js';
 import type { EpicPlanner } from '../../application/epic-planner.js';
 import type { RunUpdate } from '../../application/ports/system.js';
 import { NotFound, type Queries } from '../../application/queries.js';
+import type { StationDrafter } from '../../application/station-drafter.js';
 import type { TaskActions } from '../../application/task-actions.js';
 import { DomainError } from '../../domain/errors.js';
 import { toAgentPhaseDto, toAppDto, toEpicDto, toNetworkDto, toQuotaDto, toServerEventDto, toTaskDetailDto, toTaskSummaryDto } from './dto.js';
@@ -38,6 +41,7 @@ export interface HttpDeps {
   readonly catalog: Catalog;
   readonly adoption: Adoption;
   readonly planner: EpicPlanner;
+  readonly drafter: StationDrafter;
   readonly actions: TaskActions;
   readonly agentSettings: AgentSettings;
   readonly runs: { interrupt(taskId: string): boolean };
@@ -92,6 +96,10 @@ export function createHttpApp(deps: HttpDeps): Hono {
   app.post('/api/epics/:epicId/tasks', async (c) => {
     const task = catalog.createTask(c.req.param('epicId'), await body(c, CreateTaskBody));
     return c.json(toTaskSummaryDto(task), 201);
+  });
+  app.post('/api/epics/:epicId/station-draft', async (c) => {
+    const { text } = await body(c, StationDraftBody);
+    return c.json<StationDraftDto>(await deps.drafter.draft(c.req.param('epicId'), text));
   });
 
   app.get('/api/tasks/:taskId', (c) => c.json(toTaskDetailDto(queries.task(c.req.param('taskId')))));

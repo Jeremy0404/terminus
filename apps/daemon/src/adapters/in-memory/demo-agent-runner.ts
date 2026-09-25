@@ -49,6 +49,10 @@ function script(request: AgentRunRequest): AgentEvent[] {
     };
   }
   if (request.skill === 'review') structuredOutput = { verdict: 'approve', summary: 'Matches the spec.', findings: [] };
+  if (request.skill === 'station-draft') {
+    const text = /Text from the human:\n([\s\S]*?)\n\nFollow/.exec(request.prompt)?.[1] ?? '';
+    structuredOutput = { title: 'Tidy up the demo station', understanding: 'A demo draft of the text you typed.', summary: text };
+  }
   events.push({ type: 'finished', outcome: 'success', summary: `${phase} done`, structuredOutput });
   return events;
 }

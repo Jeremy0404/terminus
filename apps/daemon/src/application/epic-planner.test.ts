@@ -103,13 +103,13 @@ describe('EpicPlanner', () => {
 
     const created = epicPlanner.accept('epic-2', {
       description: 'Adopt a repository in five stations.',
-      stations: [{ title: 'Scan the repository', dependsOn: [] }, { title: 'Run the health checks, edited', dependsOn: [0] }],
+      stations: [{ title: 'Scan the repository', why: 'Know what the repository holds.', dependsOn: [] }, { title: 'Run the health checks, edited', dependsOn: [0] }],
       track: 'light',
     });
 
-    expect(created.map((task) => [task.title, task.dependsOn, task.track])).toEqual([
-      ['Scan the repository', [], 'light'],
-      ['Run the health checks, edited', [created[0]?.id], 'light'],
+    expect(created.map((task) => [task.title, task.description, task.dependsOn, task.track])).toEqual([
+      ['Scan the repository', 'Know what the repository holds.', [], 'light'],
+      ['Run the health checks, edited', '', [created[0]?.id], 'light'],
     ]);
     expect(epics.get('epic-2')).toMatchObject({ description: 'Adopt a repository in five stations.', breakdown: { status: 'idle' } });
   });

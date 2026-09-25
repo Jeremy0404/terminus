@@ -84,7 +84,7 @@ export class TaskActions {
         return this.changeTrack(task.id, 'light');
       case 'split': {
         const created = proposal.stations.map((station) =>
-          createTask({ id: this.deps.ids.next('task'), epicId: task.epicId, title: station.title, lifecycle: task.lifecycle, autonomy: task.autonomy, track: task.track }),
+          createTask({ id: this.deps.ids.next('task'), epicId: task.epicId, title: station.title, description: station.why, lifecycle: task.lifecycle, autonomy: task.autonomy, track: task.track }),
         );
         for (const station of created) this.save(station);
         const epic = this.deps.epics.get(task.epicId);
