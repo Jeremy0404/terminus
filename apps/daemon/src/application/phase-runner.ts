@@ -7,6 +7,7 @@ import { phaseAt, type PhaseDefinition } from '../domain/lifecycle.js';
 import type { Run, RunStatus, RunUsage } from '../domain/run.js';
 import { completePhase, failRun, holdForProposal, passChecks, rejectByChecks, requestDecision, startRun, type Task } from '../domain/task.js';
 import { DECISIONS_OUTPUT_SCHEMA, readProposedDecisions } from './decision-output.js';
+import type { ContextSource } from './context-pack.js';
 import { buildPhasePrompt } from './phase-prompt.js';
 import { REVIEW_OUTPUT_SCHEMA } from './review-output.js';
 import { readVerdict, VERDICT_OUTPUT_SCHEMA } from './verdict-output.js';
@@ -39,6 +40,7 @@ export interface PhaseRunnerDeps {
   readonly instructions: RepositoryInstructions;
   readonly agent: AgentRunner;
   readonly agentDefaults: AgentDefaultsStore;
+  readonly context: ContextSource;
   readonly checks: CheckRunner;
   readonly codeHost: CodeHost;
   readonly clock: Clock;
@@ -167,7 +169,7 @@ export class PhaseRunner {
       cwd: taskWorkspace.path,
       notesDir,
       prompt: options.promptSuffix ? `${prompt}\n\n${options.promptSuffix}` : prompt,
-      systemPromptAppend: [this.deps.systemPromptAppend, this.deps.instructions.localOnly(app.repoPath, taskWorkspace.path)].filter(Boolean).join('\n\n'),
+      systemPromptAppend: [this.deps.systemPromptAppend, this.deps.context.forApp(app), this.deps.instructions.localOnly(app.repoPath, taskWorkspace.path)].filter(Boolean).join('\n\n'),
       skill: phase.skill ?? null,
       model: choice.model,
       effort: choice.effort,

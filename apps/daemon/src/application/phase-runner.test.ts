@@ -103,7 +103,8 @@ function runner(agent: ScriptedAgentRunner, budget = { maxTokens: 400_000, maxTu
     notes: new FakeTaskNotes(),
     instructions: { localOnly: (repoPath: string) => `instructions of ${repoPath}` },
     baseRef: 'main',
-    systemPromptAppend: 'context pack',
+    systemPromptAppend: 'settings append',
+    context: { forApp: (app) => `memory of ${app.name}` },
   });
 }
 
@@ -150,7 +151,7 @@ describe('PhaseRunner', () => {
       resume: false,
       skill: 'grill',
       maxTurns: 80,
-      systemPromptAppend: 'context pack\n\ninstructions of /repo',
+      systemPromptAppend: 'settings append\n\nmemory of app\n\ninstructions of /repo',
     });
     expect(agent.requests[0]?.outputSchema).not.toBeNull();
     expect(agent.requests[0]?.prompt).toContain('Phase: grill (2 of 7)');

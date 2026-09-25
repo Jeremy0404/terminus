@@ -414,5 +414,26 @@
     "open": "Ouvrir « {{title}} »",
     "breakDown": "Découper « {{name}} »",
     "createLine": "Tracer une première ligne"
+  },
+  "memory": {
+    "open": "Mémoire",
+    "close": "Fermer la mémoire du projet",
+    "eyebrow": "Mémoire du projet",
+    "hint": "Chaque agent reçoit ce contexte au début de son run.",
+    "terms": {
+      "title": "Vocabulaire",
+      "empty": "Aucun terme pour l’instant.",
+      "term": "Terme",
+      "definition": "Définition"
+    },
+    "lessons": {
+      "title": "Leçons",
+      "empty": "Aucune leçon pour l’instant.",
+      "new": "Nouvelle leçon"
+    },
+    "add": "Ajouter",
+    "remove": "Retirer « {{what}} »",
+    "pack": "Ce que reçoit l’agent",
+    "packEmpty": "Rien pour l’instant."
   }
 }

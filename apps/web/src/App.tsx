@@ -11,6 +11,7 @@ import { NetworkSummary } from './components/NetworkSummary';
 import { Platform } from './components/Platform';
 import { QuotaGauge } from './components/QuotaGauge';
 import { AgentSettings } from './components/settings/AgentSettings';
+import { ProjectMemory } from './components/memory/ProjectMemory';
 import { Trip } from './components/Trip';
 import { levelOf, up, usePlace } from './state/location';
 import { useInboxNotifications } from './state/notifications';
@@ -48,7 +49,7 @@ function Cockpit() {
   const [place, go] = usePlace();
   const [inboxOpen, setInboxOpen] = useState(false);
   const [adopting, setAdopting] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [panel, setPanel] = useState<'settings' | 'memory' | null>(null);
   const appId = place.app ?? (apps.data ? (apps.data.find((app) => app.id === readLastApp())?.id ?? apps.data[0]?.id ?? null) : null);
   const network = useNetwork(appId);
   const quota = useQuota();
@@ -80,7 +81,12 @@ function Cockpit() {
         <AppSelector apps={apps.data ?? []} current={current} onSelect={(id) => go({ app: id, line: null, task: null })} onAdopt={() => setAdopting(true)} />
         <span className="spacer" />
         <QuotaGauge quota={quota} />
-        <button type="button" className="btn small" aria-pressed={settingsOpen} onClick={() => setSettingsOpen(!settingsOpen)}>
+        {current && (
+          <button type="button" className="btn small" aria-pressed={panel === 'memory'} onClick={() => setPanel(panel === 'memory' ? null : 'memory')}>
+            {t('memory.open')}
+          </button>
+        )}
+        <button type="button" className="btn small" aria-pressed={panel === 'settings'} onClick={() => setPanel(panel === 'settings' ? null : 'settings')}>
           {t('settings.open')}
         </button>
         {notifications.permission === 'default' && (
@@ -99,9 +105,13 @@ function Cockpit() {
             }}
           />
         </div>
-      ) : settingsOpen ? (
+      ) : panel === 'settings' ? (
         <div className="adoption-stage">
-          <AgentSettings onClose={() => setSettingsOpen(false)} />
+          <AgentSettings onClose={() => setPanel(null)} />
+        </div>
+      ) : panel === 'memory' && current ? (
+        <div className="adoption-stage">
+          <ProjectMemory key={current.id} app={current} onClose={() => setPanel(null)} />
         </div>
       ) : !network.data ? (
         <div className="empty-state" role="status">

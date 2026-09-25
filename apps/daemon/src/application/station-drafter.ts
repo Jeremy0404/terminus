@@ -1,10 +1,11 @@
 import { choiceFor, choiceKey } from '../domain/agent-choice.js';
 import type { Epic } from '../domain/epic.js';
 import { DomainError } from '../domain/errors.js';
+import type { ContextSource } from './context-pack.js';
 import type { AgentDefaultsStore } from './ports/agent-defaults-store.js';
 import type { AgentEvent, AgentRunner } from './ports/agent-runner.js';
 import type { PlaybookRegistry } from './ports/playbook-registry.js';
-import type { EpicRepository, TaskRepository } from './ports/repositories.js';
+import type { AppRepository, EpicRepository, TaskRepository } from './ports/repositories.js';
 import type { IdGenerator } from './ports/system.js';
 import type { TaskNotes } from './ports/task-notes.js';
 import type { TranscriptStore } from './ports/transcript-store.js';
@@ -18,11 +19,13 @@ const MS_PER_SECOND = 1_000;
 export const STATION_DRAFT_TIMEOUT_MS = 120_000;
 
 export interface StationDrafterDeps {
+  readonly apps: AppRepository;
   readonly epics: EpicRepository;
   readonly tasks: TaskRepository;
   readonly notes: TaskNotes;
   readonly agent: AgentRunner;
   readonly agentDefaults: AgentDefaultsStore;
+  readonly context: ContextSource;
   readonly playbooks: PlaybookRegistry;
   readonly transcripts: TranscriptStore;
   readonly ids: IdGenerator;
@@ -35,6 +38,7 @@ export class StationDrafter {
   async draft(epicId: string, text: string): Promise<StationDraft> {
     const epic = this.deps.epics.get(epicId);
     if (!epic) throw new NotFound(`Unknown epic ${epicId}`);
+    const app = this.deps.apps.get(epic.appId);
     const runId = this.deps.ids.next('run');
     const scratch = this.deps.notes.directoryFor(`draft-${runId}`);
     const lifecycle = this.deps.playbooks.lifecycle('epic');
@@ -47,7 +51,7 @@ export class StationDrafter {
       cwd: scratch,
       notesDir: scratch,
       prompt: this.prompt(epic, text),
-      systemPromptAppend: '',
+      systemPromptAppend: app ? this.deps.context.forApp(app) : '',
       skill: DRAFT_PHASE,
       model: choice.model,
       effort: choice.effort,

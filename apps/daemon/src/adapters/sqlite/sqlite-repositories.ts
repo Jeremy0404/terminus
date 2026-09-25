@@ -7,16 +7,18 @@ import type {
   TaskRepository,
 } from '../../application/ports/repositories.js';
 import type { AgentDefaultsStore } from '../../application/ports/agent-defaults-store.js';
+import type { MemoryRepository } from '../../application/ports/memory-repository.js';
 import type { QuotaStore } from '../../application/ports/quota-store.js';
 import type { AgentDefaults } from '../../domain/agent-choice.js';
 import type { App } from '../../domain/app.js';
 import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
+import type { Lesson, Term } from '../../domain/memory.js';
 import type { Quota } from '../../domain/quota.js';
 import type { Run } from '../../domain/run.js';
 import type { Task } from '../../domain/task.js';
 import type { TerminusDatabase } from './database.js';
-import { agentDefaults, apps, checkpoints, decisions, epics, playbookVersions, quota, runs, taskDependencies, tasks } from './schema.js';
+import { agentDefaults, apps, checkpoints, decisions, epics, lessons, playbookVersions, quota, runs, taskDependencies, tasks, terms } from './schema.js';
 
 export class SqliteAppRepository implements AppRepository {
   constructor(private readonly db: TerminusDatabase) {}
@@ -234,5 +236,33 @@ export class SqliteAgentDefaultsStore implements AgentDefaultsStore {
       const rows = Object.entries(defaults).map(([phaseId, choice]) => ({ phaseId, ...choice }));
       if (rows.length > 0) tx.insert(agentDefaults).values(rows).run();
     });
+  }
+}
+
+export class SqliteMemoryRepository implements MemoryRepository {
+  constructor(private readonly db: TerminusDatabase) {}
+
+  lessons(appId: string): Lesson[] {
+    return this.db.select().from(lessons).where(eq(lessons.appId, appId)).orderBy(asc(lessons.createdAt), sql`rowid`).all();
+  }
+
+  saveLesson(lesson: Lesson): void {
+    this.db.insert(lessons).values(lesson).onConflictDoUpdate({ target: lessons.id, set: lesson }).run();
+  }
+
+  removeLesson(id: string): boolean {
+    return this.db.delete(lessons).where(eq(lessons.id, id)).run().changes > 0;
+  }
+
+  terms(appId: string): Term[] {
+    return this.db.select().from(terms).where(eq(terms.appId, appId)).orderBy(sql`${terms.term} collate nocase`).all();
+  }
+
+  saveTerm(term: Term): void {
+    this.db.insert(terms).values(term).onConflictDoUpdate({ target: terms.id, set: term }).run();
+  }
+
+  removeTerm(id: string): boolean {
+    return this.db.delete(terms).where(eq(terms.id, id)).run().changes > 0;
   }
 }

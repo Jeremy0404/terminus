@@ -1,4 +1,5 @@
 import { choiceFor, choiceKey } from '../domain/agent-choice.js';
+import type { App } from '../domain/app.js';
 import type { Epic } from '../domain/epic.js';
 import { IDLE_BREAKDOWN } from '../domain/epic.js';
 import { DomainError } from '../domain/errors.js';
@@ -6,6 +7,7 @@ import type { Track } from '../domain/lifecycle.js';
 import type { Task } from '../domain/task.js';
 import { BREAKDOWN_OUTPUT_SCHEMA, readBreakdown } from './breakdown-output.js';
 import type { Catalog } from './catalog.js';
+import type { ContextSource } from './context-pack.js';
 import type { RunBudget } from './phase-runner.js';
 import type { AgentDefaultsStore } from './ports/agent-defaults-store.js';
 import type { AgentEvent, AgentRunner } from './ports/agent-runner.js';
@@ -29,6 +31,7 @@ export interface EpicPlannerDeps {
   readonly instructions: RepositoryInstructions;
   readonly agent: AgentRunner;
   readonly agentDefaults: AgentDefaultsStore;
+  readonly context: ContextSource;
   readonly playbooks: PlaybookRegistry;
   readonly transcripts: TranscriptStore;
   readonly ids: IdGenerator;
@@ -55,7 +58,7 @@ export class EpicPlanner {
     if (!app) throw new DomainError(`Line ${epic.code} has no app`);
     const runId = this.deps.ids.next('run');
     const running = this.save({ ...epic, breakdown: { status: 'running', brief, runId } });
-    const flight = this.run(running, app.repoPath, app.id, brief, runId)
+    const flight = this.run(running, app, brief, runId)
       .catch((error: unknown) => {
         this.save({ ...this.load(epicId), breakdown: { status: 'failed', brief, error: error instanceof Error ? error.message : String(error) } });
       })
@@ -95,8 +98,9 @@ export class EpicPlanner {
     await Promise.all(this.inFlight.values());
   }
 
-  private async run(epic: Epic, repoPath: string, appId: string, brief: string, runId: string): Promise<void> {
-    const scratch = this.deps.workspace.prepare(repoPath, appId, `epic-${runId}`, this.deps.baseRef);
+  private async run(epic: Epic, app: App, brief: string, runId: string): Promise<void> {
+    const repoPath = app.repoPath;
+    const scratch = this.deps.workspace.prepare(repoPath, app.id, `epic-${runId}`, this.deps.baseRef);
     try {
       const notesDir = this.deps.notes.directoryFor(`epic-${epic.id}`);
       const lifecycle = this.deps.playbooks.lifecycle('epic');
@@ -109,7 +113,7 @@ export class EpicPlanner {
         cwd: scratch.path,
         notesDir,
         prompt: this.prompt(epic, brief, notesDir),
-        systemPromptAppend: this.deps.instructions.localOnly(repoPath, scratch.path),
+        systemPromptAppend: [this.deps.context.forApp(app), this.deps.instructions.localOnly(repoPath, scratch.path)].filter(Boolean).join('\n\n'),
         skill: 'epic-breakdown',
         model: choice.model,
         effort: choice.effort,

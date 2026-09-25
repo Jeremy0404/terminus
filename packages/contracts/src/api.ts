@@ -247,6 +247,30 @@ export interface QuotaDto {
   readonly observedAt: string;
 }
 
+export const LessonBody = z.object({ text: z.string().trim().min(1).max(600) });
+
+export const TermBody = z.object({ term: z.string().trim().min(1).max(80), definition: z.string().trim().min(1).max(600) });
+
+export interface LessonDto {
+  readonly id: string;
+  readonly text: string;
+  readonly sourceTaskId: string | null;
+  readonly createdAt: string;
+}
+
+export interface TermDto {
+  readonly id: string;
+  readonly term: string;
+  readonly definition: string;
+  readonly updatedAt: string;
+}
+
+export interface MemoryDto {
+  readonly lessons: readonly LessonDto[];
+  readonly terms: readonly TermDto[];
+  readonly pack: string;
+}
+
 export type ServerEventDto =
   | { readonly type: 'task-changed'; readonly task: TaskSummaryDto }
   | { readonly type: 'epic-changed'; readonly epic: EpicDto }

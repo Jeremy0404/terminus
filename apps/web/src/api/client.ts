@@ -1,6 +1,9 @@
 import type {
   AgentChoiceDto,
   AgentSettingsDto,
+  LessonDto,
+  MemoryDto,
+  TermDto,
   AppDto,
   ChecksResponseDto,
   CheckResultDto,
@@ -47,6 +50,11 @@ export type TaskAction = 'open' | 'approve' | 'merge' | 'resume-from-manual' | '
 export const api = {
   apps: () => request<AppDto[]>('/apps'),
   quota: () => request<QuotaDto | null>('/quota'),
+  memory: (appId: string) => request<MemoryDto>(`/apps/${appId}/memory`),
+  addLesson: (appId: string, text: string) => post<LessonDto>(`/apps/${appId}/lessons`, { text }),
+  removeLesson: (lessonId: string) => request<null>(`/lessons/${lessonId}`, { method: 'DELETE' }),
+  setTerm: (appId: string, term: string, definition: string) => post<TermDto>(`/apps/${appId}/terms`, { term, definition }),
+  removeTerm: (termId: string) => request<null>(`/terms/${termId}`, { method: 'DELETE' }),
   agentSettings: () => request<AgentSettingsDto>('/settings/agents'),
   saveAgentSettings: (fallback: AgentChoiceDto, defaults: Record<string, AgentChoiceDto>) =>
     request<AgentSettingsDto>('/settings/agents', { method: 'PUT', body: JSON.stringify({ fallback, defaults }) }),
