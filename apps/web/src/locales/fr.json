@@ -421,7 +421,11 @@
       "app-framing.grill": "Cadrage : questions",
       "app-framing.brief": "Cadrage : brief",
       "app-stack.options": "Stack : options",
-      "app-stack.architecture": "Stack : décisions"
+      "app-stack.architecture": "Stack : décisions",
+      "app-scaffold.execute": "Socle : construction",
+      "app-scaffold.review": "Socle : review",
+      "app-scaffold.sync": "Socle : conflits",
+      "app-scaffold.retro": "Socle : rétrospective"
     },
     "save": "Enregistrer",
     "saving": "Enregistrement…",

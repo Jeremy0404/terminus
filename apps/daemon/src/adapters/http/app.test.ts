@@ -131,6 +131,7 @@ describe('HTTP API', () => {
     expect(network.tasks).toEqual([
       expect.objectContaining({ title: 'Cadrer l’idée', description: 'Log my rides.', phases: ['grill', 'brief'], lifecycleId: 'app-framing' }),
       expect.objectContaining({ title: 'Choisir la stack et l’architecture', phases: ['options', 'architecture'], lifecycleId: 'app-stack' }),
+      expect.objectContaining({ title: 'Poser le socle', lifecycleId: 'app-scaffold' }),
     ]);
     expect((await call('POST', '/api/apps/found', { name: 'x', idea: '' })).status).toBe(400);
   });

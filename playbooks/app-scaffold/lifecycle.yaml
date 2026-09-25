@@ -1,0 +1,23 @@
+id: app-scaffold
+phases:
+  - id: execute
+    skill: scaffold
+  - id: verify
+    executor: checks
+    retryFrom: execute
+  - id: review
+    skill: review
+    output: review
+    gate: human-review
+    skippable: true
+  - id: sync
+    executor: sync
+    skill: resolve-conflicts
+    retryFrom: execute
+  - id: merge
+    executor: code-host
+    gate: merge
+  - id: retro
+    skill: retro
+    output: memory
+    skippable: true

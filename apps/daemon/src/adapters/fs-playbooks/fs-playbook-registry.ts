@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { z } from 'zod';
@@ -19,9 +19,14 @@ export class FsPlaybookRegistry implements PlaybookRegistry {
   private readonly byId: ReadonlyMap<string, LifecycleDefinition>;
 
   constructor(root: string) {
-    const lifecycles = readdirSync(root, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => loadLifecycle(join(root, entry.name), entry.name));
+    const folders = readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory());
+    const skills = new Map(
+      folders.flatMap((folder) => {
+        const skillsDir = join(root, folder.name, 'skills');
+        return existsSync(skillsDir) ? readdirSync(skillsDir).map((name): [string, string] => [name, join(skillsDir, name)]) : [];
+      }),
+    );
+    const lifecycles = folders.map((entry) => loadLifecycle(join(root, entry.name), entry.name, skills));
     this.byId = new Map(lifecycles.map((lifecycle) => [lifecycle.id, lifecycle]));
   }
 
@@ -36,13 +41,13 @@ export class FsPlaybookRegistry implements PlaybookRegistry {
   }
 }
 
-function loadLifecycle(directory: string, folderName: string): LifecycleDefinition {
+function loadLifecycle(directory: string, folderName: string, skills: ReadonlyMap<string, string>): LifecycleDefinition {
   const path = join(directory, LIFECYCLE_FILE);
   const source = readFileSync(path, 'utf8');
   const result = LifecycleFileSchema.safeParse(parse(source));
   if (!result.success) throw new PlaybookError(`${path} is invalid:\n${z.prettifyError(result.error)}`);
   if (result.data.id !== folderName) throw new PlaybookError(`${path} declares id ${result.data.id}, expected ${folderName}`);
-  const skillErrors = result.data.phases.flatMap((phase) => (phase.skill ? validateSkill(join(directory, 'skills', phase.skill)) : []));
+  const skillErrors = result.data.phases.flatMap((phase) => (phase.skill ? validateSkill(skills.get(phase.skill) ?? join(directory, 'skills', phase.skill)) : []));
   if (skillErrors.length > 0) throw new PlaybookError(`Playbook ${folderName} has invalid skills:\n${skillErrors.join('\n')}`);
   return {
     id: result.data.id,
