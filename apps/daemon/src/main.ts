@@ -12,6 +12,7 @@ import { FsPlaybookRegistry } from './adapters/fs-playbooks/fs-playbook-registry
 import { GitWorkspace } from './adapters/git/git-workspace.js';
 import { GhCodeHost, GhIssueTracker } from './adapters/github/gh-code-host.js';
 import { GhRepositoryCreator } from './adapters/github/gh-repository-creator.js';
+import { GitVault } from './adapters/vault/git-vault.js';
 import { DemoAgentRunner } from './adapters/in-memory/demo-agent-runner.js';
 import { FsRepoScanner } from './adapters/repo-scanner/fs-repo-scanner.js';
 import { JsonlTranscriptStore } from './adapters/jsonl-transcripts/jsonl-transcript-store.js';
@@ -53,6 +54,10 @@ function readEnvFile(path: string): Record<string, string> {
   );
 }
 
+function vaultDir(): string | null {
+  return env['TERMINUS_VAULT_DIR'] ?? readEnvFile(join(home, '.env'))['TERMINUS_VAULT_DIR'] ?? null;
+}
+
 function agentRunner(kind: string | undefined): AgentRunner {
   if (kind === 'demo') return new DemoAgentRunner();
   const secrets = readEnvFile(join(home, '.env'));
@@ -83,6 +88,8 @@ function agentRunner(kind: string | undefined): AgentRunner {
 mkdirSync(home, { recursive: true });
 const db = openDatabase(join(home, 'terminus.db'));
 const playbooks = new FsPlaybookRegistry(playbooksDir);
+const vault = vaultDir();
+console.log(vault ? `vault export: ${vault}` : 'vault export: off (set TERMINUS_VAULT_DIR)');
 console.log(`loaded playbooks: ${playbooks.lifecycles().map((lifecycle) => `${lifecycle.id}@${lifecycle.version}`).join(', ')}`);
 
 const { http, scheduler } = compose(
@@ -102,6 +109,7 @@ const { http, scheduler } = compose(
     memory: new SqliteMemoryRepository(db),
     knowledge: new FsRepositoryKnowledge(),
     repositories: new GhRepositoryCreator(),
+    vault: vault ? new GitVault(vault) : null,
     checks: new ShellCheckRunner(CHECK_TIMEOUT_MS),
     codeHost: new GhCodeHost(),
     scanner: new FsRepoScanner(),

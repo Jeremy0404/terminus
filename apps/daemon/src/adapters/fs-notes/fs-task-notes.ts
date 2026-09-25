@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { TaskNotes } from '../../application/ports/task-notes.js';
 
@@ -12,5 +12,11 @@ export class FsTaskNotes implements TaskNotes {
     const directory = join(this.root, taskId);
     mkdirSync(directory, { recursive: true });
     return directory;
+  }
+
+  read(taskId: string, file: string): string | null {
+    if (!SAFE_ID.test(file.replace(/\.md$/, ''))) throw new Error(`Unsafe note name: ${file}`);
+    const path = join(this.directoryFor(taskId), file);
+    return existsSync(path) ? readFileSync(path, 'utf8') : null;
   }
 }

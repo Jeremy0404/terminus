@@ -18,6 +18,7 @@ Turn the answered cards into what every later agent of this app must respect. On
    - `summary`: one sentence.
    - `stackId`: the chosen stack skill's name, exactly (for example `stack-ts-fastify-vue`); `stackName`: its title. For a stack the human described outside the catalog: `custom-` followed by a short slug, and their own words as the name.
    - `decisions`: one entry per record, `{ "title", "decision", "why" }`, in the language of the brief, each one sentence.
+   - `records`: the same decisions as architecture decision records **in English** (the vault's convention), each `{ "slug", "title", "context", "decision", "consequences" }`: a kebab-case slug describing the decision, an imperative title ("Serve the app with nginx"), one or two sentences per field, the decision in active voice.
    - `verification`: the stack's **Verification** commands, exactly as its skill lists them, as `{ "name", "command" }`. For a custom stack, the usual lint, test and build commands of its ecosystem, and one decision titled with the layout the scaffold must follow (there is no stack skill to fall back on).
 
 ## Rules

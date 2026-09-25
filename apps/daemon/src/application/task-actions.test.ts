@@ -11,6 +11,7 @@ import type { Decision } from '../domain/decision.js';
 import type { TaskWorkspace } from './ports/workspace.js';
 import { createTask, type Task, type TaskStatus } from '../domain/task.js';
 import { checkpoint, failure, TASK_LIFECYCLE } from '../domain/test-fixtures.js';
+import type { ExportHooks } from './vault-export.js';
 import { TaskActions } from './task-actions.js';
 
 class RewindRecordingWorkspace extends FakeWorkspace {
@@ -28,6 +29,7 @@ let codeHost: FakeCodeHost;
 let bus: RecordingBus;
 let actions: TaskActions;
 let apps: InMemoryAppRepository;
+let exported: string[];
 
 beforeEach(() => {
   apps = new InMemoryAppRepository();
@@ -40,7 +42,14 @@ beforeEach(() => {
   bus = new RecordingBus();
   apps.save({ id: 'app', name: 'app', repoPath: '/repo', verification: [], createdAt: '2026-09-24T09:00:00Z' });
   epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'Interface', status: 'active', position: 1, description: '', breakdown: { status: 'idle' } });
-  actions = new TaskActions({ apps, epics, tasks, runs, decisions, workspace, codeHost, clock: new FixedClock(), ids: new SequentialIds(), bus, baseRef: 'main' });
+  exported = [];
+  const exporter: ExportHooks = {
+    briefApproved: (_app, brief) => exported.push(`brief:${brief.slice(0, 10)}`),
+    stackApproved: (_app, records) => exported.push(`stack:${records.length}`),
+    planApproved: (_app, task) => exported.push(`plan:${task.id}`),
+    taskMerged: (_app, task) => exported.push(`merged:${task.id}`),
+  };
+  actions = new TaskActions({ apps, epics, tasks, runs, decisions, workspace, codeHost, clock: new FixedClock(), ids: new SequentialIds(), bus, baseRef: 'main', exporter });
 });
 
 function givenTask(id: string, status: TaskStatus, extra: Partial<Task> = {}): Task {
@@ -94,6 +103,7 @@ describe('TaskActions', () => {
     expect(actions.approve('t1').status).toEqual({ kind: 'done' });
     expect(apps.get('app')?.brief).toBe('## Problem\n\nToo many tabs.');
     expect(workspace.removed).toEqual(['t1']);
+    expect(exported).toEqual(['brief:## Problem']);
   });
 
   it('stores the approved stack on the app and makes its verification the app checks', () => {
@@ -119,6 +129,7 @@ describe('TaskActions', () => {
   it('approves a gate and sends a review back to execution', () => {
     givenTask('t1', { kind: 'awaiting-gate', gate: 'plan-approval' }, { phaseIndex: 2 });
     expect(actions.approve('t1').phaseIndex).toBe(3);
+    expect(exported).toEqual(['plan:t1']);
 
     givenTask('t2', { kind: 'awaiting-gate', gate: 'human-review' }, { phaseIndex: 5 });
     expect(actions.sendBack('t2', 'execute', '  Missing a test for Escape ').phaseIndex).toBe(3);
