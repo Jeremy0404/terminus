@@ -1,6 +1,6 @@
 ---
 name: stack-options
-description: Chooses, with the human, the stack and the architecture of a new app from the approved product brief and the stack catalog (the skills named stack-*), as decision cards with one recommendation each. Use in the options phase of a Terminus app-stack station.
+description: Chooses, with the human, the stack and the architecture of a new app from the approved product brief, suggesting the best fits from the stack catalog (the skills named stack-*) while leaving the human free to name another stack, as decision cards with one recommendation each. Use in the options phase of a Terminus app-stack station.
 metadata:
   playbook: terminus/app-stack
   phase: options
@@ -20,6 +20,7 @@ Match the approved product brief (in your system prompt, "Product brief (approve
 
 ## Rules
 
+- Suggestions come from the catalog only; a stack outside it comes only from the human's free answer.
 - An app reachable from the internet always has access control. Offer accounts, one shared password, or access only through the user's private network, never an open app; say so in the card.
 - A fork is worth a card only if picking the other option would change the scaffold or be costly to reverse.
 - Library versions, file names and code style are not questions: the stack skill and the scaffold decide them.

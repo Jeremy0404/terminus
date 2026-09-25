@@ -41,6 +41,12 @@ describe('ContextPack', () => {
     expect(pack).toContain('## Stack and architecture (approved)\n\nStack: Fastify and Vue (follow the `stack-ts-fastify-vue` skill)\n- Accounts: None (Solo use)');
   });
 
+  it('points a stack from outside the catalog to its recorded decisions', () => {
+    const stack = { id: 'custom-fastapi-htmx', name: 'FastAPI et HTMX', decisions: [{ title: 'Layout', decision: 'app/ and templates/', why: '' }] };
+    const pack = new ContextPack({ memory: new InMemoryMemoryRepository(), knowledge: bare }).forApp({ ...app, stack });
+    expect(pack).toContain('Stack: FastAPI et HTMX (outside the catalog: follow the decisions below)\n- Layout: app/ and templates/');
+  });
+
   it('keeps only the most recent lessons', () => {
     const memory = new InMemoryMemoryRepository();
     for (let index = 0; index < 45; index += 1) {
