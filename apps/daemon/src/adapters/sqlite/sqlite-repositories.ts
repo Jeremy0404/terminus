@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type {
   AppRepository,
   DecisionRepository,
@@ -7,6 +7,7 @@ import type {
   TaskRepository,
 } from '../../application/ports/repositories.js';
 import type { AgentDefaultsStore } from '../../application/ports/agent-defaults-store.js';
+import type { DeploymentRepository } from '../../application/ports/deployment-repository.js';
 import type { MemoryRepository } from '../../application/ports/memory-repository.js';
 import type { QuotaStore } from '../../application/ports/quota-store.js';
 import type { AgentDefaults } from '../../domain/agent-choice.js';
@@ -15,10 +16,11 @@ import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
 import type { Lesson, MemoryProposal, Term } from '../../domain/memory.js';
 import type { Quota } from '../../domain/quota.js';
+import type { Deployment } from '../../domain/release.js';
 import type { Run } from '../../domain/run.js';
 import type { Task } from '../../domain/task.js';
 import type { TerminusDatabase } from './database.js';
-import { agentDefaults, apps, checkpoints, decisions, epics, lessons, memoryProposals, playbookVersions, quota, runs, taskDependencies, tasks, terms } from './schema.js';
+import { agentDefaults, apps, checkpoints, decisions, deployments, epics, lessons, memoryProposals, playbookVersions, quota, runs, taskDependencies, tasks, terms } from './schema.js';
 
 export class SqliteAppRepository implements AppRepository {
   constructor(private readonly db: TerminusDatabase) {}
@@ -286,5 +288,17 @@ export class SqliteMemoryRepository implements MemoryRepository {
 
   saveProposal(proposal: MemoryProposal): void {
     this.db.insert(memoryProposals).values(proposal).onConflictDoUpdate({ target: memoryProposals.id, set: proposal }).run();
+  }
+}
+
+export class SqliteDeploymentRepository implements DeploymentRepository {
+  constructor(private readonly db: TerminusDatabase) {}
+
+  save(deployment: Deployment): void {
+    this.db.insert(deployments).values(deployment).onConflictDoUpdate({ target: deployments.id, set: deployment }).run();
+  }
+
+  listByApp(appId: string): Deployment[] {
+    return this.db.select().from(deployments).where(eq(deployments.appId, appId)).orderBy(desc(deployments.requestedAt), sql`rowid desc`).all();
   }
 }

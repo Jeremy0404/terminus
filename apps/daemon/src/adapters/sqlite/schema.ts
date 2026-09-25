@@ -173,3 +173,18 @@ export const memoryProposals = sqliteTable(
   },
   (table) => [index('memory_proposals_app_idx').on(table.appId)],
 );
+
+export const deployments = sqliteTable(
+  'deployments',
+  {
+    id: text('id').primaryKey(),
+    appId: text('app_id').notNull().references(() => apps.id),
+    version: text('version').notNull(),
+    pullRequest: integer('pull_request').notNull(),
+    requestedAt: text('requested_at').notNull(),
+    state: text('state', { enum: ['requested', 'running', 'succeeded', 'failed', 'cancelled'] }).notNull(),
+    runUrl: text('run_url'),
+    finishedAt: text('finished_at'),
+  },
+  (table) => [index('deployments_app_idx').on(table.appId)],
+);

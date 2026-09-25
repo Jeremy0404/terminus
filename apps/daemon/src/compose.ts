@@ -16,6 +16,8 @@ import type { RepositoryCreator } from './application/ports/repository-creator.j
 import type { Vault } from './application/ports/vault.js';
 import type { SkillCatalog } from './application/ports/skill-catalog.js';
 import type { DeployTarget } from './application/ports/deploy-target.js';
+import type { DeployNotifier } from './application/ports/deploy-notifier.js';
+import type { DeploymentRepository } from './application/ports/deployment-repository.js';
 import type { CheckRunner } from './application/ports/check-runner.js';
 import type { CodeHost } from './application/ports/code-host.js';
 import type { IssueTracker } from './application/ports/issue-tracker.js';
@@ -64,6 +66,8 @@ export interface Adapters {
   readonly vault: Vault | null;
   readonly skills: SkillCatalog;
   readonly deployTarget: DeployTarget;
+  readonly deployments: DeploymentRepository;
+  readonly notifier: DeployNotifier;
   readonly checks: CheckRunner;
   readonly codeHost: CodeHost;
   readonly scanner: RepoScanner;
@@ -125,7 +129,7 @@ export function compose(given: Adapters, settings: Settings): Services {
     drafter,
     actions,
     agentSettings: new AgentSettings(adapters),
-    releases: new Releases({ apps: adapters.apps, target: adapters.deployTarget, clock: adapters.clock }),
+    releases: new Releases({ ...adapters, target: adapters.deployTarget }),
     ritual: new PlaybookRitual({ ...adapters, catalog, playbooksRepo: settings.playbooksRepo }),
     memory: new ProjectMemory({ ...adapters, bus, closer: actions }),
     runs: phases,

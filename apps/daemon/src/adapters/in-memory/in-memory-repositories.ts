@@ -6,6 +6,7 @@ import type {
   TaskRepository,
 } from '../../application/ports/repositories.js';
 import type { AgentDefaultsStore } from '../../application/ports/agent-defaults-store.js';
+import type { DeploymentRepository } from '../../application/ports/deployment-repository.js';
 import type { MemoryRepository } from '../../application/ports/memory-repository.js';
 import type { QuotaStore } from '../../application/ports/quota-store.js';
 import type { TranscriptStore } from '../../application/ports/transcript-store.js';
@@ -15,6 +16,7 @@ import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
 import type { Lesson, MemoryProposal, Term } from '../../domain/memory.js';
 import type { Quota } from '../../domain/quota.js';
+import type { Deployment } from '../../domain/release.js';
 import type { Run } from '../../domain/run.js';
 import type { Task } from '../../domain/task.js';
 
@@ -123,6 +125,18 @@ export class InMemoryMemoryRepository implements MemoryRepository {
 
   saveProposal(proposal: MemoryProposal): void {
     this.proposalsById.set(proposal.id, proposal);
+  }
+}
+
+export class InMemoryDeploymentRepository implements DeploymentRepository {
+  private readonly byId = new Map<string, Deployment>();
+
+  save(deployment: Deployment): void {
+    this.byId.set(deployment.id, deployment);
+  }
+
+  listByApp(appId: string): Deployment[] {
+    return [...this.byId.values()].filter((deployment) => deployment.appId === appId).sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
   }
 }
 

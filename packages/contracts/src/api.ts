@@ -320,7 +320,20 @@ export interface ReleaseStateDto {
   readonly pending: { readonly number: number; readonly version: string | null; readonly title: string; readonly url: string; readonly notes: string } | null;
   readonly latest: { readonly version: string; readonly publishedAt: string; readonly url: string } | null;
   readonly lastRun: { readonly id: number; readonly version: string | null; readonly state: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'; readonly startedAt: string; readonly url: string } | null;
+  readonly deployments: readonly DeploymentDto[];
 }
+
+export interface DeploymentDto {
+  readonly id: string;
+  readonly version: string;
+  readonly pullRequest: number;
+  readonly requestedAt: string;
+  readonly state: 'requested' | 'running' | 'succeeded' | 'failed' | 'cancelled';
+  readonly runUrl: string | null;
+  readonly finishedAt: string | null;
+}
+
+export const DeployBody = z.object({ version: z.string().regex(/^\d+\.\d+\.\d+(?:-[\w.]+)?$/) });
 
 export type ServerEventDto =
   | { readonly type: 'task-changed'; readonly task: TaskSummaryDto }

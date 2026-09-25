@@ -3,6 +3,7 @@ import type {
   AgentSettingsDto,
   PlaybookSkillDto,
   ReleaseStateDto,
+  DeploymentDto,
   RitualStartedDto,
   LessonDto,
   MemoryDto,
@@ -61,7 +62,8 @@ export const api = {
   acceptProposal: (proposalId: string) => post<null>(`/memory-proposals/${proposalId}/accept`),
   dismissProposal: (proposalId: string) => post<null>(`/memory-proposals/${proposalId}/dismiss`),
   agentSettings: () => request<AgentSettingsDto>('/settings/agents'),
-  release: (appId: string) => request<ReleaseStateDto | null>(`/apps/${appId}/release`),
+  release: (appId: string, fresh = false) => request<ReleaseStateDto | null>(`/apps/${appId}/release${fresh ? '?fresh=1' : ''}`),
+  deploy: (appId: string, version: string) => post<DeploymentDto>(`/apps/${appId}/release/deploy`, { version }),
   playbookSkills: () => request<PlaybookSkillDto[]>('/playbooks/skills'),
   updateSkill: (name: string) => post<RitualStartedDto>(`/playbooks/skills/${name}/update`),
   saveAgentSettings: (fallback: AgentChoiceDto, defaults: Record<string, AgentChoiceDto>) =>
