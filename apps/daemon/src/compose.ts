@@ -78,6 +78,7 @@ export interface Settings {
   readonly systemPromptAppend: string;
   readonly projectsDir: string;
   readonly playbooksRepo: string;
+  readonly webDir?: string | null;
 }
 
 export interface Services {
@@ -110,6 +111,7 @@ export function compose(given: Adapters, settings: Settings): Services {
   const drafter = new StationDrafter({ ...adapters, timeoutMs: STATION_DRAFT_TIMEOUT_MS });
   const http = createHttpApp({
     version: settings.version,
+    webDir: settings.webDir ?? null,
     queries: new Queries(adapters),
     catalog,
     founder: new AppFounder({ catalog, repositories: adapters.repositories, projectsDir: settings.projectsDir }),

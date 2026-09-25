@@ -90,6 +90,9 @@ mkdirSync(home, { recursive: true });
 const db = openDatabase(join(home, 'terminus.db'));
 const playbooks = new FsPlaybookRegistry(playbooksDir);
 const vault = vaultDir();
+const builtWeb = env['TERMINUS_WEB_DIR'] ?? fileURLToPath(new URL('../../web/dist', import.meta.url));
+const webDir = existsSync(join(builtWeb, 'index.html')) ? builtWeb : null;
+console.log(webDir ? `web app: ${webDir}` : 'web app: not built (use the Vite dev server)');
 console.log(vault ? `vault export: ${vault}` : 'vault export: off (set TERMINUS_VAULT_DIR)');
 console.log(`loaded playbooks: ${playbooks.lifecycles().map((lifecycle) => `${lifecycle.id}@${lifecycle.version}`).join(', ')}`);
 
@@ -128,6 +131,7 @@ const { http, scheduler } = compose(
     systemPromptAppend: '',
     projectsDir: env['TERMINUS_PROJECTS_DIR'] ?? join(homedir(), 'dev', 'projects'),
     playbooksRepo: dirname(playbooksDir),
+    webDir,
   },
 );
 

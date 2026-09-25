@@ -1,5 +1,8 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { AgentSettingsDto, LessonDto, MemoryDto, NetworkDto, StationDraftDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
 import { HealthResponse } from '@terminus/contracts';
 import type { AgentEvent } from '../../application/ports/agent-runner.js';
@@ -30,6 +33,7 @@ const greenChecks: CheckRunner = {
 };
 
 let services: Services;
+let servedWeb: string | null = null;
 let codeHost: FakeCodeHost;
 let founded: { path: string; name: string; visibility: string }[];
 
@@ -64,7 +68,7 @@ function start(...scripts: AgentScript[]): void {
       clock: new FixedClock(),
       ids: new SequentialIds(),
     },
-    { version: '9.9.9', baseRef: 'main', concurrency: 2, budget: { maxTokens: 400_000, maxTurns: 80 }, systemPromptAppend: '', projectsDir: '/projects', playbooksRepo: '/repo' },
+    { version: '9.9.9', baseRef: 'main', concurrency: 2, budget: { maxTokens: 400_000, maxTurns: 80 }, systemPromptAppend: '', projectsDir: '/projects', playbooksRepo: '/repo', webDir: servedWeb },
   );
 }
 
@@ -361,5 +365,35 @@ describe('HTTP API', () => {
     const created = await call<TaskSummaryDto[]>('POST', `/api/epics/${epic.json.id}/breakdown/accept`, { description: 'Goal, refined', stations: [{ title: 'A', why: 'a' }, { title: 'B', dependsOn: [0] }] });
     expect(created.status).toBe(201);
     expect(created.json.map((task) => [task.title, task.description])).toEqual([['A', 'a'], ['B', '']]);
+  });
+});
+
+describe('serving the built web app', () => {
+  let webDir: string;
+
+  beforeEach(() => {
+    webDir = mkdtempSync(join(tmpdir(), 'terminus-web-'));
+    mkdirSync(join(webDir, 'assets'));
+    writeFileSync(join(webDir, 'index.html'), '<div id="root"></div>');
+    writeFileSync(join(webDir, 'assets', 'app-1234.js'), 'console.log(1)');
+  });
+  afterEach(() => {
+    servedWeb = null;
+    rmSync(webDir, { recursive: true, force: true });
+  });
+
+  it('serves the app, its hashed assets for good, and falls back to the app outside the API', async () => {
+    servedWeb = webDir;
+    start();
+    const http = services.http;
+
+    const home = await http.request('/');
+    expect(await home.text()).toBe('<div id="root"></div>');
+    expect(home.headers.get('cache-control')).toBe('no-cache');
+    const asset = await http.request('/assets/app-1234.js');
+    expect(asset.headers.get('cache-control')).toContain('immutable');
+    expect(await (await http.request('/somewhere')).text()).toBe('<div id="root"></div>');
+    expect((await http.request('/api/health')).headers.get('content-type')).toContain('application/json');
+    expect((await http.request('/api/nothing-here')).status).toBe(404);
   });
 });
