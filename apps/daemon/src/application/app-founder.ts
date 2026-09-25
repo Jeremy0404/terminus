@@ -29,7 +29,8 @@ export class AppFounder {
     const app = this.deps.catalog.createApp({ name: input.name.trim(), repoPath, verification: [] });
     const line = this.deps.catalog.createEpic(app.id, { ...FOUNDATION_LINE, status: 'active', description: input.idea.trim() });
     const framing = this.deps.catalog.createTask(line.id, { title: 'Cadrer l’idée', description: input.idea.trim(), dependsOn: [], autonomy: 'up-to-pr', lifecycleId: 'app-framing' });
-    this.deps.catalog.createTask(line.id, { title: 'Choisir la stack et l’architecture', dependsOn: [framing.id], autonomy: 'up-to-pr', lifecycleId: 'app-stack' });
+    const stack = this.deps.catalog.createTask(line.id, { title: 'Choisir la stack et l’architecture', dependsOn: [framing.id], autonomy: 'up-to-pr', lifecycleId: 'app-stack' });
+    this.deps.catalog.createTask(line.id, { title: 'Poser le socle', dependsOn: [stack.id], autonomy: 'up-to-pr', lifecycleId: 'app-scaffold' });
     return app;
   }
 }

@@ -41,6 +41,17 @@ describe('FsPlaybookRegistry', () => {
     expect(lifecycle.version).toMatch(/^[0-9a-f]{12}$/);
   });
 
+  it('lets a phase use a skill another playbook ships', () => {
+    root = mkdtempSync(join(tmpdir(), 'terminus-playbooks-'));
+    mkdirSync(join(root, 'task', 'skills', 'review'), { recursive: true });
+    writeFileSync(join(root, 'task', 'lifecycle.yaml'), 'id: task\nphases:\n  - id: review\n    skill: review\n');
+    writeFileSync(join(root, 'task', 'skills', 'review', 'SKILL.md'), skill('review'));
+    mkdirSync(join(root, 'scaffold'));
+    writeFileSync(join(root, 'scaffold', 'lifecycle.yaml'), 'id: scaffold\nphases:\n  - id: review\n    skill: review\n');
+
+    expect(new FsPlaybookRegistry(root).lifecycle('scaffold').phases).toEqual([{ id: 'review', skill: 'review' }]);
+  });
+
   it('gives a new version whenever the file content changes', () => {
     const first = new FsPlaybookRegistry(playbooks({ task: 'id: task\nphases:\n  - id: spec\n' })).lifecycle('task').version;
     rmSync(root, { recursive: true, force: true });
@@ -73,7 +84,7 @@ describe('FsPlaybookRegistry', () => {
   it('accepts the playbooks shipped in the repository', () => {
     root = mkdtempSync(join(tmpdir(), 'unused-'));
     const registry = new FsPlaybookRegistry(REPO_PLAYBOOKS);
-    expect(registry.lifecycles().map((lifecycle) => lifecycle.id).sort()).toEqual(['app', 'app-framing', 'app-stack', 'epic', 'task']);
+    expect(registry.lifecycles().map((lifecycle) => lifecycle.id).sort()).toEqual(['app', 'app-framing', 'app-scaffold', 'app-stack', 'epic', 'task']);
     expect(registry.lifecycle('task').phases.map((phase) => phase.id)).toEqual([
       'spec',
       'grill',
