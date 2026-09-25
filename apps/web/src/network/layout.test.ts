@@ -7,6 +7,7 @@ const task = (id: string, epicId: string, dependsOn: string[] = []): TaskSummary
   id,
   epicId,
   title: id,
+  description: '',
   autonomy: 'up-to-pr',
   track: 'standard',
   agent: { model: null, effort: null },

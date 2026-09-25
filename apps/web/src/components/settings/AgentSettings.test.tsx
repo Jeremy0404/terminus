@@ -5,6 +5,7 @@ import { AgentSettings } from './AgentSettings';
 
 const PHASES: AgentPhaseDto[] = [
   { key: 'epic.breakdown', lifecycleId: 'epic', phaseId: 'breakdown', choice: { model: null, effort: null } },
+  { key: 'epic.station-draft', lifecycleId: 'epic', phaseId: 'station-draft', choice: { model: null, effort: null } },
   { key: 'task.execute', lifecycleId: 'task', phaseId: 'execute', choice: { model: 'opus', effort: 'high' } },
 ];
 
@@ -34,7 +35,13 @@ describe('AgentSettings', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Enregistré'));
     expect(calls.at(-1)).toEqual({
       method: 'PUT',
-      body: { defaults: { 'epic.breakdown': { model: 'haiku', effort: null }, 'task.execute': { model: 'opus', effort: 'high' } } },
+      body: { defaults: { 'epic.breakdown': { model: 'haiku', effort: null }, 'epic.station-draft': { model: null, effort: null }, 'task.execute': { model: 'opus', effort: 'high' } } },
     });
+  });
+
+  it('names the station formatting phase', async () => {
+    render(<AgentSettings onClose={() => {}} />);
+
+    expect(await screen.findByRole('combobox', { name: 'Modèle · Mise en forme de station' })).toHaveValue('');
   });
 });

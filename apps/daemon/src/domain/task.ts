@@ -39,6 +39,7 @@ export interface Task {
   readonly id: string;
   readonly epicId: string;
   readonly title: string;
+  readonly description: string;
   readonly lifecycle: LifecycleDefinition;
   readonly autonomy: Autonomy;
   readonly track: Track;
@@ -55,6 +56,7 @@ export interface NewTask {
   readonly id: string;
   readonly epicId: string;
   readonly title: string;
+  readonly description?: string;
   readonly lifecycle: LifecycleDefinition;
   readonly autonomy?: Autonomy;
   readonly track?: Track;
@@ -68,6 +70,7 @@ export function createTask(input: NewTask): Task {
     id: input.id,
     epicId: input.epicId,
     title: input.title,
+    description: input.description ?? '',
     lifecycle: input.lifecycle,
     autonomy: input.autonomy ?? 'up-to-pr',
     track: input.track ?? 'standard',

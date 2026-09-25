@@ -45,16 +45,19 @@ export const BreakdownBody = z.object({ brief: z.string().max(4000).default('') 
 
 export const AcceptBreakdownBody = z.object({
   description: z.string().max(4000),
-  stations: z.array(z.object({ title: z.string().min(1), dependsOn: z.array(z.number().int().min(0)).default([]) })).min(1),
+  stations: z.array(z.object({ title: z.string().min(1), why: z.string().max(1000).default(''), dependsOn: z.array(z.number().int().min(0)).default([]) })).min(1),
   track: z.enum(['standard', 'light']).default('standard'),
 });
 
 export const CreateTaskBody = z.object({
   title: z.string().min(1),
+  description: z.string().max(4000).default(''),
   dependsOn: z.array(z.string()).default([]),
   autonomy: Autonomy.default('up-to-pr'),
   track: Track.default('standard'),
 });
+
+export const StationDraftBody = z.object({ text: z.string().trim().min(1).max(4000) });
 
 export const AnswerBody = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('option'), index: z.number().int().min(0) }),
@@ -114,6 +117,12 @@ export type BreakdownDto =
   | { readonly status: 'ready'; readonly brief: string; readonly proposal: { readonly description: string; readonly stations: readonly ProposedStationDto[] } }
   | { readonly status: 'failed'; readonly brief: string; readonly error: string };
 
+export interface StationDraftDto {
+  readonly title: string;
+  readonly understanding: string;
+  readonly summary: string;
+}
+
 export interface EpicDto {
   readonly id: string;
   readonly appId: string;
@@ -129,6 +138,7 @@ export interface TaskSummaryDto {
   readonly id: string;
   readonly epicId: string;
   readonly title: string;
+  readonly description: string;
   readonly autonomy: AutonomyDto;
   readonly track: TrackDto;
   readonly agent: AgentChoiceDto;

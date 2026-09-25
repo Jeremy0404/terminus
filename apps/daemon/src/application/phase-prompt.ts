@@ -10,10 +10,10 @@ export interface PromptContext {
 }
 
 export function buildPhasePrompt(task: Task, phase: PhaseDefinition, answeredDecisions: readonly Decision[], context: PromptContext): string {
-  const lines = [
-    `Task: ${task.title}`,
-    `Phase: ${phase.id} (${task.phaseIndex + 1} of ${task.lifecycle.phases.length})`,
-  ];
+  const lines = [`Task: ${task.title}`];
+  const brief = task.description.trim();
+  if (brief) lines.push(`Brief: ${brief}`);
+  lines.push(`Phase: ${phase.id} (${task.phaseIndex + 1} of ${task.lifecycle.phases.length})`);
   if (phase.skill) lines.push(`Follow the \`${phase.skill}\` skill for this phase.`);
   lines.push(
     '',

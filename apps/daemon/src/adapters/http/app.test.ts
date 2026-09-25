@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { AgentPhaseDto, NetworkDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type { AgentPhaseDto, NetworkDto, StationDraftDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
 import { HealthResponse } from '@terminus/contracts';
 import type { AgentEvent } from '../../application/ports/agent-runner.js';
 import type { CheckResult, CheckRunner } from '../../application/ports/check-runner.js';
@@ -110,7 +110,7 @@ describe('HTTP API', () => {
     const task = (await call<TaskSummaryDto>('POST', `/api/tasks/${taskId}/agent`, { model: 'haiku', effort: 'low' })).json;
 
     expect(task.agent).toEqual({ model: 'haiku', effort: 'low' });
-    expect((await call<AgentPhaseDto[]>('GET', '/api/settings/agents')).json.map((phase) => phase.key)).toContain('epic.breakdown');
+    expect((await call<AgentPhaseDto[]>('GET', '/api/settings/agents')).json.map((phase) => phase.key)).toEqual(expect.arrayContaining(['epic.breakdown', 'epic.station-draft']));
   });
 
   it('creates an app, a line and a station, and draws the network', async () => {
@@ -124,6 +124,35 @@ describe('HTTP API', () => {
       expect.objectContaining({ id: taskId, title: 'Zoom to platform', phaseIndex: 0, status: { kind: 'todo' }, phases: ['spec', 'grill', 'plan', 'execute', 'verify', 'review', 'sync', 'merge'] }),
     ]);
     expect(json.inbox).toEqual([]);
+  });
+
+  it('keeps the description a station is created with', async () => {
+    const { appId, taskId } = await givenTask();
+    const described = await call<TaskSummaryDto>('POST', '/api/epics/epic-2/tasks', { title: 'Pan the map', description: 'Drag to move\naround the network' });
+
+    expect(described.status).toBe(201);
+    expect(described.json.description).toBe('Drag to move\naround the network');
+    const { json } = await call<NetworkDto>('GET', `/api/apps/${appId}/network`);
+    expect(json.tasks.map((task) => [task.id, task.description])).toEqual([[taskId, ''], [described.json.id, 'Drag to move\naround the network']]);
+  });
+
+  it('drafts a station from the human text', async () => {
+    const draft = { title: 'Add a way back from the settings', understanding: 'No link back.', summary: 'Add one.' };
+    start(finish(draft));
+    await givenTask();
+
+    const drafted = await call<StationDraftDto>('POST', '/api/epics/epic-2/station-draft', { text: 'pas de retour depuis les settings' });
+
+    expect(drafted).toEqual({ status: 200, json: draft });
+  });
+
+  it('refuses a blank draft text or an unknown line, and reports a failed draft', async () => {
+    start(() => [{ type: 'finished', outcome: 'error', summary: 'The agent crashed', structuredOutput: null }]);
+    await givenTask();
+
+    expect((await call('POST', '/api/epics/epic-2/station-draft', { text: '   ' })).status).toBe(400);
+    expect((await call('POST', '/api/epics/ghost/station-draft', { text: 'x' })).status).toBe(404);
+    expect(await call('POST', '/api/epics/epic-2/station-draft', { text: 'x' })).toEqual({ status: 409, json: { error: 'The agent crashed' } });
   });
 
   it('rejects invalid bodies with 400, unknown ids with 404 and wrong transitions with 409', async () => {
@@ -264,8 +293,8 @@ describe('HTTP API', () => {
     const network = (await call<NetworkDto>('GET', `/api/apps/${app.json.id}/network`)).json;
     expect(network.epics[0]?.breakdown).toMatchObject({ status: 'ready', proposal: { stations: [{ title: 'A' }, { title: 'B' }] } });
 
-    const created = await call<TaskSummaryDto[]>('POST', `/api/epics/${epic.json.id}/breakdown/accept`, { description: 'Goal, refined', stations: [{ title: 'A' }, { title: 'B', dependsOn: [0] }] });
+    const created = await call<TaskSummaryDto[]>('POST', `/api/epics/${epic.json.id}/breakdown/accept`, { description: 'Goal, refined', stations: [{ title: 'A', why: 'a' }, { title: 'B', dependsOn: [0] }] });
     expect(created.status).toBe(201);
-    expect(created.json.map((task) => task.title)).toEqual(['A', 'B']);
+    expect(created.json.map((task) => [task.title, task.description])).toEqual([['A', 'a'], ['B', '']]);
   });
 });

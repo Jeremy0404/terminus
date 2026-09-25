@@ -11,6 +11,7 @@ import type {
   ProposalsDto,
   QuotaDto,
   RepoScanDto,
+  StationDraftDto,
   TakeOverDto,
   TaskDetailDto,
   TaskSummaryDto,
@@ -57,10 +58,11 @@ export const api = {
   createApp: (body: { name: string; repoPath: string; verification: { name: string; command: string }[] }) => post<AppDto>('/apps', body),
   createEpic: (appId: string, body: { code: string; name: string; status?: 'planned' | 'active'; description?: string }) => post<EpicDto>(`/apps/${appId}/epics`, body),
   startBreakdown: (epicId: string, brief: string) => post<EpicDto>(`/epics/${epicId}/breakdown`, { brief }),
-  acceptBreakdown: (epicId: string, body: { description: string; stations: { title: string; dependsOn: number[] }[]; track: TrackDto }) =>
+  acceptBreakdown: (epicId: string, body: { description: string; stations: { title: string; why: string; dependsOn: number[] }[]; track: TrackDto }) =>
     post<TaskSummaryDto[]>(`/epics/${epicId}/breakdown/accept`, body),
   dismissBreakdown: (epicId: string) => post<EpicDto>(`/epics/${epicId}/breakdown/dismiss`),
-  createTask: (epicId: string, body: { title: string; dependsOn?: string[]; track?: TrackDto }) => post<TaskSummaryDto>(`/epics/${epicId}/tasks`, body),
+  draftStation: (epicId: string, text: string) => post<StationDraftDto>(`/epics/${epicId}/station-draft`, { text }),
+  createTask: (epicId: string, body: { title: string; description?: string; dependsOn?: string[]; track?: TrackDto }) => post<TaskSummaryDto>(`/epics/${epicId}/tasks`, body),
   skip: (taskId: string) => post<TaskSummaryDto>(`/tasks/${taskId}/skip`),
   setTrack: (taskId: string, track: TrackDto) => post<TaskSummaryDto>(`/tasks/${taskId}/track`, { track }),
   act: (taskId: string, action: TaskAction) => post<TaskSummaryDto | null>(`/tasks/${taskId}/${action}`),

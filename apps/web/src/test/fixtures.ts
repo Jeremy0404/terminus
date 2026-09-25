@@ -8,6 +8,7 @@ export const task = (id: string, epicId: string, title: string, status: TaskSumm
   id,
   epicId,
   title,
+  description: '',
   autonomy: 'up-to-pr',
   track: 'standard',
   agent: { model: null, effort: null },
@@ -29,7 +30,7 @@ export const NETWORK: NetworkDto = {
   tasks: [
     task('m1', 'engine', 'Spike CLI', { kind: 'done' }),
     task('m2', 'engine', 'Adaptateur CLI', { kind: 'running', runId: 'run-1' }, { phaseIndex: 3 }),
-    task('i1', 'ui', 'Rendu SVG', { kind: 'awaiting-gate', gate: 'human-review' }, { phaseIndex: 5 }),
+    task('i1', 'ui', 'Rendu SVG', { kind: 'awaiting-gate', gate: 'human-review' }, { phaseIndex: 5, description: 'Dessiner les lignes en SVG.\nUne couleur par ligne.' }),
     task('i2', 'ui', 'Zoom', { kind: 'blocked', failure: { kind: 'check-failed', signature: 'check:test', message: 'test failed', at: 'x' } }, { phaseIndex: 4, dependsOn: ['m2'] }),
   ],
   inbox: [

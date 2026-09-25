@@ -11,7 +11,7 @@ describe('AgentSettings', () => {
   it('lists every phase run by an agent with its default choice', () => {
     const settings = new AgentSettings({ playbooks: new FsPlaybookRegistry(PLAYBOOKS), agentDefaults: new InMemoryAgentDefaultsStore({ 'task.spec': { model: 'sonnet', effort: null } }) });
 
-    expect(settings.phases().map((phase) => phase.key)).toEqual(['epic.breakdown', 'task.spec', 'task.grill', 'task.plan', 'task.execute', 'task.review', 'task.sync']);
+    expect(settings.phases().map((phase) => phase.key)).toEqual(['epic.breakdown', 'epic.station-draft', 'task.spec', 'task.grill', 'task.plan', 'task.execute', 'task.review', 'task.sync']);
     expect(settings.phases().find((phase) => phase.key === 'task.spec')?.choice).toEqual({ model: 'sonnet', effort: null });
     expect(settings.phases().find((phase) => phase.key === 'task.plan')?.choice).toEqual({ model: null, effort: null });
   });
