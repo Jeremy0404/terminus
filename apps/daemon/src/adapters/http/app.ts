@@ -40,6 +40,7 @@ import { NotFound, type Queries } from '../../application/queries.js';
 import type { StationDrafter } from '../../application/station-drafter.js';
 import type { TaskActions } from '../../application/task-actions.js';
 import { DomainError } from '../../domain/errors.js';
+import { tailnetGuard } from './tailnet-guard.js';
 import { toAgentSettingsDto, toAppDto, toLessonDto, toMemoryProposalDto, toTermDto, toEpicDto, toNetworkDto, toQuotaDto, toServerEventDto, toTaskDetailDto, toTaskSummaryDto } from './dto.js';
 
 const KEEPALIVE_MS = 15_000;
@@ -47,6 +48,7 @@ const KEEPALIVE_MS = 15_000;
 export interface HttpDeps {
   readonly version: string;
   readonly webDir?: string | null;
+  readonly owner?: string | null;
   readonly queries: Queries;
   readonly catalog: Catalog;
   readonly adoption: Adoption;
@@ -65,6 +67,8 @@ export interface HttpDeps {
 export function createHttpApp(deps: HttpDeps): Hono {
   const app = new Hono();
   const { queries, catalog, actions } = deps;
+
+  app.use('*', tailnetGuard(deps.owner ?? null));
 
   app.onError((error, c) => {
     if (error instanceof ZodError) return c.json({ error: 'Invalid request', issues: error.issues }, 400);
