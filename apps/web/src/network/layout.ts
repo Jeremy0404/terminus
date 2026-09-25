@@ -8,8 +8,6 @@ export const ROUNDEL_OFFSET = 44;
 export const ROUNDEL_RADIUS = 17;
 const RIGHT_MARGIN = 140;
 const BOTTOM_MARGIN = 70;
-const MIN_ZOOM_SHARE = 0.55;
-const MIN_LINE_VIEW = 750;
 export const MIN_WIDTH = 1000;
 const MIN_HEIGHT = 380;
 
@@ -117,17 +115,4 @@ function rankTasks(tasks: readonly TaskSummaryDto[]): Map<string, number> {
   };
   for (const task of tasks) rank(task.id, new Set());
   return ranks;
-}
-
-export function lineViewBox(layout: NetworkLayout, epicId: string, aspect: number): [number, number, number, number] {
-  const line = layout.lines.find((candidate) => candidate.epic.id === epicId);
-  if (!line) return fullViewBox(layout);
-  const x = line.startX - LEFT - 10;
-  const width = Math.max(line.endX - x + 80, MIN_LINE_VIEW, layout.width * MIN_ZOOM_SHARE);
-  const height = width / aspect;
-  return [x, line.y - height / 2, width, height];
-}
-
-export function fullViewBox(layout: NetworkLayout): [number, number, number, number] {
-  return [0, 0, layout.width, layout.height];
 }

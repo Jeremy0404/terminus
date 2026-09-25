@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { NetworkDto } from '@terminus/contracts';
-import { fullViewBox, layoutNetwork, lineViewBox, withoutDeliveredLines } from '../network/layout';
+import { canvasFor, lineView, mapHeight, networkView, reveal, viewOf, type Canvas, type Frame, type ViewBox } from '../network/camera';
+import { layoutNetwork, STEP, withoutDeliveredLines, type NetworkLayout } from '../network/layout';
 import { levelOf, type Place } from '../state/location';
 import { useHideDelivered } from '../state/preferences';
 import { MapDrawing } from './map/MapDrawing';
+import { useFrame } from './map/useFrame';
 
-const MAP_ASPECT = 2;
 const ZOOM_MS = 520;
 
 interface Props {
@@ -15,6 +16,29 @@ interface Props {
   readonly onLine: (epicId: string) => void;
   readonly onStation: (epicId: string, taskId: string) => void;
   readonly onBackground: () => void;
+}
+
+interface Shown {
+  readonly box: HTMLDivElement;
+  readonly app: string;
+  readonly line: string | null;
+  readonly task: string | null;
+  readonly frame: Frame;
+}
+
+const ease = (p: number): number => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+function between([x0, y0, width0, height0]: ViewBox, [x1, y1, width1, height1]: ViewBox, progress: number): ViewBox {
+  const mix = (from: number, to: number): number => from + (to - from) * ease(progress);
+  return [mix(x0, x1), mix(y0, y1), mix(width0, width1), mix(height0, height1)];
+}
+const prefersReducedMotion = (): boolean => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true;
+
+function paint(svg: SVGSVGElement, box: HTMLDivElement, canvas: Canvas): void {
+  svg.setAttribute('viewBox', canvas.viewBox.join(' '));
+  svg.setAttribute('width', String(canvas.width));
+  svg.setAttribute('height', String(canvas.height));
+  box.scrollLeft = canvas.scrollLeft;
+  box.scrollTop = canvas.scrollTop;
 }
 
 export function NetworkMap({ network, place, onLine, onStation, onBackground }: Props) {
@@ -26,35 +50,59 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground }: 
     return layoutNetwork(visible.epics, visible.tasks);
   }, [network, hideDelivered, place.line]);
   const svg = useRef<SVGSVGElement>(null);
-  const [initialViewBox] = useState(() => fullViewBox(layout).join(' '));
-  const current = useRef<number[] | null>(null);
+  const [box, setBox] = useState<HTMLDivElement | null>(null);
+  const frame = useFrame(box);
+  const canvas = useRef<Canvas | null>(null);
+  const shown = useRef<Shown | null>(null);
+  const animation = useRef<number | null>(null);
+  const layoutNow = useRef<NetworkLayout>(layout);
   const level = levelOf(place);
-  const target = place.line ? lineViewBox(layout, place.line, MAP_ASPECT) : fullViewBox(layout);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const resized = layoutNow.current.width !== layout.width || layoutNow.current.height !== layout.height;
+    layoutNow.current = layout;
     const element = svg.current;
-    if (!element) return;
-    const from = current.current ?? fullViewBox(layout);
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true;
-    if (reduce || typeof requestAnimationFrame === 'undefined') {
-      current.current = target;
-      element.setAttribute('viewBox', target.join(' '));
+    if (!resized || !box || !element || !canvas.current || animation.current !== null || shown.current?.box !== box) return;
+    const current = viewOf(canvas.current, { left: box.scrollLeft, top: box.scrollTop }, frame);
+    canvas.current = canvasFor(current, layout, frame);
+    paint(element, box, canvas.current);
+  }, [layout, box, frame]);
+
+  useLayoutEffect(() => {
+    const element = svg.current;
+    if (!box || !element) return;
+    const appId = network.app.id;
+    const previous = shown.current;
+    shown.current = { box, app: appId, line: place.line, task: place.task, frame };
+    const from = previous?.box === box && canvas.current ? viewOf(canvas.current, { left: box.scrollLeft, top: box.scrollTop }, frame) : null;
+    const resized = previous?.frame !== frame;
+    const target = layoutNow.current;
+    const base = !from || resized || previous?.app !== appId || previous?.line !== place.line
+      ? (place.line ? lineView(target, place.line, frame) : networkView(target, frame))
+      : from;
+    const selected = target.lines.flatMap((line) => line.stations).find((station) => station.task.id === place.task);
+    const to = selected ? reveal(base, selected, STEP) : base;
+    const show = (view: ViewBox): void => {
+      canvas.current = canvasFor(view, layoutNow.current, frame);
+      paint(element, box, canvas.current);
+    };
+    if (!from || resized || prefersReducedMotion() || typeof requestAnimationFrame === 'undefined') {
+      show(to);
       return;
     }
     let started: number | null = null;
-    let frame = 0;
-    const ease = (p: number): number => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
     const step = (now: number): void => {
       started ??= now;
       const progress = Math.min(1, (now - started) / ZOOM_MS);
-      current.current = from.map((value, index) => value + ((target[index] ?? value) - value) * ease(progress));
-      element.setAttribute('viewBox', current.current.join(' '));
-      if (progress < 1) frame = requestAnimationFrame(step);
+      show(between(from, to, progress));
+      animation.current = progress < 1 ? requestAnimationFrame(step) : null;
     };
-    frame = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frame);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target.join(' ')]);
+    animation.current = requestAnimationFrame(step);
+    return () => {
+      if (animation.current !== null) cancelAnimationFrame(animation.current);
+      animation.current = null;
+    };
+  }, [box, network.app.id, place.line, place.task, frame]);
 
   const allHidden = layout.lines.length === 0 && network.epics.length > 0;
 
@@ -68,17 +116,12 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground }: 
       {allHidden ? (
         <p className="map-empty">{t('map.allDelivered')}</p>
       ) : (
-        <svg
-          ref={svg}
-          className="network-map"
-          viewBox={initialViewBox}
-          preserveAspectRatio="xMidYMid meet"
-          role="img"
-          aria-label={t('map.label', { app: network.app.name })}
-        >
-          <rect className="map-background" x={-5000} y={-5000} width={10000} height={10000} onClick={onBackground} />
-          <MapDrawing layout={layout} tasks={network.tasks} level={level} openLine={place.line} selectedTask={place.task} onLine={onLine} onStation={onStation} />
-        </svg>
+        <div ref={setBox} className="map-viewport" style={{ height: mapHeight(layout, frame.width) }}>
+          <svg ref={svg} className="network-map" preserveAspectRatio="xMinYMin meet" role="img" aria-label={t('map.label', { app: network.app.name })}>
+            <rect className="map-background" x={-5000} y={-5000} width={10000} height={10000} onClick={onBackground} />
+            <MapDrawing layout={layout} tasks={network.tasks} level={level} openLine={place.line} selectedTask={place.task} onLine={onLine} onStation={onStation} />
+          </svg>
+        </div>
       )}
     </>
   );
