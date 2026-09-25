@@ -1,19 +1,23 @@
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
 
-export const STEP = 150;
+export const STEP = 80;
 export const ROW = 130;
 export const LEFT = 230;
 export const TOP = 110;
+export const ROUNDEL_OFFSET = 44;
+export const ROUNDEL_RADIUS = 17;
 const RIGHT_MARGIN = 140;
 const BOTTOM_MARGIN = 70;
-const MIN_ZOOM_SHARE = 0.55;
-const MIN_WIDTH = 1000;
+export const MIN_WIDTH = 1000;
 const MIN_HEIGHT = 380;
+
+export type LabelSide = 'below' | 'above';
 
 export interface StationPosition {
   readonly task: TaskSummaryDto;
   readonly x: number;
   readonly y: number;
+  readonly labelSide: LabelSide;
 }
 
 export interface LinePosition {
@@ -46,7 +50,9 @@ export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSum
 
   const lines = orderedEpics.map((epic): LinePosition => {
     const y = rows.get(epic.id) ?? TOP;
-    const stations = tasks.filter((task) => task.epicId === epic.id).map((task) => ({ task, x: xOf(task.id), y }));
+    const stations = tasks
+      .filter((task) => task.epicId === epic.id)
+      .map((task, index): StationPosition => ({ task, x: xOf(task.id), y, labelSide: index % 2 === 0 ? 'below' : 'above' }));
     const xs = stations.map((station) => station.x);
     const startX = xs.length > 0 ? Math.min(...xs) : LEFT;
     const endX = xs.length > 0 ? Math.max(...xs) + STEP / 2 : LEFT + STEP;
@@ -76,6 +82,16 @@ export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSum
   };
 }
 
+export function withoutDeliveredLines(
+  epics: readonly EpicDto[],
+  tasks: readonly TaskSummaryDto[],
+  keepEpicId: string | null,
+): { readonly epics: readonly EpicDto[]; readonly tasks: readonly TaskSummaryDto[] } {
+  const visible = epics.filter((epic) => epic.status !== 'delivered' || epic.id === keepEpicId);
+  const ids = new Set(visible.map((epic) => epic.id));
+  return { epics: visible, tasks: tasks.filter((task) => ids.has(task.epicId)) };
+}
+
 function rankTasks(tasks: readonly TaskSummaryDto[]): Map<string, number> {
   const byId = new Map(tasks.map((task) => [task.id, task]));
   const previousInLine = new Map<string, string>();
@@ -99,17 +115,4 @@ function rankTasks(tasks: readonly TaskSummaryDto[]): Map<string, number> {
   };
   for (const task of tasks) rank(task.id, new Set());
   return ranks;
-}
-
-export function lineViewBox(layout: NetworkLayout, epicId: string, aspect: number): [number, number, number, number] {
-  const line = layout.lines.find((candidate) => candidate.epic.id === epicId);
-  if (!line) return fullViewBox(layout);
-  const x = line.startX - LEFT - 10;
-  const width = Math.max(line.endX - x + 80, STEP * 5, layout.width * MIN_ZOOM_SHARE);
-  const height = width / aspect;
-  return [x, line.y - height / 2, width, height];
-}
-
-export function fullViewBox(layout: NetworkLayout): [number, number, number, number] {
-  return [0, 0, layout.width, layout.height];
 }
