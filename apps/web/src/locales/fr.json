@@ -376,7 +376,11 @@
       "high": "effort élevé",
       "xhigh": "effort très élevé",
       "max": "effort maximal"
-    }
+    },
+    "account": "réglage du compte",
+    "accountModel": "Modèle du compte",
+    "accountEffort": "Effort du compte",
+    "inherit": "Par défaut ({{value}})"
   },
   "settings": {
     "open": "Réglages",
@@ -394,11 +398,13 @@
       "task.plan": "Plan",
       "task.execute": "Exécution",
       "task.review": "Review",
-      "task.sync": "Résolution de conflits"
+      "task.sync": "Résolution de conflits",
+      "task.retro": "Rétrospective"
     },
     "save": "Enregistrer",
     "saving": "Enregistrement…",
-    "saved": "Enregistré"
+    "saved": "Enregistré",
+    "fallback": "Par défaut, toutes phases"
   },
   "feedback": {
     "done": "✓ {{action}}"

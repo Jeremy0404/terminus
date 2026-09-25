@@ -17,13 +17,18 @@ export const AgentChoiceBody = z.object({
 
 export type AgentChoiceDto = z.infer<typeof AgentChoiceBody>;
 
-export const AgentDefaultsBody = z.object({ defaults: z.record(z.string(), AgentChoiceBody) });
+export const AgentDefaultsBody = z.object({ fallback: AgentChoiceBody, defaults: z.record(z.string(), AgentChoiceBody) });
 
 export interface AgentPhaseDto {
   readonly key: string;
   readonly lifecycleId: string;
   readonly phaseId: string;
   readonly choice: AgentChoiceDto;
+}
+
+export interface AgentSettingsDto {
+  readonly fallback: AgentChoiceDto;
+  readonly phases: readonly AgentPhaseDto[];
 }
 
 export const TrackBody = z.object({ track: Track });

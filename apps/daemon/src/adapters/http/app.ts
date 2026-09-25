@@ -31,7 +31,7 @@ import { NotFound, type Queries } from '../../application/queries.js';
 import type { StationDrafter } from '../../application/station-drafter.js';
 import type { TaskActions } from '../../application/task-actions.js';
 import { DomainError } from '../../domain/errors.js';
-import { toAgentPhaseDto, toAppDto, toEpicDto, toNetworkDto, toQuotaDto, toServerEventDto, toTaskDetailDto, toTaskSummaryDto } from './dto.js';
+import { toAgentSettingsDto, toAppDto, toEpicDto, toNetworkDto, toQuotaDto, toServerEventDto, toTaskDetailDto, toTaskSummaryDto } from './dto.js';
 
 const KEEPALIVE_MS = 15_000;
 
@@ -71,10 +71,10 @@ export function createHttpApp(deps: HttpDeps): Hono {
   app.get('/api/health', (c) => c.json<HealthResponse>({ status: 'ok', version: deps.version }));
 
   app.get('/api/apps', (c) => c.json(queries.apps().map(toAppDto)));
-  app.get('/api/settings/agents', (c) => c.json(deps.agentSettings.phases().map(toAgentPhaseDto)));
+  app.get('/api/settings/agents', (c) => c.json(toAgentSettingsDto(deps.agentSettings.view())));
   app.put('/api/settings/agents', async (c) => {
-    const { defaults } = await body(c, AgentDefaultsBody);
-    return c.json(deps.agentSettings.update(defaults).map(toAgentPhaseDto));
+    const { fallback, defaults } = await body(c, AgentDefaultsBody);
+    return c.json(toAgentSettingsDto(deps.agentSettings.update(fallback, defaults)));
   });
   app.get('/api/quota', (c) => {
     const quota = queries.quota();

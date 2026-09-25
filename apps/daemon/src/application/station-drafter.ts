@@ -1,4 +1,4 @@
-import { choiceKey, resolveChoice } from '../domain/agent-choice.js';
+import { choiceFor, choiceKey } from '../domain/agent-choice.js';
 import type { Epic } from '../domain/epic.js';
 import { DomainError } from '../domain/errors.js';
 import type { AgentDefaultsStore } from './ports/agent-defaults-store.js';
@@ -39,7 +39,7 @@ export class StationDrafter {
     const scratch = this.deps.notes.directoryFor(`draft-${runId}`);
     const lifecycle = this.deps.playbooks.lifecycle('epic');
     const phase = lifecycle.phases.find((candidate) => candidate.id === DRAFT_PHASE);
-    const choice = resolveChoice(this.deps.agentDefaults.all()[choiceKey(lifecycle.id, DRAFT_PHASE)], phase);
+    const choice = choiceFor(this.deps.agentDefaults.all(), choiceKey(lifecycle.id, DRAFT_PHASE), phase);
     const handle = this.deps.agent.start({
       runId,
       sessionId: this.deps.ids.uuid(),

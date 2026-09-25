@@ -1,5 +1,5 @@
-import type { AgentPhaseDto, AppDto, DecisionDto, EpicDto, InboxItemDto, NetworkDto, QuotaDto, RunDto, ServerEventDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
-import type { AgentPhase } from '../../application/agent-settings.js';
+import type { AgentPhaseDto, AgentSettingsDto, AppDto, DecisionDto, EpicDto, InboxItemDto, NetworkDto, QuotaDto, RunDto, ServerEventDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type { AgentPhase, AgentSettingsView } from '../../application/agent-settings.js';
 import type { RunUpdate } from '../../application/ports/system.js';
 import type { Network, TaskDetail } from '../../application/queries.js';
 import type { App } from '../../domain/app.js';
@@ -35,7 +35,9 @@ const toInboxItemDto = (item: InboxItem): InboxItemDto => item;
 
 const toRunDto = ({ id, phaseIndex, status, startedAt, endedAt, usage, output, agent }: Run): RunDto => ({ id, phaseIndex, status, startedAt, endedAt, usage, output, agent: agent ?? null });
 
-export const toAgentPhaseDto = ({ key, lifecycleId, phaseId, choice }: AgentPhase): AgentPhaseDto => ({ key, lifecycleId, phaseId, choice });
+const toAgentPhaseDto = ({ key, lifecycleId, phaseId, choice }: AgentPhase): AgentPhaseDto => ({ key, lifecycleId, phaseId, choice });
+
+export const toAgentSettingsDto = ({ fallback, phases }: AgentSettingsView): AgentSettingsDto => ({ fallback, phases: phases.map(toAgentPhaseDto) });
 
 const toDecisionDto = ({ id, kind, phaseIndex, question, options, answer, proposal }: Decision): DecisionDto => ({ id, kind, proposal: proposal ?? null, phaseIndex, question, options, answer });
 

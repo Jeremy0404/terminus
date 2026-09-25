@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AgentChoiceDto, AgentPhaseDto } from '@terminus/contracts';
+import type { AgentChoiceDto, AgentSettingsDto } from '@terminus/contracts';
 import { api } from '../../api/client';
-import { AgentChoiceFields } from '../agent/AgentChoiceFields';
+import { AgentChoiceFields, describeChoice } from '../agent/AgentChoiceFields';
 import { useAction } from '../platform/useAction';
 
 export function AgentSettings({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
-  const [phases, setPhases] = useState<readonly AgentPhaseDto[] | null>(null);
+  const [settings, setSettings] = useState<AgentSettingsDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const save = useAction();
@@ -17,7 +17,7 @@ export function AgentSettings({ onClose }: { onClose: () => void }) {
     api
       .agentSettings()
       .then((loaded) => {
-        if (!cancelled) setPhases(loaded);
+        if (!cancelled) setSettings(loaded);
       })
       .catch((cause: unknown) => {
         if (!cancelled) setLoadError(cause instanceof Error ? cause.message : String(cause));
@@ -27,18 +27,21 @@ export function AgentSettings({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
-  const change = (key: string, choice: AgentChoiceDto): void => {
+  const edit = (next: AgentSettingsDto): void => {
     setSaved(false);
-    setPhases((current) => current?.map((phase) => (phase.key === key ? { ...phase, choice } : phase)) ?? null);
+    setSettings(next);
   };
 
   const submit = (): void => {
-    if (!phases) return;
+    if (!settings) return;
     void save.run(async () => {
-      setPhases(await api.saveAgentSettings(Object.fromEntries(phases.map((phase) => [phase.key, phase.choice]))));
+      setSettings(await api.saveAgentSettings(settings.fallback, Object.fromEntries(settings.phases.map((phase) => [phase.key, phase.choice]))));
       setSaved(true);
     });
   };
+
+  const inherited = settings ? (describeChoice(settings.fallback, t) ?? t('agent.account')) : '';
+  const fallbackLabel = t('settings.fallback');
 
   return (
     <section className="card settings" aria-labelledby="settings-title">
@@ -51,21 +54,39 @@ export function AgentSettings({ onClose }: { onClose: () => void }) {
         <button type="button" className="btn small" onClick={onClose} aria-label={t('settings.close')}>✕</button>
       </div>
       {loadError && <p className="action-error" role="alert">{loadError}</p>}
-      {phases && (
+      {settings && (
         <ul className="settings-rows">
-          {phases.map((phase) => {
+          <li className="settings-fallback">
+            <span>{fallbackLabel}</span>
+            <AgentChoiceFields
+              choice={settings.fallback}
+              onChange={(fallback: AgentChoiceDto) => edit({ ...settings, fallback })}
+              disabled={save.busy}
+              label={fallbackLabel}
+              emptyModel={t('agent.accountModel')}
+              emptyEffort={t('agent.accountEffort')}
+            />
+          </li>
+          {settings.phases.map((phase) => {
             const label = t(`settings.phases.${phase.key}`, { defaultValue: phase.key });
             return (
               <li key={phase.key}>
                 <span>{label}</span>
-                <AgentChoiceFields choice={phase.choice} onChange={(choice) => change(phase.key, choice)} disabled={save.busy} label={label} />
+                <AgentChoiceFields
+                  choice={phase.choice}
+                  onChange={(choice) => edit({ ...settings, phases: settings.phases.map((candidate) => (candidate.key === phase.key ? { ...candidate, choice } : candidate)) })}
+                  disabled={save.busy}
+                  label={label}
+                  emptyModel={t('agent.inherit', { value: inherited })}
+                  emptyEffort={t('agent.inherit', { value: inherited })}
+                />
               </li>
             );
           })}
         </ul>
       )}
       <div className="row">
-        <button type="button" className="btn primary" onClick={submit} disabled={!phases || save.busy} aria-busy={save.busy}>
+        <button type="button" className="btn primary" onClick={submit} disabled={!settings || save.busy} aria-busy={save.busy}>
           {save.busy ? t('settings.saving') : t('settings.save')}
         </button>
         {saved && !save.busy && <span className="tag good" role="status">{t('settings.saved')}</span>}

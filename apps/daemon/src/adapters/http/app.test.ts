@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { AgentPhaseDto, NetworkDto, StationDraftDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type { AgentSettingsDto, NetworkDto, StationDraftDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
 import { HealthResponse } from '@terminus/contracts';
 import type { AgentEvent } from '../../application/ports/agent-runner.js';
 import type { CheckResult, CheckRunner } from '../../application/ports/check-runner.js';
@@ -101,16 +101,18 @@ describe('HTTP API', () => {
   });
 
   it('sets the default model per agent phase and the model of a task', async () => {
-    const phases = (await call<AgentPhaseDto[]>('PUT', '/api/settings/agents', { defaults: { 'task.execute': { model: 'opus', effort: 'high' } } })).json;
-    expect(phases.find((phase) => phase.key === 'task.execute')?.choice).toEqual({ model: 'opus', effort: 'high' });
-    expect((await call('PUT', '/api/settings/agents', { defaults: { 'task.verify': { model: 'opus', effort: null } } })).status).toBe(409);
-    expect((await call('PUT', '/api/settings/agents', { defaults: { 'task.execute': { model: 'opus; rm', effort: null } } })).status).toBe(400);
+    const fallback = { model: 'sonnet', effort: 'high' };
+    const saved = (await call<AgentSettingsDto>('PUT', '/api/settings/agents', { fallback, defaults: { 'task.execute': { model: 'opus', effort: 'max' } } })).json;
+    expect(saved.fallback).toEqual(fallback);
+    expect(saved.phases.find((phase) => phase.key === 'task.execute')?.choice).toEqual({ model: 'opus', effort: 'max' });
+    expect((await call('PUT', '/api/settings/agents', { fallback, defaults: { 'task.verify': { model: 'opus', effort: null } } })).status).toBe(409);
+    expect((await call('PUT', '/api/settings/agents', { fallback, defaults: { 'task.execute': { model: 'opus; rm', effort: null } } })).status).toBe(400);
 
     const { taskId } = await givenTask();
     const task = (await call<TaskSummaryDto>('POST', `/api/tasks/${taskId}/agent`, { model: 'haiku', effort: 'low' })).json;
 
     expect(task.agent).toEqual({ model: 'haiku', effort: 'low' });
-    expect((await call<AgentPhaseDto[]>('GET', '/api/settings/agents')).json.map((phase) => phase.key)).toEqual(expect.arrayContaining(['epic.breakdown', 'epic.station-draft']));
+    expect((await call<AgentSettingsDto>('GET', '/api/settings/agents')).json.phases.map((phase) => phase.key)).toEqual(expect.arrayContaining(['epic.breakdown', 'epic.station-draft']));
   });
 
   it('creates an app, a line and a station, and draws the network', async () => {
