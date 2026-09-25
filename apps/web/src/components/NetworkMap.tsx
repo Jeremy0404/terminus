@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { NetworkDto } from '@terminus/contracts';
 import { canvasFor, lineView, mapHeight, networkView, reveal, viewOf, type Canvas, type Frame, type ViewBox } from '../network/camera';
@@ -6,6 +6,7 @@ import { layoutNetwork, STEP, withoutDeliveredLines, type NetworkLayout } from '
 import { levelOf, type Place } from '../state/location';
 import { useHideDelivered } from '../state/preferences';
 import { MapDrawing } from './map/MapDrawing';
+import { useDragPan } from './map/useDragPan';
 import { useFrame } from './map/useFrame';
 
 const ZOOM_MS = 520;
@@ -57,6 +58,11 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground }: 
   const animation = useRef<number | null>(null);
   const layoutNow = useRef<NetworkLayout>(layout);
   const level = levelOf(place);
+  const stopZoom = useCallback(() => {
+    if (animation.current !== null) cancelAnimationFrame(animation.current);
+    animation.current = null;
+  }, []);
+  const pan = useDragPan(box, stopZoom);
 
   useLayoutEffect(() => {
     const resized = layoutNow.current.width !== layout.width || layoutNow.current.height !== layout.height;
@@ -98,11 +104,8 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground }: 
       animation.current = progress < 1 ? requestAnimationFrame(step) : null;
     };
     animation.current = requestAnimationFrame(step);
-    return () => {
-      if (animation.current !== null) cancelAnimationFrame(animation.current);
-      animation.current = null;
-    };
-  }, [box, network.app.id, place.line, place.task, frame]);
+    return stopZoom;
+  }, [box, network.app.id, place.line, place.task, frame, stopZoom]);
 
   const allHidden = layout.lines.length === 0 && network.epics.length > 0;
 
@@ -116,7 +119,13 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground }: 
       {allHidden ? (
         <p className="map-empty">{t('map.allDelivered')}</p>
       ) : (
-        <div ref={setBox} className="map-viewport" style={{ height: mapHeight(layout, frame.width) }}>
+        <div
+          ref={setBox}
+          className={`map-viewport ${pan.dragging ? 'dragging' : ''}`}
+          style={{ height: mapHeight(layout, frame.width) }}
+          onPointerDown={pan.onPointerDown}
+          onClickCapture={pan.onClickCapture}
+        >
           <svg ref={svg} className="network-map" preserveAspectRatio="xMinYMin meet" role="img" aria-label={t('map.label', { app: network.app.name })}>
             <rect className="map-background" x={-5000} y={-5000} width={10000} height={10000} onClick={onBackground} />
             <MapDrawing layout={layout} tasks={network.tasks} level={level} openLine={place.line} selectedTask={place.task} onLine={onLine} onStation={onStation} />

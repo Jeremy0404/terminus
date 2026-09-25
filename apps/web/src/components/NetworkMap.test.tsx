@@ -160,3 +160,51 @@ describe('NetworkMap scale and scroll', () => {
     expect(map.showsX(0)).toBe(true);
   });
 });
+
+describe('NetworkMap drag to pan', () => {
+  const network = networkOf([line('a', 1)], stations('a', 30));
+  const place = { app: APP.id, line: 'a', task: null };
+
+  function renderWithSpies() {
+    const onStation = vi.fn();
+    const onBackground = vi.fn();
+    const view = render(<NetworkMap network={network} place={place} onLine={vi.fn()} onStation={onStation} onBackground={onBackground} />);
+    return { ...view, box: drawn(view.container).box, onStation, onBackground };
+  }
+
+  function drag(target: Element, by: number, pointerType = 'mouse') {
+    fireEvent.pointerDown(target, { pointerType, button: 0, clientX: 500, clientY: 200 });
+    fireEvent.pointerMove(window, { pointerType, clientX: 500 - by, clientY: 200 });
+    fireEvent.pointerUp(window, { pointerType, clientX: 500 - by, clientY: 200 });
+    fireEvent.click(target);
+  }
+
+  it('pans the map when dragging from a station, without opening it', () => {
+    const { box, onStation } = renderWithSpies();
+    drag(screen.getByRole('button', { name: /^a 1,/ }), 40);
+
+    expect(box.scrollLeft).toBe(40);
+    expect(onStation).not.toHaveBeenCalled();
+  });
+
+  it('does not leave the line when dragging across the background', () => {
+    const { container, onBackground } = renderWithSpies();
+    drag(container.querySelector('.map-background') as Element, 40);
+
+    expect(onBackground).not.toHaveBeenCalled();
+  });
+
+  it('still opens a station on a click with a little jitter', () => {
+    const { onStation } = renderWithSpies();
+    drag(screen.getByRole('button', { name: /^a 1,/ }), 2);
+
+    expect(onStation).toHaveBeenCalledWith('a', 'a1');
+  });
+
+  it('leaves touch panning to the browser', () => {
+    const { box } = renderWithSpies();
+    drag(screen.getByRole('button', { name: /^a 1,/ }), 40, 'touch');
+
+    expect(box.scrollLeft).toBe(0);
+  });
+});

@@ -81,6 +81,8 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .stage { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 18px; align-items: start; }
 .map-box { position: relative; min-width: 0; background: var(--surface); border-radius: 20px; box-shadow: var(--shadow); overflow: hidden; }
 .map-viewport { overflow: auto; max-height: calc(100vh - 150px); scrollbar-gutter: stable; overscroll-behavior: contain; scroll-padding-left: 64px; }
+.map-viewport { cursor: grab; }
+.map-viewport.dragging, .map-viewport.dragging * { cursor: grabbing; user-select: none; }
 .map-toggle { position: absolute; top: 12px; right: 12px; z-index: 1; border: 1.5px solid var(--rule); border-radius: 999px; background: var(--surface); color: var(--ink-2); padding: 5px 12px; font-size: 12px; font-weight: 700; }
 .map-toggle:hover { background: var(--surface-2); color: var(--ink); }
 .map-toggle[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
