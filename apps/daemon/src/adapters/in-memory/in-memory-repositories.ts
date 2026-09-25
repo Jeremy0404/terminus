@@ -6,12 +6,14 @@ import type {
   TaskRepository,
 } from '../../application/ports/repositories.js';
 import type { AgentDefaultsStore } from '../../application/ports/agent-defaults-store.js';
+import type { MemoryRepository } from '../../application/ports/memory-repository.js';
 import type { QuotaStore } from '../../application/ports/quota-store.js';
 import type { TranscriptStore } from '../../application/ports/transcript-store.js';
 import type { AgentDefaults } from '../../domain/agent-choice.js';
 import type { App } from '../../domain/app.js';
 import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
+import type { Lesson, MemoryProposal, Term } from '../../domain/memory.js';
 import type { Quota } from '../../domain/quota.js';
 import type { Run } from '../../domain/run.js';
 import type { Task } from '../../domain/task.js';
@@ -79,6 +81,48 @@ export class InMemoryAgentDefaultsStore implements AgentDefaultsStore {
 
   replace(defaults: AgentDefaults): void {
     this.defaults = defaults;
+  }
+}
+
+export class InMemoryMemoryRepository implements MemoryRepository {
+  private readonly lessonsById = new Map<string, Lesson>();
+  private readonly termsById = new Map<string, Term>();
+  private readonly proposalsById = new Map<string, MemoryProposal>();
+
+  lessons(appId: string): Lesson[] {
+    return [...this.lessonsById.values()].filter((lesson) => lesson.appId === appId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  saveLesson(lesson: Lesson): void {
+    this.lessonsById.set(lesson.id, lesson);
+  }
+
+  removeLesson(id: string): boolean {
+    return this.lessonsById.delete(id);
+  }
+
+  terms(appId: string): Term[] {
+    return [...this.termsById.values()].filter((term) => term.appId === appId).sort((a, b) => a.term.localeCompare(b.term, undefined, { sensitivity: 'base' }));
+  }
+
+  saveTerm(term: Term): void {
+    this.termsById.set(term.id, term);
+  }
+
+  removeTerm(id: string): boolean {
+    return this.termsById.delete(id);
+  }
+
+  pendingProposals(appId: string): MemoryProposal[] {
+    return [...this.proposalsById.values()].filter((proposal) => proposal.appId === appId && proposal.status === 'pending');
+  }
+
+  proposal(id: string): MemoryProposal | null {
+    return this.proposalsById.get(id) ?? null;
+  }
+
+  saveProposal(proposal: MemoryProposal): void {
+    this.proposalsById.set(proposal.id, proposal);
   }
 }
 

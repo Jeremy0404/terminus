@@ -8,6 +8,7 @@ import type { Run } from '../domain/run.js';
 import { suggestedActions, type SuggestedAction } from '../domain/suggestions.js';
 import type { Task } from '../domain/task.js';
 import type { AppRepository, DecisionRepository, EpicRepository, RunRepository, TaskRepository } from './ports/repositories.js';
+import type { MemoryRepository } from './ports/memory-repository.js';
 import type { QuotaStore } from './ports/quota-store.js';
 import type { TranscriptStore } from './ports/transcript-store.js';
 
@@ -16,6 +17,15 @@ export interface Network {
   readonly epics: readonly Epic[];
   readonly tasks: readonly Task[];
   readonly inbox: readonly InboxItem[];
+  readonly memoryProposals: number;
+  readonly obsoleteFlags: readonly ObsoleteFlag[];
+}
+
+export interface ObsoleteFlag {
+  readonly proposalId: string;
+  readonly taskId: string;
+  readonly sourceTitle: string;
+  readonly reason: string;
 }
 
 export interface TaskDetail {
@@ -33,6 +43,7 @@ export interface QueriesDeps {
   readonly decisions: DecisionRepository;
   readonly transcripts: TranscriptStore;
   readonly quota: QuotaStore;
+  readonly memory: MemoryRepository;
 }
 
 export class Queries {
@@ -46,7 +57,14 @@ export class Queries {
     const app = this.deps.apps.get(appId);
     if (!app) throw new NotFound(`Unknown app ${appId}`);
     const tasks = this.deps.tasks.listByApp(appId);
-    return { app, epics: this.deps.epics.listByApp(appId), tasks, inbox: buildInbox(tasks) };
+    const proposals = this.deps.memory.pendingProposals(appId);
+    const titles = new Map(tasks.map((task) => [task.id, task.title]));
+    const obsoleteFlags = proposals.flatMap((proposal) =>
+      proposal.proposed.kind === 'obsolete'
+        ? [{ proposalId: proposal.id, taskId: proposal.proposed.targetTaskId, sourceTitle: titles.get(proposal.sourceTaskId) ?? proposal.sourceTaskId, reason: proposal.why }]
+        : [],
+    );
+    return { app, epics: this.deps.epics.listByApp(appId), tasks, inbox: buildInbox(tasks), memoryProposals: proposals.length, obsoleteFlags };
   }
 
   task(taskId: string): TaskDetail {

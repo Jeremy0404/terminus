@@ -1,12 +1,14 @@
-import { choiceKey, resolveChoice, type AgentChoice } from '../domain/agent-choice.js';
+import { choiceFor, choiceKey, type AgentChoice } from '../domain/agent-choice.js';
 import type { Decision } from '../domain/decision.js';
 import { DomainError } from '../domain/errors.js';
 import { isLooping, type Failure, type FailurePolicy } from '../domain/failure.js';
 import type { App } from '../domain/app.js';
 import { phaseAt, type PhaseDefinition } from '../domain/lifecycle.js';
 import type { Run, RunStatus, RunUsage } from '../domain/run.js';
-import { completePhase, failRun, holdForProposal, passChecks, rejectByChecks, requestDecision, startRun, type Task } from '../domain/task.js';
+import { completePhase, failRun, holdForProposal, passChecks, rejectByChecks, requestDecision, startRun, type Task, type TaskStatus } from '../domain/task.js';
 import { DECISIONS_OUTPUT_SCHEMA, readProposedDecisions } from './decision-output.js';
+import type { ContextSource } from './context-pack.js';
+import { MEMORY_OUTPUT_SCHEMA, readMemoryOutput } from './memory-output.js';
 import { buildPhasePrompt } from './phase-prompt.js';
 import { REVIEW_OUTPUT_SCHEMA } from './review-output.js';
 import { readVerdict, VERDICT_OUTPUT_SCHEMA } from './verdict-output.js';
@@ -15,6 +17,7 @@ import type { CodeHost } from './ports/code-host.js';
 import { pullRequestBody, pullRequestTitle } from './pull-request-text.js';
 import type { AgentDefaultsStore } from './ports/agent-defaults-store.js';
 import type { AgentEvent, AgentRunner } from './ports/agent-runner.js';
+import type { MemoryRepository } from './ports/memory-repository.js';
 import type { AppRepository, DecisionRepository, EpicRepository, RunRepository, TaskRepository } from './ports/repositories.js';
 import type { Clock, IdGenerator, RunEventBus } from './ports/system.js';
 import type { TranscriptStore } from './ports/transcript-store.js';
@@ -39,6 +42,8 @@ export interface PhaseRunnerDeps {
   readonly instructions: RepositoryInstructions;
   readonly agent: AgentRunner;
   readonly agentDefaults: AgentDefaultsStore;
+  readonly context: ContextSource;
+  readonly memory: MemoryRepository;
   readonly checks: CheckRunner;
   readonly codeHost: CodeHost;
   readonly clock: Clock;
@@ -120,6 +125,7 @@ export class PhaseRunner {
         const sequence = task.checkpoints.length + 1;
         const ref = workspace.checkpoint(taskWorkspace, sequence, phase.id);
         task = completePhase(task, { sequence, phaseIndex: task.phaseIndex, ref, sessionId, takenAt: clock.now() });
+        if (phase.output === 'memory') this.proposeMemory(task, app, observation.finished?.structuredOutput);
         const verdict = phase.output === 'verdict' ? readVerdict(observation.finished?.structuredOutput) : null;
         if (verdict?.proposal && task.status.kind === 'ready') {
           const proposal: Decision = {
@@ -149,7 +155,25 @@ export class PhaseRunner {
 
     run = { ...run, status, endedAt: clock.now(), usage: observation.usage, output: observation.finished?.structuredOutput ?? null };
     runs.save(run);
+    if (task.status.kind === 'done') workspace.remove(app.repoPath, taskWorkspace);
     return this.save(task);
+  }
+
+  private openStations(task: Task, app: App): { id: string; line: string; title: string }[] {
+    const lines = new Map(this.deps.epics.listByApp(app.id).map((epic) => [epic.id, epic.code]));
+    return this.deps.tasks
+      .listByApp(app.id)
+      .filter((candidate) => candidate.id !== task.id && OPEN_STATUSES.includes(candidate.status.kind))
+      .map((candidate) => ({ id: candidate.id, line: lines.get(candidate.epicId) ?? '?', title: candidate.title }));
+  }
+
+  private proposeMemory(task: Task, app: App, output: unknown): void {
+    const { memory, ids, clock, bus } = this.deps;
+    const entries = readMemoryOutput(output, new Set(this.openStations(task, app).map((station) => station.id)));
+    for (const entry of entries) {
+      memory.saveProposal({ id: ids.next('proposal'), appId: app.id, sourceTaskId: task.id, proposed: entry.proposed, why: entry.why, status: 'pending', createdAt: clock.now() });
+    }
+    if (entries.length > 0) bus.publish({ kind: 'memory-changed', appId: app.id });
   }
 
   private async runAgent(ready: Task, app: App, phase: PhaseDefinition, taskWorkspace: TaskWorkspace, options: AgentRunOptions): Promise<RunObservation> {
@@ -158,6 +182,7 @@ export class PhaseRunner {
       notesDir,
       baseRef: this.deps.baseRef,
       verification: app.verification,
+      ...(phase.output === 'memory' ? { openStations: this.openStations(ready, app) } : {}),
     });
     const choice = this.choiceFor(ready, phase);
     const handle = this.deps.agent.start({
@@ -167,7 +192,7 @@ export class PhaseRunner {
       cwd: taskWorkspace.path,
       notesDir,
       prompt: options.promptSuffix ? `${prompt}\n\n${options.promptSuffix}` : prompt,
-      systemPromptAppend: [this.deps.systemPromptAppend, this.deps.instructions.localOnly(app.repoPath, taskWorkspace.path)].filter(Boolean).join('\n\n'),
+      systemPromptAppend: [this.deps.systemPromptAppend, this.deps.context.forApp(app), this.deps.instructions.localOnly(app.repoPath, taskWorkspace.path)].filter(Boolean).join('\n\n'),
       skill: phase.skill ?? null,
       model: choice.model,
       effort: choice.effort,
@@ -182,7 +207,7 @@ export class PhaseRunner {
   }
 
   private choiceFor(task: Task, phase: PhaseDefinition): AgentChoice {
-    return resolveChoice(task.agent, this.deps.agentDefaults.all()[choiceKey(task.lifecycle.id, phase.id)], phase);
+    return choiceFor(this.deps.agentDefaults.all(), choiceKey(task.lifecycle.id, phase.id), phase, task.agent);
   }
 
   private async runSync(ready: Task, app: App, phase: PhaseDefinition, taskWorkspace: TaskWorkspace): Promise<Task> {
@@ -364,10 +389,13 @@ export class PhaseRunner {
   }
 }
 
+const OPEN_STATUSES: readonly TaskStatus['kind'][] = ['todo', 'ready', 'awaiting-decision', 'awaiting-gate', 'blocked', 'manual'];
+
 function outputSchemaFor(phase: PhaseDefinition): object | null {
   if (phase.output === 'decisions') return DECISIONS_OUTPUT_SCHEMA;
   if (phase.output === 'review') return REVIEW_OUTPUT_SCHEMA;
   if (phase.output === 'verdict') return VERDICT_OUTPUT_SCHEMA;
+  if (phase.output === 'memory') return MEMORY_OUTPUT_SCHEMA;
   return null;
 }
 

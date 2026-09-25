@@ -50,6 +50,7 @@ beforeEach(() => {
   planner = (agent, agentDefaults = new InMemoryAgentDefaultsStore()) =>
     new EpicPlanner({
       apps, epics, tasks, catalog, workspace, agent, agentDefaults, transcripts, ids, bus,
+      context: { forApp: (app) => `memory of ${app.name}` },
       playbooks: new FsPlaybookRegistry(PLAYBOOKS),
       notes: new FakeTaskNotes(),
       instructions: { localOnly: () => 'repo rules' },
@@ -70,7 +71,7 @@ describe('EpicPlanner', () => {
     await epicPlanner.idle();
 
     expect(epics.get('epic-2')?.breakdown).toEqual({ status: 'ready', brief: 'Adopt repos in five stations', proposal });
-    expect(agent.requests[0]).toMatchObject({ skill: 'epic-breakdown', systemPromptAppend: 'repo rules', notesDir: '/notes/epic-epic-2', model: null, effort: null });
+    expect(agent.requests[0]).toMatchObject({ skill: 'epic-breakdown', systemPromptAppend: 'memory of app\n\nrepo rules', notesDir: '/notes/epic-epic-2', model: 'opus', effort: 'xhigh' });
     expect(agent.requests[0]?.prompt).toContain('Brief from the human: Adopt repos in five stations');
     expect(agent.requests[0]?.prompt).toContain('- [U] Give every click feedback (todo)');
     expect(agent.requests[0]?.prompt).toContain('Current description:\ndraft');

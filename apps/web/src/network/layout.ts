@@ -1,21 +1,22 @@
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
 
-export const STEP = 150;
+export const STEP = 80;
 export const ROW = 130;
+export const LEFT = 230;
 export const TOP = 110;
-const ORIGIN_X = 190;
-const LANE = 36;
+export const ROUNDEL_RADIUS = 17;
 const ROW_START_MIN_RUN = 40;
+const ORIGIN_X = LEFT - ROW_START_MIN_RUN;
+const LANE = 36;
 const FIRST_STATION_GAP = 60;
-const INTERCHANGE_BEND = 52;
-const INTERCHANGE_PLATEAU = 20;
+const INTERCHANGE_BEND = 30;
+const INTERCHANGE_PLATEAU = 10;
 const RIGHT_MARGIN = 140;
 const BOTTOM_MARGIN = 70;
-const MIN_ZOOM_SHARE = 0.55;
-const FRAME_MARGIN = 30;
-const MIN_WIDTH = 1000;
+export const MIN_WIDTH = 1000;
 const MIN_HEIGHT = 380;
-export const ROUNDEL_R = 17;
+
+export type LabelSide = 'below' | 'above';
 
 export interface Point {
   readonly x: number;
@@ -26,6 +27,7 @@ export interface StationPosition {
   readonly task: TaskSummaryDto;
   readonly x: number;
   readonly y: number;
+  readonly labelSide: LabelSide;
   readonly interchange: boolean;
 }
 
@@ -88,7 +90,13 @@ export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSum
     const fan = fanOf(index);
     const stations = tasks
       .filter((task) => task.epicId === epic.id)
-      .map((task) => ({ task, x: xOf(task.id), y: y + bendOf(task, index), interchange: interchanges.has(task.id) }));
+      .map((task, position): StationPosition => ({
+        task,
+        x: xOf(task.id),
+        y: y + bendOf(task, index),
+        labelSide: position % 2 === 0 ? 'below' : 'above',
+        interchange: interchanges.has(task.id),
+      }));
     const xs = stations.map((station) => station.x);
     const startX = ORIGIN_X + Math.max(fan, ROW_START_MIN_RUN);
     const endX = xs.length > 0 ? Math.max(...xs) + STEP / 2 : firstX + STEP / 2;
@@ -112,6 +120,16 @@ export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSum
     width: Math.max(maxX + RIGHT_MARGIN, MIN_WIDTH),
     height: Math.max(TOP + Math.max(orderedEpics.length - 1, 0) * ROW + BOTTOM_MARGIN, MIN_HEIGHT),
   };
+}
+
+export function withoutDeliveredLines(
+  epics: readonly EpicDto[],
+  tasks: readonly TaskSummaryDto[],
+  keepEpicId: string | null,
+): { readonly epics: readonly EpicDto[]; readonly tasks: readonly TaskSummaryDto[] } {
+  const visible = epics.filter((epic) => epic.status !== 'delivered' || epic.id === keepEpicId);
+  const ids = new Set(visible.map((epic) => epic.id));
+  return { epics: visible, tasks: tasks.filter((task) => ids.has(task.epicId)) };
 }
 
 function trackPath(rowStart: Point, stops: readonly Point[]): Point[] {
@@ -153,17 +171,4 @@ function rankTasks(tasks: readonly TaskSummaryDto[]): Map<string, number> {
   };
   for (const task of tasks) rank(task.id, new Set());
   return ranks;
-}
-
-export function lineViewBox(layout: NetworkLayout, epicId: string, aspect: number): [number, number, number, number] {
-  const line = layout.lines.find((candidate) => candidate.epic.id === epicId);
-  if (!line) return fullViewBox(layout);
-  const x = line.startX - ROUNDEL_R - FRAME_MARGIN;
-  const width = Math.max(line.endX - x + 80, STEP * 5, layout.width * MIN_ZOOM_SHARE);
-  const height = width / aspect;
-  return [x, line.y - height / 2, width, height];
-}
-
-export function fullViewBox(layout: NetworkLayout): [number, number, number, number] {
-  return [0, 0, layout.width, layout.height];
 }

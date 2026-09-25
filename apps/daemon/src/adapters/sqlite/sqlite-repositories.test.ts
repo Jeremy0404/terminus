@@ -14,6 +14,7 @@ import {
   SqliteAppRepository,
   SqliteDecisionRepository,
   SqliteEpicRepository,
+  SqliteMemoryRepository,
   SqliteQuotaStore,
   SqliteRunRepository,
   SqliteTaskRepository,
@@ -181,5 +182,24 @@ describe('SqliteAgentDefaultsStore', () => {
     store.replace({ execute: { model: null, effort: 'max' } });
 
     expect(store.all()).toEqual({ execute: { model: null, effort: 'max' } });
+  });
+});
+
+describe('SqliteMemoryRepository', () => {
+  it('keeps lessons in order and terms alphabetically, per app, and removes them', () => {
+    const memory = new SqliteMemoryRepository(db);
+    memory.saveLesson({ id: 'l2', appId: 'terminus', text: 'Second', sourceTaskId: null, createdAt: '2026-09-25T11:00:00Z' });
+    memory.saveLesson({ id: 'l1', appId: 'terminus', text: 'First', sourceTaskId: 't1', createdAt: '2026-09-25T10:00:00Z' });
+    memory.saveTerm({ id: 't-b', appId: 'terminus', term: 'station', definition: 'A task', updatedAt: 'x' });
+    memory.saveTerm({ id: 't-a', appId: 'terminus', term: 'Line', definition: 'An epic', updatedAt: 'x' });
+
+    expect(memory.lessons('terminus').map((lesson) => lesson.text)).toEqual(['First', 'Second']);
+    expect(memory.lessons('terminus')[0]?.sourceTaskId).toBe('t1');
+    expect(memory.terms('terminus').map((term) => term.term)).toEqual(['Line', 'station']);
+    expect(memory.lessons('other')).toEqual([]);
+    expect(memory.removeLesson('l1')).toBe(true);
+    expect(memory.removeLesson('l1')).toBe(false);
+    expect(memory.removeTerm('t-a')).toBe(true);
+    expect(memory.terms('terminus').map((term) => term.term)).toEqual(['station']);
   });
 });

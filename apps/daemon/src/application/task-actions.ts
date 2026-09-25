@@ -119,7 +119,7 @@ export class TaskActions {
       throw new DomainError(`GitHub refused to merge pull request #${pullRequest.number}: ${typeof stderr === 'string' && stderr.trim() ? stderr.trim() : String(error)}`);
     }
     const merged = this.save(approveGate(task));
-    this.deps.workspace.remove(app.repoPath, this.workspaceOf(task));
+    if (merged.status.kind === 'done') this.deps.workspace.remove(app.repoPath, this.workspaceOf(task));
     return merged;
   }
 
@@ -194,6 +194,7 @@ export class TaskActions {
     const task = this.load(taskId);
     const skipped = this.save(skipPhase(task));
     this.recordDeviation(skipped, `Phase ${phaseAt(task.lifecycle, task.phaseIndex).id} skipped`);
+    if (skipped.status.kind === 'done') this.deps.workspace.remove(this.appOf(task).repoPath, this.workspaceOf(task));
     return skipped;
   }
 

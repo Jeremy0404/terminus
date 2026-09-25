@@ -6,6 +6,7 @@ import { serve } from '@hono/node-server';
 import { buildAgentHome, readAgentProfile } from './adapters/claude-cli/agent-home.js';
 import { BUILTIN_PLUGINS, ClaudeCliRunner } from './adapters/claude-cli/claude-cli-runner.js';
 import { FsRepositoryInstructions } from './adapters/repo-context/fs-repository-instructions.js';
+import { FsRepositoryKnowledge } from './adapters/repo-context/fs-repository-knowledge.js';
 import { FsTaskNotes } from './adapters/fs-notes/fs-task-notes.js';
 import { FsPlaybookRegistry } from './adapters/fs-playbooks/fs-playbook-registry.js';
 import { GitWorkspace } from './adapters/git/git-workspace.js';
@@ -20,6 +21,7 @@ import {
   SqliteAppRepository,
   SqliteDecisionRepository,
   SqliteEpicRepository,
+  SqliteMemoryRepository,
   SqliteQuotaStore,
   SqliteRunRepository,
   SqliteTaskRepository,
@@ -96,6 +98,8 @@ const { http, scheduler } = compose(
     instructions: new FsRepositoryInstructions(),
     agent: agentRunner(env['TERMINUS_AGENT']),
     agentDefaults: new SqliteAgentDefaultsStore(db),
+    memory: new SqliteMemoryRepository(db),
+    knowledge: new FsRepositoryKnowledge(),
     checks: new ShellCheckRunner(CHECK_TIMEOUT_MS),
     codeHost: new GhCodeHost(),
     scanner: new FsRepoScanner(),

@@ -1,5 +1,6 @@
-import type { AgentPhaseDto, AppDto, DecisionDto, EpicDto, InboxItemDto, NetworkDto, QuotaDto, RunDto, ServerEventDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
-import type { AgentPhase } from '../../application/agent-settings.js';
+import type { AgentPhaseDto, AgentSettingsDto, AppDto, LessonDto, MemoryProposalDto, TermDto, DecisionDto, EpicDto, InboxItemDto, NetworkDto, QuotaDto, RunDto, ServerEventDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type { AgentPhase, AgentSettingsView } from '../../application/agent-settings.js';
+import type { ReviewedProposal } from '../../application/project-memory.js';
 import type { RunUpdate } from '../../application/ports/system.js';
 import type { Network, TaskDetail } from '../../application/queries.js';
 import type { App } from '../../domain/app.js';
@@ -7,6 +8,7 @@ import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
 import { appliesTo } from '../../domain/lifecycle.js';
 import type { InboxItem } from '../../domain/inbox.js';
+import type { Lesson, Term } from '../../domain/memory.js';
 import type { Quota } from '../../domain/quota.js';
 import type { Run } from '../../domain/run.js';
 import type { Task } from '../../domain/task.js';
@@ -35,7 +37,9 @@ const toInboxItemDto = (item: InboxItem): InboxItemDto => item;
 
 const toRunDto = ({ id, phaseIndex, status, startedAt, endedAt, usage, output, agent }: Run): RunDto => ({ id, phaseIndex, status, startedAt, endedAt, usage, output, agent: agent ?? null });
 
-export const toAgentPhaseDto = ({ key, lifecycleId, phaseId, choice }: AgentPhase): AgentPhaseDto => ({ key, lifecycleId, phaseId, choice });
+const toAgentPhaseDto = ({ key, lifecycleId, phaseId, choice, inherited }: AgentPhase): AgentPhaseDto => ({ key, lifecycleId, phaseId, choice, inherited });
+
+export const toAgentSettingsDto = ({ fallback, phases }: AgentSettingsView): AgentSettingsDto => ({ fallback, phases: phases.map(toAgentPhaseDto) });
 
 const toDecisionDto = ({ id, kind, phaseIndex, question, options, answer, proposal }: Decision): DecisionDto => ({ id, kind, proposal: proposal ?? null, phaseIndex, question, options, answer });
 
@@ -44,6 +48,8 @@ export const toNetworkDto = (network: Network): NetworkDto => ({
   epics: network.epics.map(toEpicDto),
   tasks: network.tasks.map(toTaskSummaryDto),
   inbox: network.inbox.map(toInboxItemDto),
+  memoryProposals: network.memoryProposals,
+  obsoleteFlags: network.obsoleteFlags,
 });
 
 export const toTaskDetailDto = (detail: TaskDetail): TaskDetailDto => ({
@@ -53,6 +59,18 @@ export const toTaskDetailDto = (detail: TaskDetail): TaskDetailDto => ({
   actions: detail.actions,
   runs: detail.runs.map(toRunDto),
   decisions: detail.decisions.map(toDecisionDto),
+});
+
+export const toLessonDto = ({ id, text, sourceTaskId, createdAt }: Lesson): LessonDto => ({ id, text, sourceTaskId, createdAt });
+
+export const toTermDto = ({ id, term, definition, updatedAt }: Term): TermDto => ({ id, term, definition, updatedAt });
+
+export const toMemoryProposalDto = ({ id, sourceTaskId, sourceTitle, targetTitle, proposed, why }: ReviewedProposal): MemoryProposalDto => ({
+  id,
+  sourceTaskId,
+  sourceTitle,
+  proposed: proposed.kind === 'obsolete' ? { ...proposed, targetTitle: targetTitle ?? proposed.targetTaskId } : proposed,
+  why,
 });
 
 export const toQuotaDto = ({ limited, windows, observedAt }: Quota): QuotaDto => ({ limited, windows, observedAt });
@@ -73,5 +91,7 @@ export const toServerEventDto = (update: RunUpdate): ServerEventDto => {
       return { type: 'check-result', runId: update.runId, taskId: update.taskId, result: update.result };
     case 'quota-changed':
       return { type: 'quota-changed', quota: toQuotaDto(update.quota) };
+    case 'memory-changed':
+      return { type: 'memory-changed', appId: update.appId };
   }
 };

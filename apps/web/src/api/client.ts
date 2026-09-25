@@ -1,6 +1,9 @@
 import type {
   AgentChoiceDto,
-  AgentPhaseDto,
+  AgentSettingsDto,
+  LessonDto,
+  MemoryDto,
+  TermDto,
   AppDto,
   ChecksResponseDto,
   CheckResultDto,
@@ -47,9 +50,16 @@ export type TaskAction = 'open' | 'approve' | 'merge' | 'resume-from-manual' | '
 export const api = {
   apps: () => request<AppDto[]>('/apps'),
   quota: () => request<QuotaDto | null>('/quota'),
-  agentSettings: () => request<AgentPhaseDto[]>('/settings/agents'),
-  saveAgentSettings: (defaults: Record<string, AgentChoiceDto>) =>
-    request<AgentPhaseDto[]>('/settings/agents', { method: 'PUT', body: JSON.stringify({ defaults }) }),
+  memory: (appId: string) => request<MemoryDto>(`/apps/${appId}/memory`),
+  addLesson: (appId: string, text: string) => post<LessonDto>(`/apps/${appId}/lessons`, { text }),
+  removeLesson: (lessonId: string) => request<null>(`/lessons/${lessonId}`, { method: 'DELETE' }),
+  setTerm: (appId: string, term: string, definition: string) => post<TermDto>(`/apps/${appId}/terms`, { term, definition }),
+  removeTerm: (termId: string) => request<null>(`/terms/${termId}`, { method: 'DELETE' }),
+  acceptProposal: (proposalId: string) => post<null>(`/memory-proposals/${proposalId}/accept`),
+  dismissProposal: (proposalId: string) => post<null>(`/memory-proposals/${proposalId}/dismiss`),
+  agentSettings: () => request<AgentSettingsDto>('/settings/agents'),
+  saveAgentSettings: (fallback: AgentChoiceDto, defaults: Record<string, AgentChoiceDto>) =>
+    request<AgentSettingsDto>('/settings/agents', { method: 'PUT', body: JSON.stringify({ fallback, defaults }) }),
   chooseAgent: (taskId: string, choice: AgentChoiceDto) => post<TaskSummaryDto>(`/tasks/${taskId}/agent`, choice),
   network: (appId: string) => request<NetworkDto>(`/apps/${appId}/network`),
   task: (taskId: string) => request<TaskDetailDto>(`/tasks/${taskId}`),

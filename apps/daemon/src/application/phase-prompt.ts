@@ -7,6 +7,7 @@ export interface PromptContext {
   readonly notesDir: string;
   readonly baseRef: string;
   readonly verification: readonly VerificationCommand[];
+  readonly openStations?: readonly { readonly id: string; readonly line: string; readonly title: string }[];
 }
 
 export function buildPhasePrompt(task: Task, phase: PhaseDefinition, answeredDecisions: readonly Decision[], context: PromptContext): string {
@@ -31,6 +32,10 @@ export function buildPhasePrompt(task: Task, phase: PhaseDefinition, answeredDec
   if (answeredDecisions.length > 0) {
     lines.push('', 'Decisions already made for this task:');
     for (const decision of answeredDecisions) lines.push(`- ${decision.question} → ${answerText(decision)}`);
+  }
+  if (context.openStations && context.openStations.length > 0) {
+    lines.push('', 'Open stations on this network (id [line] title). List in `obsolete` only those this merge already covers:');
+    for (const station of context.openStations) lines.push(`- ${station.id} [${station.line}] ${station.title}`);
   }
   return lines.join('\n');
 }

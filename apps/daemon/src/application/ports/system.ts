@@ -20,7 +20,8 @@ export type RunUpdate =
   | { readonly kind: 'check-started'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string }
   | { readonly kind: 'check-output'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string; readonly outputTail: string }
   | { readonly kind: 'check-result'; readonly runId: string; readonly taskId: string; readonly result: CheckResult }
-  | { readonly kind: 'quota-changed'; readonly quota: Quota };
+  | { readonly kind: 'quota-changed'; readonly quota: Quota }
+  | { readonly kind: 'memory-changed'; readonly appId: string };
 
 export interface RunEventBus {
   publish(update: RunUpdate): void;

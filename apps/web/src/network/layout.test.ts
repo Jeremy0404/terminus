@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
-import { layoutNetwork, lineViewBox, ROUNDEL_R, ROW, STEP, TOP, type NetworkLayout, type Point } from './layout';
+import { layoutNetwork, ROUNDEL_RADIUS, ROW, STEP, TOP, withoutDeliveredLines, type NetworkLayout, type Point } from './layout';
 
 const epic = (id: string, position: number, status: EpicDto['status'] = 'active'): EpicDto => ({ id, appId: 'app', code: id.toUpperCase(), name: id, status, position, description: '', breakdown: { status: 'idle' } });
 const task = (id: string, epicId: string, dependsOn: string[] = []): TaskSummaryDto => ({
@@ -91,7 +91,7 @@ describe('layoutNetwork', () => {
 
     for (const line of layout.lines) {
       expect(onPath(line.path, { x: line.startX, y: line.y })).toBe(true);
-      expect(line.startX + ROUNDEL_R).toBeLessThanOrEqual(firstColumn - ROUNDEL_R);
+      expect(line.startX + ROUNDEL_RADIUS).toBeLessThanOrEqual(firstColumn - ROUNDEL_RADIUS);
     }
   });
 
@@ -138,13 +138,18 @@ describe('layoutNetwork', () => {
     expect(wide.width).toBeGreaterThan((wide.lines[0]?.stations[0]?.x ?? 0) + 8 * STEP);
   });
 
-  it('zooms onto a line without cutting its name or blowing up a short line', () => {
-    const layout = layoutNetwork([epic('a', 1), epic('b', 2)], [task('a1', 'a'), task('a2', 'a'), task('a3', 'a'), task('a4', 'a'), task('a5', 'a'), task('a6', 'a'), task('b1', 'b')]);
-    const line = layout.lines[1];
-    const [x, , width] = lineViewBox(layout, 'b', 2);
-    expect(x).toBeLessThan((line?.startX ?? 0) - ROUNDEL_R);
-    expect(x + width).toBeGreaterThan(line?.endX ?? 0);
-    expect(width).toBeGreaterThanOrEqual(layout.width * 0.55);
+  it('keeps stations of a line close together', () => {
+    const layout = layoutNetwork([epic('a', 1)], [task('a1', 'a'), task('a2', 'a'), task('a3', 'a')]);
+    const [first = 0, ...rest] = layout.lines[0]?.stations.map((station) => station.x) ?? [];
+    expect(rest).toEqual([first + STEP, first + 2 * STEP]);
+  });
+
+  it('alternates station labels below and above within each line', () => {
+    const layout = layoutNetwork([epic('a', 1), epic('b', 2)], [task('a1', 'a'), task('a2', 'a'), task('a3', 'a'), task('b1', 'b'), task('b2', 'b')]);
+    expect(layout.lines.map((line) => line.stations.map((station) => station.labelSide))).toEqual([
+      ['below', 'above', 'below'],
+      ['below', 'above'],
+    ]);
   });
 
   describe('interchanges', () => {
@@ -209,5 +214,31 @@ describe('layoutNetwork', () => {
       expectOctolinearPaths(layoutNetwork([epic('a', 1), epic('b', 2), epic('c', 3)], [task('a1', 'a'), task('c1', 'c'), task('b1', 'b', ['a1']), task('b2', 'b', ['c1'])]));
       expectOctolinearPaths(layoutNetwork([epic('a', 1), epic('b', 2)], [task('a1', 'a'), task('b1', 'b', ['a1'])]));
     });
+  });
+});
+
+describe('withoutDeliveredLines', () => {
+  const delivered = (id: string, position: number): EpicDto => ({ ...epic(id, position), status: 'delivered' });
+  const epics = [delivered('a', 1), epic('b', 2)];
+  const tasks = [task('a1', 'a'), task('a2', 'a'), task('b1', 'b', ['a2'])];
+
+  it('frees the row of a delivered line', () => {
+    const visible = withoutDeliveredLines(epics, tasks, null);
+    const layout = layoutNetwork(visible.epics, visible.tasks);
+    expect(layout.lines.map((line) => [line.epic.id, line.y])).toEqual([['b', TOP]]);
+  });
+
+  it('moves a line that waited on a delivered line back to the left, without a transfer', () => {
+    const visible = withoutDeliveredLines(epics, tasks, null);
+    const layout = layoutNetwork(visible.epics, visible.tasks);
+    const alone = layoutNetwork([epic('b', 2)], [task('b1', 'b')]);
+    expect(layout.lines[0]?.stations.map((station) => [station.x, station.y, station.interchange])).toEqual([[alone.lines[0]?.stations[0]?.x, TOP, false]]);
+    expect(layout.transfers).toEqual([]);
+  });
+
+  it('keeps the open line even when it is delivered', () => {
+    const visible = withoutDeliveredLines(epics, tasks, 'a');
+    expect(visible.epics.map((candidate) => candidate.id)).toEqual(['a', 'b']);
+    expect(visible.tasks.map((candidate) => candidate.id)).toEqual(['a1', 'a2', 'b1']);
   });
 });

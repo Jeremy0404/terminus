@@ -17,13 +17,19 @@ export const AgentChoiceBody = z.object({
 
 export type AgentChoiceDto = z.infer<typeof AgentChoiceBody>;
 
-export const AgentDefaultsBody = z.object({ defaults: z.record(z.string(), AgentChoiceBody) });
+export const AgentDefaultsBody = z.object({ fallback: AgentChoiceBody, defaults: z.record(z.string(), AgentChoiceBody) });
 
 export interface AgentPhaseDto {
   readonly key: string;
   readonly lifecycleId: string;
   readonly phaseId: string;
   readonly choice: AgentChoiceDto;
+  readonly inherited: AgentChoiceDto;
+}
+
+export interface AgentSettingsDto {
+  readonly fallback: AgentChoiceDto;
+  readonly phases: readonly AgentPhaseDto[];
 }
 
 export const TrackBody = z.object({ track: Track });
@@ -162,6 +168,8 @@ export interface NetworkDto {
   readonly epics: readonly EpicDto[];
   readonly tasks: readonly TaskSummaryDto[];
   readonly inbox: readonly InboxItemDto[];
+  readonly memoryProposals: number;
+  readonly obsoleteFlags: readonly ObsoleteFlagDto[];
 }
 
 export type SuggestedActionDto =
@@ -242,6 +250,51 @@ export interface QuotaDto {
   readonly observedAt: string;
 }
 
+export const LessonBody = z.object({ text: z.string().trim().min(1).max(600) });
+
+export const TermBody = z.object({ term: z.string().trim().min(1).max(80), definition: z.string().trim().min(1).max(600) });
+
+export interface LessonDto {
+  readonly id: string;
+  readonly text: string;
+  readonly sourceTaskId: string | null;
+  readonly createdAt: string;
+}
+
+export interface TermDto {
+  readonly id: string;
+  readonly term: string;
+  readonly definition: string;
+  readonly updatedAt: string;
+}
+
+export type ProposedMemoryDto =
+  | { readonly kind: 'lesson'; readonly text: string }
+  | { readonly kind: 'term'; readonly term: string; readonly definition: string }
+  | { readonly kind: 'obsolete'; readonly targetTaskId: string; readonly targetTitle: string };
+
+export interface ObsoleteFlagDto {
+  readonly proposalId: string;
+  readonly taskId: string;
+  readonly sourceTitle: string;
+  readonly reason: string;
+}
+
+export interface MemoryProposalDto {
+  readonly id: string;
+  readonly sourceTaskId: string;
+  readonly sourceTitle: string;
+  readonly proposed: ProposedMemoryDto;
+  readonly why: string;
+}
+
+export interface MemoryDto {
+  readonly lessons: readonly LessonDto[];
+  readonly terms: readonly TermDto[];
+  readonly proposals: readonly MemoryProposalDto[];
+  readonly pack: string;
+}
+
 export type ServerEventDto =
   | { readonly type: 'task-changed'; readonly task: TaskSummaryDto }
   | { readonly type: 'epic-changed'; readonly epic: EpicDto }
@@ -249,7 +302,8 @@ export type ServerEventDto =
   | { readonly type: 'check-started'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string }
   | { readonly type: 'check-output'; readonly runId: string; readonly taskId: string; readonly name: string; readonly command: string; readonly outputTail: string }
   | { readonly type: 'check-result'; readonly runId: string; readonly taskId: string; readonly result: unknown }
-  | { readonly type: 'quota-changed'; readonly quota: QuotaDto };
+  | { readonly type: 'quota-changed'; readonly quota: QuotaDto }
+  | { readonly type: 'memory-changed'; readonly appId: string };
 
 const VerificationCommandSchema = z.object({ name: z.string().min(1), command: z.string().min(1) });
 

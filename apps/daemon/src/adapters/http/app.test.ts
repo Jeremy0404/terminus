@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { AgentPhaseDto, NetworkDto, StationDraftDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type { AgentSettingsDto, LessonDto, MemoryDto, NetworkDto, StationDraftDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
 import { HealthResponse } from '@terminus/contracts';
 import type { AgentEvent } from '../../application/ports/agent-runner.js';
 import type { CheckResult, CheckRunner } from '../../application/ports/check-runner.js';
@@ -12,6 +12,7 @@ import {
   InMemoryAppRepository,
   InMemoryDecisionRepository,
   InMemoryEpicRepository,
+  InMemoryMemoryRepository,
   InMemoryQuotaStore,
   InMemoryRunRepository,
   InMemoryTaskRepository,
@@ -48,6 +49,8 @@ function start(...scripts: AgentScript[]): void {
       instructions: { localOnly: () => '' },
       agent: new ScriptedAgentRunner(...scripts),
       agentDefaults: new InMemoryAgentDefaultsStore(),
+      memory: new InMemoryMemoryRepository(),
+      knowledge: { contextDoc: () => 'Glossary of the demo repo.', decisions: () => [{ path: 'docs/adr/0001-use-sqlite.md', title: 'Use SQLite' }] },
       checks: greenChecks,
       codeHost,
       scanner: { scan: (repoPath) => ({ repoPath, name: 'demo', isGitRepo: true, hasOrigin: false, defaultBranch: 'main', packageManager: 'pnpm', ciWorkflows: [], agentDocs: [], suggestedVerification: [{ name: 'test', command: 'pnpm run test' }], todos: [] }) },
@@ -101,16 +104,37 @@ describe('HTTP API', () => {
   });
 
   it('sets the default model per agent phase and the model of a task', async () => {
-    const phases = (await call<AgentPhaseDto[]>('PUT', '/api/settings/agents', { defaults: { 'task.execute': { model: 'opus', effort: 'high' } } })).json;
-    expect(phases.find((phase) => phase.key === 'task.execute')?.choice).toEqual({ model: 'opus', effort: 'high' });
-    expect((await call('PUT', '/api/settings/agents', { defaults: { 'task.verify': { model: 'opus', effort: null } } })).status).toBe(409);
-    expect((await call('PUT', '/api/settings/agents', { defaults: { 'task.execute': { model: 'opus; rm', effort: null } } })).status).toBe(400);
+    const fallback = { model: 'sonnet', effort: 'high' };
+    const saved = (await call<AgentSettingsDto>('PUT', '/api/settings/agents', { fallback, defaults: { 'task.execute': { model: 'opus', effort: 'max' } } })).json;
+    expect(saved.fallback).toEqual(fallback);
+    expect(saved.phases.find((phase) => phase.key === 'task.execute')?.choice).toEqual({ model: 'opus', effort: 'max' });
+    expect((await call('PUT', '/api/settings/agents', { fallback, defaults: { 'task.verify': { model: 'opus', effort: null } } })).status).toBe(409);
+    expect((await call('PUT', '/api/settings/agents', { fallback, defaults: { 'task.execute': { model: 'opus; rm', effort: null } } })).status).toBe(400);
 
     const { taskId } = await givenTask();
     const task = (await call<TaskSummaryDto>('POST', `/api/tasks/${taskId}/agent`, { model: 'haiku', effort: 'low' })).json;
 
     expect(task.agent).toEqual({ model: 'haiku', effort: 'low' });
-    expect((await call<AgentPhaseDto[]>('GET', '/api/settings/agents')).json.map((phase) => phase.key)).toEqual(expect.arrayContaining(['epic.breakdown', 'epic.station-draft']));
+    expect((await call<AgentSettingsDto>('GET', '/api/settings/agents')).json.phases.map((phase) => phase.key)).toEqual(expect.arrayContaining(['epic.breakdown', 'epic.station-draft']));
+  });
+
+  it('keeps the project memory and shows the pack agents receive', async () => {
+    const { appId } = await givenTask();
+
+    const lesson = await call<LessonDto>('POST', `/api/apps/${appId}/lessons`, { text: 'Run the migrations first.' });
+    await call('POST', `/api/apps/${appId}/terms`, { term: 'Station', definition: 'A task on a line.' });
+    expect(lesson.status).toBe(201);
+    expect((await call('POST', `/api/apps/${appId}/terms`, { term: '', definition: 'x' })).status).toBe(400);
+
+    const memory = (await call<MemoryDto>('GET', `/api/apps/${appId}/memory`)).json;
+    expect(memory.lessons.map((entry) => entry.text)).toEqual(['Run the migrations first.']);
+    expect(memory.terms.map((entry) => entry.term)).toEqual(['Station']);
+    expect(memory.pack).toContain('- **Station**: A task on a line.');
+    expect(memory.pack).toContain('Glossary of the demo repo.');
+    expect(memory.pack).toContain('- docs/adr/0001-use-sqlite.md: Use SQLite');
+
+    expect((await call('DELETE', `/api/lessons/${lesson.json.id}`)).status).toBe(204);
+    expect((await call('DELETE', `/api/lessons/${lesson.json.id}`)).status).toBe(409);
   });
 
   it('creates an app, a line and a station, and draws the network', async () => {
@@ -121,7 +145,7 @@ describe('HTTP API', () => {
     expect(json.app.name).toBe('demo');
     expect(json.epics.map((epic) => epic.code)).toEqual(['I']);
     expect(json.tasks).toEqual([
-      expect.objectContaining({ id: taskId, title: 'Zoom to platform', phaseIndex: 0, status: { kind: 'todo' }, phases: ['spec', 'grill', 'plan', 'execute', 'verify', 'review', 'sync', 'merge'] }),
+      expect.objectContaining({ id: taskId, title: 'Zoom to platform', phaseIndex: 0, status: { kind: 'todo' }, phases: ['spec', 'grill', 'plan', 'execute', 'verify', 'review', 'sync', 'merge', 'retro'] }),
     ]);
     expect(json.inbox).toEqual([]);
   });
@@ -170,7 +194,7 @@ describe('HTTP API', () => {
 
   it('drives a task through every phase to the merge', async () => {
     const grill = { decisions: [{ question: 'Where do phases live?', options: [{ label: 'YAML', description: 'files', recommended: true }, { label: 'SQLite', description: 'rows', recommended: false }] }] };
-    start(finish(), finish(grill), finish({ decisions: [] }), finish(), finish(), finish({ verdict: 'approve', summary: 'good', findings: [] }));
+    start(finish(), finish(grill), finish({ decisions: [] }), finish(), finish(), finish({ verdict: 'approve', summary: 'good', findings: [] }), finish({ summary: 'Went well', lessons: [{ text: 'Keep phases in YAML.', why: 'Decided in the grill.' }], terms: [], obsolete: [] }));
     const { appId, taskId } = await givenTask();
 
     await call('POST', `/api/tasks/${taskId}/open`);
@@ -204,9 +228,18 @@ describe('HTTP API', () => {
     codeHost.checksState = 'success';
 
     const merged = await call<TaskSummaryDto>('POST', `/api/tasks/${taskId}/merge`);
-    expect(merged.json.status).toEqual({ kind: 'done' });
+    expect(merged.json.status).toEqual({ kind: 'ready', mode: 'fresh' });
     expect(codeHost.merged).toEqual([42]);
     expect(detail.checkpoints.map((checkpoint) => checkpoint.phaseIndex)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+
+    await settle();
+    detail = (await call<TaskDetailDto>('GET', `/api/tasks/${taskId}`)).json;
+    expect(detail.task.status).toEqual({ kind: 'done' });
+    const memory = (await call<MemoryDto>('GET', `/api/apps/${appId}/memory`)).json;
+    expect(memory.proposals).toEqual([expect.objectContaining({ sourceTitle: 'Zoom to platform', proposed: { kind: 'lesson', text: 'Keep phases in YAML.' } })]);
+    expect((await call<NetworkDto>('GET', `/api/apps/${appId}/network`)).json.memoryProposals).toBe(1);
+    expect((await call('POST', `/api/memory-proposals/${memory.proposals[0]?.id}/accept`)).status).toBe(204);
+    expect((await call<MemoryDto>('GET', `/api/apps/${appId}/memory`)).json.lessons.map((lesson) => lesson.text)).toEqual(['Keep phases in YAML.']);
   });
 
   it('refuses to read checks before a pull request is published', async () => {
@@ -276,8 +309,8 @@ describe('HTTP API', () => {
     const { taskId } = await givenTask();
 
     const light = await call<TaskSummaryDto>('POST', `/api/tasks/${taskId}/track`, { track: 'light' });
-    expect(light.json).toMatchObject({ track: 'light', phasesInTrack: ['spec', 'execute', 'verify', 'review', 'sync', 'merge'] });
-    expect(light.json.skippablePhases).toEqual(['spec', 'grill', 'plan', 'review']);
+    expect(light.json).toMatchObject({ track: 'light', phasesInTrack: ['spec', 'execute', 'verify', 'review', 'sync', 'merge', 'retro'] });
+    expect(light.json.skippablePhases).toEqual(['spec', 'grill', 'plan', 'review', 'retro']);
     expect((await call('POST', `/api/tasks/${taskId}/skip`)).status).toBe(409);
     expect((await call('POST', `/api/tasks/${taskId}/track`, { track: 'fast' })).status).toBe(400);
   });

@@ -15,7 +15,9 @@
     "line": "Ligne {{name}}",
     "origin": "{{app}}",
     "planned": "En projet",
-    "progress": "{{done}}/{{total}} mergées"
+    "progress": "{{done}}/{{total}} mergées",
+    "hideDelivered": "Masquer les lignes livrées",
+    "allDelivered": "Toutes les lignes sont livrées."
   },
   "trip": {
     "label": "Où je suis",
@@ -55,7 +57,8 @@
     "verify": "Vérification",
     "review": "Review",
     "merge": "Merge",
-    "sync": "Synchro"
+    "sync": "Synchro",
+    "retro": "Rétrospective"
   },
   "status": {
     "todo": "À faire",
@@ -81,7 +84,8 @@
     "verify": "Vérif.",
     "review": "Review",
     "merge": "Merge",
-    "sync": "Sync"
+    "sync": "Sync",
+    "retro": "Rétro"
   },
   "decision": {
     "eyebrow": "Grill · question {{position}} sur {{total}}",
@@ -375,7 +379,11 @@
       "high": "effort élevé",
       "xhigh": "effort très élevé",
       "max": "effort maximal"
-    }
+    },
+    "account": "réglage du compte",
+    "accountModel": "Modèle du compte",
+    "accountEffort": "Effort du compte",
+    "inherit": "Par défaut ({{value}})"
   },
   "settings": {
     "open": "Réglages",
@@ -393,11 +401,13 @@
       "task.plan": "Plan",
       "task.execute": "Exécution",
       "task.review": "Review",
-      "task.sync": "Résolution de conflits"
+      "task.sync": "Résolution de conflits",
+      "task.retro": "Rétrospective"
     },
     "save": "Enregistrer",
     "saving": "Enregistrement…",
-    "saved": "Enregistré"
+    "saved": "Enregistré",
+    "fallback": "Par défaut, toutes phases"
   },
   "feedback": {
     "done": "✓ {{action}}"
@@ -406,6 +416,44 @@
     "eyebrow": "Prochain arrêt",
     "open": "Ouvrir « {{title}} »",
     "breakDown": "Découper « {{name}} »",
-    "createLine": "Tracer une première ligne"
+    "createLine": "Tracer une première ligne",
+    "reviewMemory_one": "Relire {{count}} proposition de mémoire",
+    "reviewMemory_other": "Relire {{count}} propositions de mémoire"
+  },
+  "memory": {
+    "open": "Mémoire",
+    "close": "Fermer la mémoire du projet",
+    "eyebrow": "Mémoire du projet",
+    "hint": "Chaque agent reçoit ce contexte au début de son run.",
+    "terms": {
+      "title": "Vocabulaire",
+      "empty": "Aucun terme pour l’instant.",
+      "term": "Terme",
+      "definition": "Définition"
+    },
+    "lessons": {
+      "title": "Leçons",
+      "empty": "Aucune leçon pour l’instant.",
+      "new": "Nouvelle leçon"
+    },
+    "add": "Ajouter",
+    "remove": "Retirer « {{what}} »",
+    "pack": "Ce que reçoit l’agent",
+    "packEmpty": "Rien pour l’instant.",
+    "pending_one": "{{count}} proposition à relire",
+    "pending_other": "{{count}} propositions à relire",
+    "proposals": {
+      "title": "À relire",
+      "lesson": "Leçon proposée après « {{task}} »",
+      "term": "Terme proposé après « {{task}} »",
+      "accept": "Ajouter à la mémoire",
+      "dismiss": "Écarter",
+      "obsolete": "Station peut-être obsolète après « {{task}} »",
+      "close": "Clôturer comme obsolète",
+      "keep": "Garder"
+    }
+  },
+  "obsolete": {
+    "eyebrow": "Peut-être déjà couverte par « {{task}} »"
   }
 }
