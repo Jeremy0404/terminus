@@ -7,6 +7,7 @@ const MAX_LESSONS = 40;
 const MAX_CONTEXT_CHARS = 8_000;
 const MAX_DECISIONS = 60;
 const MAX_BRIEF_CHARS = 6_000;
+const CUSTOM_STACK = 'custom-';
 
 export interface ContextSource {
   forApp(app: App): string;
@@ -24,7 +25,7 @@ export class ContextPack implements ContextSource {
     const sections = [
       brief ? `## Product brief (approved)\n\n${brief.slice(0, MAX_BRIEF_CHARS)}` : null,
       app.stack
-        ? `## Stack and architecture (approved)\n\nStack: ${app.stack.name} (follow the \`${app.stack.id}\` skill)\n${app.stack.decisions.map((entry) => `- ${entry.title}: ${entry.decision}${entry.why ? ` (${entry.why})` : ''}`).join('\n')}`.trimEnd()
+        ? `## Stack and architecture (approved)\n\nStack: ${app.stack.name} (${app.stack.id.startsWith(CUSTOM_STACK) ? 'outside the catalog: follow the decisions below' : `follow the \`${app.stack.id}\` skill`})\n${app.stack.decisions.map((entry) => `- ${entry.title}: ${entry.decision}${entry.why ? ` (${entry.why})` : ''}`).join('\n')}`.trimEnd()
         : null,
       terms.length > 0 ? `## Vocabulary\n\n${terms.map((term) => `- **${term.term}**: ${term.definition}`).join('\n')}` : null,
       lessons.length > 0 ? `## Lessons from earlier tasks\n\n${lessons.map((lesson) => `- ${lesson.text}`).join('\n')}` : null,

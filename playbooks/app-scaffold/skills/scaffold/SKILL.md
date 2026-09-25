@@ -12,7 +12,7 @@ The repository holds only an empty first commit. Build the foundation every late
 
 ## Steps
 
-1. Load the chosen stack's skill with the Skill tool (its name is in the stack section, for example `stack-ts-fastify-vue`) and follow its layout and conventions; an approved decision wins where it is more specific.
+1. Load the chosen stack's skill with the Skill tool (its name is in the stack section, for example `stack-ts-fastify-vue`) and follow its layout and conventions; an approved decision wins where it is more specific. A `custom-` stack has no skill: follow the approved decisions and the official documentation of the named frameworks.
 2. Create the project with the official generators the stack skill names, then trim what the app does not need. Use the latest stable versions; the lock file pins them.
 3. Build one thin slice end to end: the smallest piece of the brief's core job that crosses every layer (for a web app: one table, one API route, one screen that shows it). Nothing more of the brief; the next stations build the rest.
 4. Tests: a unit test in each layer that holds logic, and one end-to-end check of the slice when the stack has end-to-end tests.
