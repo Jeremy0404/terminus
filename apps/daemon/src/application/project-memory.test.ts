@@ -4,11 +4,13 @@ import { InMemoryAppRepository, InMemoryEpicRepository, InMemoryMemoryRepository
 import { createTask } from '../domain/task.js';
 import { TASK_LIFECYCLE } from '../domain/test-fixtures.js';
 import { DomainError } from '../domain/errors.js';
+import type { ProposedMemory } from '../domain/memory.js';
 import { ProjectMemory } from './project-memory.js';
 
 let memory: ProjectMemory;
 let store: InMemoryMemoryRepository;
 let bus: RecordingBus;
+let closed: { taskId: string; reason: string; evidence: string }[];
 
 beforeEach(() => {
   const apps = new InMemoryAppRepository();
@@ -19,10 +21,12 @@ beforeEach(() => {
   tasks.save(createTask({ id: 't1', epicId: 'epic', title: 'Build the context pack', lifecycle: TASK_LIFECYCLE }));
   store = new InMemoryMemoryRepository();
   bus = new RecordingBus();
-  memory = new ProjectMemory({ apps, tasks, bus, memory: store, context: { forApp: (app) => `pack of ${app.name}` }, clock: new FixedClock(), ids: new SequentialIds() });
+  closed = [];
+  tasks.save(createTask({ id: 't2', epicId: 'epic', title: 'Flag obsolete tasks', lifecycle: TASK_LIFECYCLE }));
+  memory = new ProjectMemory({ apps, tasks, bus, memory: store, closer: { close: (taskId, reason, evidence) => closed.push({ taskId, reason, evidence }) }, context: { forApp: (app) => `pack of ${app.name}` }, clock: new FixedClock(), ids: new SequentialIds() });
 });
 
-const proposal = (id: string, proposed: { kind: 'lesson'; text: string } | { kind: 'term'; term: string; definition: string }) =>
+const proposal = (id: string, proposed: ProposedMemory) =>
   store.saveProposal({ id, appId: 'app', sourceTaskId: 't1', proposed, why: 'Seen during the task', status: 'pending', createdAt: 'x' });
 
 describe('ProjectMemory', () => {
@@ -68,5 +72,15 @@ describe('ProjectMemory', () => {
     expect(view.proposals).toEqual([]);
     expect(bus.updates).toHaveLength(3);
     expect(() => memory.accept('p3')).toThrow(/already dismissed/);
+  });
+
+  it('closes a station flagged as obsolete, with the retro reason as evidence', () => {
+    proposal('p1', { kind: 'obsolete', targetTaskId: 't2' });
+    expect(memory.view('app').proposals[0]).toMatchObject({ sourceTitle: 'Build the context pack', targetTitle: 'Flag obsolete tasks' });
+
+    memory.accept('p1');
+
+    expect(closed).toEqual([{ taskId: 't2', reason: 'obsolete', evidence: 'Covered by « Build the context pack » (t1): Seen during the task' }]);
+    expect(memory.view('app').proposals).toEqual([]);
   });
 });

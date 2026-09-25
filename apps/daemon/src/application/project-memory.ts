@@ -1,4 +1,5 @@
 import { DomainError } from '../domain/errors.js';
+import type { CloseReason } from '../domain/task.js';
 import { MAX_DEFINITION_CHARS, MAX_LESSON_CHARS, MAX_TERM_CHARS, memoryText, sameTerm, type Lesson, type MemoryProposal, type Term } from '../domain/memory.js';
 import type { App } from '../domain/app.js';
 import type { ContextSource } from './context-pack.js';
@@ -6,7 +7,7 @@ import type { MemoryRepository } from './ports/memory-repository.js';
 import type { AppRepository, TaskRepository } from './ports/repositories.js';
 import type { Clock, IdGenerator, RunEventBus } from './ports/system.js';
 
-export type ReviewedProposal = MemoryProposal & { readonly sourceTitle: string };
+export type ReviewedProposal = MemoryProposal & { readonly sourceTitle: string; readonly targetTitle: string | null };
 
 export interface MemoryView {
   readonly lessons: readonly Lesson[];
@@ -22,6 +23,7 @@ export interface ProjectMemoryDeps {
   readonly clock: Clock;
   readonly ids: IdGenerator;
   readonly bus: RunEventBus;
+  readonly closer: { close(taskId: string, reason: CloseReason, evidence: string): unknown };
 }
 
 export class ProjectMemory {
@@ -29,7 +31,11 @@ export class ProjectMemory {
 
   view(appId: string): MemoryView {
     this.appOf(appId);
-    const proposals = this.deps.memory.pendingProposals(appId).map((proposal) => ({ ...proposal, sourceTitle: this.deps.tasks.get(proposal.sourceTaskId)?.title ?? proposal.sourceTaskId }));
+    const proposals = this.deps.memory.pendingProposals(appId).map((proposal) => ({
+      ...proposal,
+      sourceTitle: this.titleOf(proposal.sourceTaskId),
+      targetTitle: proposal.proposed.kind === 'obsolete' ? this.titleOf(proposal.proposed.targetTaskId) : null,
+    }));
     return { lessons: this.deps.memory.lessons(appId), terms: this.deps.memory.terms(appId), proposals };
   }
 
@@ -65,8 +71,10 @@ export class ProjectMemory {
 
   accept(proposalId: string): void {
     const proposal = this.pending(proposalId);
-    if (proposal.proposed.kind === 'lesson') this.addLesson(proposal.appId, proposal.proposed.text, proposal.sourceTaskId);
-    else this.setTerm(proposal.appId, proposal.proposed.term, proposal.proposed.definition);
+    const proposed = proposal.proposed;
+    if (proposed.kind === 'lesson') this.addLesson(proposal.appId, proposed.text, proposal.sourceTaskId);
+    else if (proposed.kind === 'term') this.setTerm(proposal.appId, proposed.term, proposed.definition);
+    else this.deps.closer.close(proposed.targetTaskId, 'obsolete', `Covered by « ${this.titleOf(proposal.sourceTaskId)} » (${proposal.sourceTaskId}): ${proposal.why}`);
     this.decide(proposal, 'accepted');
   }
 
@@ -88,6 +96,10 @@ export class ProjectMemory {
   private decide(proposal: MemoryProposal, status: 'accepted' | 'dismissed'): void {
     this.deps.memory.saveProposal({ ...proposal, status });
     this.deps.bus.publish({ kind: 'memory-changed', appId: proposal.appId });
+  }
+
+  private titleOf(taskId: string): string {
+    return this.deps.tasks.get(taskId)?.title ?? taskId;
   }
 
   private appOf(appId: string): App {

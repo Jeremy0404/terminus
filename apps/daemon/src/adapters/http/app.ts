@@ -92,6 +92,7 @@ export function createHttpApp(deps: HttpDeps): Hono {
   });
   app.post('/api/memory-proposals/:proposalId/accept', (c) => {
     deps.memory.accept(c.req.param('proposalId'));
+    deps.scheduler.tick();
     return c.body(null, 204);
   });
   app.post('/api/memory-proposals/:proposalId/dismiss', (c) => {

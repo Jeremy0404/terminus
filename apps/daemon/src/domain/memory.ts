@@ -31,7 +31,8 @@ export const sameTerm = (a: string, b: string): boolean => a.trim().toLowerCase(
 
 export type ProposedMemory =
   | { readonly kind: 'lesson'; readonly text: string }
-  | { readonly kind: 'term'; readonly term: string; readonly definition: string };
+  | { readonly kind: 'term'; readonly term: string; readonly definition: string }
+  | { readonly kind: 'obsolete'; readonly targetTaskId: string };
 
 export interface MemoryProposal {
   readonly id: string;

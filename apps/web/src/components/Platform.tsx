@@ -4,6 +4,7 @@ import { lineColor } from '../network/line-colors';
 import { useTask } from '../state/resources';
 import { ActionPanel } from './platform/ActionPanel';
 import { AgentPicker } from './platform/AgentPicker';
+import { ObsoleteFlag } from './platform/ObsoleteFlag';
 import { TaskDeviations } from './platform/TaskDeviations';
 import { RunHistory } from './platform/RunHistory';
 import { StatusPill } from './StatusPill';
@@ -37,6 +38,11 @@ export function Platform({ network, taskId, onClose }: Props) {
         <span className="track-chip">{t(`track.${task.track}`)}</span>
         <AgentPicker key={task.id} task={task} />
       </div>
+      {network.obsoleteFlags
+        .filter((flag) => flag.taskId === taskId)
+        .map((flag) => (
+          <ObsoleteFlag key={flag.proposalId} flag={flag} />
+        ))}
       <ol className="phase-strip" style={{ gridTemplateColumns: `repeat(${task.phases.length}, 1fr)`, ['--n' as string]: task.phases.length }}>
         {task.phases.map((phase, index) => (
           <li key={phase} className={`${index < reached ? 'passed' : index === reached && task.status.kind !== 'todo' ? 'current' : ''} ${task.phasesInTrack.includes(phase) ? '' : 'off'}`}>

@@ -18,6 +18,14 @@ export interface Network {
   readonly tasks: readonly Task[];
   readonly inbox: readonly InboxItem[];
   readonly memoryProposals: number;
+  readonly obsoleteFlags: readonly ObsoleteFlag[];
+}
+
+export interface ObsoleteFlag {
+  readonly proposalId: string;
+  readonly taskId: string;
+  readonly sourceTitle: string;
+  readonly reason: string;
 }
 
 export interface TaskDetail {
@@ -49,7 +57,14 @@ export class Queries {
     const app = this.deps.apps.get(appId);
     if (!app) throw new NotFound(`Unknown app ${appId}`);
     const tasks = this.deps.tasks.listByApp(appId);
-    return { app, epics: this.deps.epics.listByApp(appId), tasks, inbox: buildInbox(tasks), memoryProposals: this.deps.memory.pendingProposals(appId).length };
+    const proposals = this.deps.memory.pendingProposals(appId);
+    const titles = new Map(tasks.map((task) => [task.id, task.title]));
+    const obsoleteFlags = proposals.flatMap((proposal) =>
+      proposal.proposed.kind === 'obsolete'
+        ? [{ proposalId: proposal.id, taskId: proposal.proposed.targetTaskId, sourceTitle: titles.get(proposal.sourceTaskId) ?? proposal.sourceTaskId, reason: proposal.why }]
+        : [],
+    );
+    return { app, epics: this.deps.epics.listByApp(appId), tasks, inbox: buildInbox(tasks), memoryProposals: proposals.length, obsoleteFlags };
   }
 
   task(taskId: string): TaskDetail {

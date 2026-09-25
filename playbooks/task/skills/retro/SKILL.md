@@ -1,6 +1,6 @@
 ---
 name: retro
-description: Looks back on a merged Terminus task (its notes, decisions, review and diff) and proposes at most a few durable lessons and vocabulary terms for the project memory, which the human accepts or dismisses one by one. Use in the retro phase, after the task's pull request is merged.
+description: Looks back on a merged Terminus task (its notes, decisions, review and diff) and proposes at most a few durable lessons and vocabulary terms for the project memory, plus the open stations the merge already covers, which the human accepts or dismisses one by one. Use in the retro phase, after the task's pull request is merged.
 metadata:
   playbook: terminus/task
   phase: retro
@@ -23,6 +23,7 @@ The pull request is merged. Leave the project a little easier for the next agent
    - `summary`: one or two sentences on how the task went.
    - `lessons`: at most five, often zero or one. Each `text` is one imperative sentence an agent can act on ("Run `pnpm db:generate` after changing `schema.ts`; tests read the migrations, not the schema."). `why` says what happened in this task that shows it, in one sentence.
    - `terms`: at most five domain words this task introduced or used with a precise meaning, with a one-sentence `definition` in the project's own words, and a `why`. Skip generic technical words.
+   - `obsolete`: open stations from the list in the prompt that this merge already does, fully, so that working on them would redo merged work. Give the `stationId` exactly as listed and a `reason` naming what in the diff covers it. A station the merge only touches or makes easier is not obsolete.
    Empty lists are a good answer when nothing qualifies.
 
 ## Rules

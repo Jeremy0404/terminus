@@ -62,12 +62,18 @@ export function ProjectMemory({ app, onClose }: { app: AppDto; onClose: () => vo
                   <li key={proposal.id}>
                     <span>
                       <span className="eyebrow">{t(`memory.proposals.${proposal.proposed.kind}`, { task: proposal.sourceTitle })}</span>
-                      {proposal.proposed.kind === 'lesson' ? proposal.proposed.text : <><b>{proposal.proposed.term}</b> {proposal.proposed.definition}</>}
+                      {proposal.proposed.kind === 'lesson' && proposal.proposed.text}
+                      {proposal.proposed.kind === 'term' && <><b>{proposal.proposed.term}</b> {proposal.proposed.definition}</>}
+                      {proposal.proposed.kind === 'obsolete' && <b>{proposal.proposed.targetTitle}</b>}
                       {proposal.why && <span className="muted small proposal-why">{proposal.why}</span>}
                     </span>
                     <span className="row">
-                      <button type="button" className="btn small primary" disabled={busy} onClick={() => change(() => api.acceptProposal(proposal.id))}>{t('memory.proposals.accept')}</button>
-                      <button type="button" className="btn small" disabled={busy} onClick={() => change(() => api.dismissProposal(proposal.id))}>{t('memory.proposals.dismiss')}</button>
+                      <button type="button" className="btn small primary" disabled={busy} onClick={() => change(() => api.acceptProposal(proposal.id))}>
+                        {t(proposal.proposed.kind === 'obsolete' ? 'memory.proposals.close' : 'memory.proposals.accept')}
+                      </button>
+                      <button type="button" className="btn small" disabled={busy} onClick={() => change(() => api.dismissProposal(proposal.id))}>
+                        {t(proposal.proposed.kind === 'obsolete' ? 'memory.proposals.keep' : 'memory.proposals.dismiss')}
+                      </button>
                     </span>
                   </li>
                 ))}

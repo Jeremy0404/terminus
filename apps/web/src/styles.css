@@ -267,6 +267,8 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .memory-pack { margin-top: 18px; }
 .memory-list.proposals li { align-items: center; }
 .proposal-why { display: block; margin-top: 2px; }
+.obsolete-flag { margin: 10px 0; padding: 10px 12px; border-radius: 12px; background: var(--signal-soft); border: 1px dashed var(--signal); }
+.obsolete-flag .muted { margin: 4px 0 8px; }
 .badge { display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 5px; border-radius: 999px; background: var(--signal); color: #14191f; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center; }
 .memory-pack summary { cursor: pointer; font-weight: 700; margin-bottom: 8px; }
 .settings-rows { list-style: none; padding: 0; margin: 12px 0 16px; display: grid; gap: 8px; }
