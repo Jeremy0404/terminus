@@ -79,6 +79,7 @@ export interface Settings {
   readonly projectsDir: string;
   readonly playbooksRepo: string;
   readonly webDir?: string | null;
+  readonly owner?: string | null;
 }
 
 export interface Services {
@@ -112,6 +113,7 @@ export function compose(given: Adapters, settings: Settings): Services {
   const http = createHttpApp({
     version: settings.version,
     webDir: settings.webDir ?? null,
+    owner: settings.owner ?? null,
     queries: new Queries(adapters),
     catalog,
     founder: new AppFounder({ catalog, repositories: adapters.repositories, projectsDir: settings.projectsDir }),

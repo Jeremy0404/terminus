@@ -132,6 +132,7 @@ const { http, scheduler } = compose(
     projectsDir: env['TERMINUS_PROJECTS_DIR'] ?? join(homedir(), 'dev', 'projects'),
     playbooksRepo: dirname(playbooksDir),
     webDir,
+    owner: env['TERMINUS_OWNER_LOGIN'] ?? readEnvFile(join(home, '.env'))['TERMINUS_OWNER_LOGIN'] ?? null,
   },
 );
 
