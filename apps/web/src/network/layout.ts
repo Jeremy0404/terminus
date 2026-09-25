@@ -10,7 +10,7 @@ const RIGHT_MARGIN = 140;
 const BOTTOM_MARGIN = 70;
 const MIN_ZOOM_SHARE = 0.55;
 const MIN_LINE_VIEW = 750;
-const MIN_WIDTH = 1000;
+export const MIN_WIDTH = 1000;
 const MIN_HEIGHT = 380;
 
 export type LabelSide = 'below' | 'above';
