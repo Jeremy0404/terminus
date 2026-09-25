@@ -29,6 +29,7 @@ import type { Workspace } from './application/ports/workspace.js';
 import { Queries } from './application/queries.js';
 import { QuotaTrackingRunner } from './application/quota-tracker.js';
 import { Scheduler } from './application/scheduler.js';
+import { STATION_DRAFT_TIMEOUT_MS, StationDrafter } from './application/station-drafter.js';
 import { TaskActions } from './application/task-actions.js';
 import { DEFAULT_FAILURE_POLICY } from './domain/failure.js';
 
@@ -86,12 +87,14 @@ export function compose(given: Adapters, settings: Settings): Services {
   const actions = new TaskActions({ ...adapters, bus, baseRef: settings.baseRef });
   const catalog = new Catalog({ ...adapters, bus });
   const planner = new EpicPlanner({ ...adapters, catalog, bus, budget: settings.budget, baseRef: settings.baseRef });
+  const drafter = new StationDrafter({ ...adapters, timeoutMs: STATION_DRAFT_TIMEOUT_MS });
   const http = createHttpApp({
     version: settings.version,
     queries: new Queries(adapters),
     catalog,
     adoption: new Adoption(adapters.scanner, adapters.checks, adapters.issues, catalog, adapters.apps),
     planner,
+    drafter,
     actions,
     agentSettings: new AgentSettings(adapters),
     runs: phases,

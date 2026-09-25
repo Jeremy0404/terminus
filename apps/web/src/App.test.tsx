@@ -49,6 +49,7 @@ describe('the cockpit', () => {
 
     const platform = await screen.findByRole('region', { name: 'Quai de Rendu SVG' });
     expect(within(platform).getByText('Attend ta review')).toBeInTheDocument();
+    expect(within(platform).getByText(/Dessiner les lignes en SVG\.\s+Une couleur par ligne\./)).toBeInTheDocument();
     expect(window.location.search).toBe('?app=app-1&line=ui&task=i1');
 
     fireEvent.keyDown(window, { key: 'Escape' });

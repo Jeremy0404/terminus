@@ -40,6 +40,11 @@ describe('a task going through its lifecycle', () => {
     expect(task.autonomy).toBe('up-to-pr');
   });
 
+  it('has an empty description unless one is given', () => {
+    expect(newTask().description).toBe('');
+    expect(newTask({ description: 'Zoom on the map' }).description).toBe('Zoom on the map');
+  });
+
   it('walks every phase up to the PR with the default gates', () => {
     let task = openTask(newTask(), []);
     task = runPhase(task, 1);

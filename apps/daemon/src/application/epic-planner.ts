@@ -39,7 +39,7 @@ export interface EpicPlannerDeps {
 
 export interface AcceptedBreakdown {
   readonly description: string;
-  readonly stations: readonly { readonly title: string; readonly dependsOn: readonly number[] }[];
+  readonly stations: readonly { readonly title: string; readonly why?: string; readonly dependsOn: readonly number[] }[];
   readonly track: Track;
 }
 
@@ -74,6 +74,7 @@ export class EpicPlanner {
       created.push(
         this.deps.catalog.createTask(epicId, {
           title: station.title,
+          description: station.why ?? '',
           dependsOn: station.dependsOn.map((dependency) => (created[dependency] as Task).id),
           autonomy: 'up-to-pr',
           track: accepted.track,

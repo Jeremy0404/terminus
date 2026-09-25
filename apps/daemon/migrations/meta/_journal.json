@@ -50,6 +50,13 @@
       "when": 1790286643783,
       "tag": "0006_model_and_effort",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1790316782234,
+      "tag": "0007_task_description",
+      "breakpoints": true
     }
   ]
 }

@@ -47,6 +47,7 @@ export const tasks = sqliteTable(
     id: text('id').primaryKey(),
     epicId: text('epic_id').notNull().references(() => epics.id),
     title: text('title').notNull(),
+    description: text('description').notNull().default(''),
     lifecycleId: text('lifecycle_id').notNull(),
     lifecycleVersion: text('lifecycle_version').notNull(),
     autonomy: text('autonomy', { enum: ['step-by-step', 'up-to-pr', 'up-to-merge'] }).notNull(),

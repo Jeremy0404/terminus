@@ -61,7 +61,7 @@ describe('BreakdownPanel', () => {
       expect(calls).toEqual([
         {
           path: '/api/epics/e1/breakdown/accept',
-          body: { description: 'Adopt a repo', stations: [{ title: 'Scan the repository', dependsOn: [] }, { title: 'Cut over', dependsOn: [0] }], track: 'light' },
+          body: { description: 'Adopt a repo', stations: [{ title: 'Scan the repository', why: 'stack', dependsOn: [] }, { title: 'Cut over', why: 'switch', dependsOn: [0] }], track: 'light' },
         },
       ]),
     );

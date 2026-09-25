@@ -28,6 +28,7 @@ export function Platform({ network, taskId, onClose }: Props) {
         <div>
           <span className="eyebrow">{t('platform.eyebrow', { line: epic.name })}</span>
           <h2>{task.title}</h2>
+          {task.description && <p className="platform-brief">{task.description}</p>}
         </div>
         <button type="button" className="btn small" onClick={onClose} aria-label={t('platform.close')}>✕</button>
       </div>

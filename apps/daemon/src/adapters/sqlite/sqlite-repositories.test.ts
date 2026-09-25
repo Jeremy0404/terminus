@@ -58,6 +58,7 @@ describe('SqliteTaskRepository', () => {
     const tasks = new SqliteTaskRepository(db);
     tasks.save(task('t0', { status: { kind: 'done' } }));
     const saved = task('t1', {
+      description: 'Zoom on the map\nwith the wheel',
       autonomy: 'up-to-merge',
       agent: { model: 'sonnet', effort: 'low' },
       dependsOn: ['t0'],
@@ -71,6 +72,7 @@ describe('SqliteTaskRepository', () => {
     tasks.save(saved);
 
     expect(tasks.get('t1')).toEqual(saved);
+    expect(tasks.get('t0')?.description).toBe('');
   });
 
   it('replaces dependencies and checkpoints on save', () => {
