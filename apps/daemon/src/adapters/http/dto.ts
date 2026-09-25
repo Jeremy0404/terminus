@@ -49,6 +49,7 @@ export const toNetworkDto = (network: Network): NetworkDto => ({
   tasks: network.tasks.map(toTaskSummaryDto),
   inbox: network.inbox.map(toInboxItemDto),
   memoryProposals: network.memoryProposals,
+  obsoleteFlags: network.obsoleteFlags,
 });
 
 export const toTaskDetailDto = (detail: TaskDetail): TaskDetailDto => ({
@@ -64,7 +65,13 @@ export const toLessonDto = ({ id, text, sourceTaskId, createdAt }: Lesson): Less
 
 export const toTermDto = ({ id, term, definition, updatedAt }: Term): TermDto => ({ id, term, definition, updatedAt });
 
-export const toMemoryProposalDto = ({ id, sourceTaskId, sourceTitle, proposed, why }: ReviewedProposal): MemoryProposalDto => ({ id, sourceTaskId, sourceTitle, proposed, why });
+export const toMemoryProposalDto = ({ id, sourceTaskId, sourceTitle, targetTitle, proposed, why }: ReviewedProposal): MemoryProposalDto => ({
+  id,
+  sourceTaskId,
+  sourceTitle,
+  proposed: proposed.kind === 'obsolete' ? { ...proposed, targetTitle: targetTitle ?? proposed.targetTaskId } : proposed,
+  why,
+});
 
 export const toQuotaDto = ({ limited, windows, observedAt }: Quota): QuotaDto => ({ limited, windows, observedAt });
 

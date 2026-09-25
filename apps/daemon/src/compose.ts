@@ -103,7 +103,7 @@ export function compose(given: Adapters, settings: Settings): Services {
     drafter,
     actions,
     agentSettings: new AgentSettings(adapters),
-    memory: new ProjectMemory({ ...adapters, bus }),
+    memory: new ProjectMemory({ ...adapters, bus, closer: actions }),
     runs: phases,
     scheduler,
     events: bus,

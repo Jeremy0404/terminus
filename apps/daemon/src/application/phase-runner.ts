@@ -5,7 +5,7 @@ import { isLooping, type Failure, type FailurePolicy } from '../domain/failure.j
 import type { App } from '../domain/app.js';
 import { phaseAt, type PhaseDefinition } from '../domain/lifecycle.js';
 import type { Run, RunStatus, RunUsage } from '../domain/run.js';
-import { completePhase, failRun, holdForProposal, passChecks, rejectByChecks, requestDecision, startRun, type Task } from '../domain/task.js';
+import { completePhase, failRun, holdForProposal, passChecks, rejectByChecks, requestDecision, startRun, type Task, type TaskStatus } from '../domain/task.js';
 import { DECISIONS_OUTPUT_SCHEMA, readProposedDecisions } from './decision-output.js';
 import type { ContextSource } from './context-pack.js';
 import { MEMORY_OUTPUT_SCHEMA, readMemoryOutput } from './memory-output.js';
@@ -159,9 +159,17 @@ export class PhaseRunner {
     return this.save(task);
   }
 
+  private openStations(task: Task, app: App): { id: string; line: string; title: string }[] {
+    const lines = new Map(this.deps.epics.listByApp(app.id).map((epic) => [epic.id, epic.code]));
+    return this.deps.tasks
+      .listByApp(app.id)
+      .filter((candidate) => candidate.id !== task.id && OPEN_STATUSES.includes(candidate.status.kind))
+      .map((candidate) => ({ id: candidate.id, line: lines.get(candidate.epicId) ?? '?', title: candidate.title }));
+  }
+
   private proposeMemory(task: Task, app: App, output: unknown): void {
     const { memory, ids, clock, bus } = this.deps;
-    const entries = readMemoryOutput(output);
+    const entries = readMemoryOutput(output, new Set(this.openStations(task, app).map((station) => station.id)));
     for (const entry of entries) {
       memory.saveProposal({ id: ids.next('proposal'), appId: app.id, sourceTaskId: task.id, proposed: entry.proposed, why: entry.why, status: 'pending', createdAt: clock.now() });
     }
@@ -174,6 +182,7 @@ export class PhaseRunner {
       notesDir,
       baseRef: this.deps.baseRef,
       verification: app.verification,
+      ...(phase.output === 'memory' ? { openStations: this.openStations(ready, app) } : {}),
     });
     const choice = this.choiceFor(ready, phase);
     const handle = this.deps.agent.start({
@@ -379,6 +388,8 @@ export class PhaseRunner {
     return task;
   }
 }
+
+const OPEN_STATUSES: readonly TaskStatus['kind'][] = ['todo', 'ready', 'awaiting-decision', 'awaiting-gate', 'blocked', 'manual'];
 
 function outputSchemaFor(phase: PhaseDefinition): object | null {
   if (phase.output === 'decisions') return DECISIONS_OUTPUT_SCHEMA;

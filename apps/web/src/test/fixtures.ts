@@ -38,6 +38,7 @@ export const NETWORK: NetworkDto = {
     { taskId: 'i1', epicId: 'ui', reason: { kind: 'gate', gate: 'human-review' }, unblocks: 1 },
   ],
   memoryProposals: 0,
+  obsoleteFlags: [],
 };
 
 export const detailOf = (summary: TaskSummaryDto): TaskDetailDto => ({ task: summary, checkpoints: [], failures: [], actions: [], runs: [], decisions: [] });

@@ -74,7 +74,7 @@ const FRAME_WIDTH = 970;
 const line = (id: string, position: number): EpicDto => ({ id, appId: APP.id, code: id.toUpperCase(), name: id, status: 'active', position, description: '', breakdown: { status: 'idle' } });
 const stations = (epicId: string, count: number, done = 0): TaskSummaryDto[] =>
   Array.from({ length: count }, (_, index) => task(`${epicId}${index + 1}`, epicId, `${epicId} ${index + 1}`, index < done ? { kind: 'done' } : { kind: 'todo' }));
-const networkOf = (epics: EpicDto[], tasks: TaskSummaryDto[]): NetworkDto => ({ app: APP, epics, tasks, inbox: [], memoryProposals: 0 });
+const networkOf = (epics: EpicDto[], tasks: TaskSummaryDto[]): NetworkDto => ({ app: APP, epics, tasks, inbox: [], memoryProposals: 0, obsoleteFlags: [] });
 const manyLines = (count: number): NetworkDto => {
   const epics = Array.from({ length: count }, (_, index) => line(`l${index + 1}`, index + 1));
   return networkOf(epics, epics.flatMap((epic) => stations(epic.id, 1)));

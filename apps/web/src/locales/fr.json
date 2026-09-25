@@ -446,7 +446,13 @@
       "lesson": "Leçon proposée après « {{task}} »",
       "term": "Terme proposé après « {{task}} »",
       "accept": "Ajouter à la mémoire",
-      "dismiss": "Écarter"
+      "dismiss": "Écarter",
+      "obsolete": "Station peut-être obsolète après « {{task}} »",
+      "close": "Clôturer comme obsolète",
+      "keep": "Garder"
     }
+  },
+  "obsolete": {
+    "eyebrow": "Peut-être déjà couverte par « {{task}} »"
   }
 }

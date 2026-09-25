@@ -168,6 +168,7 @@ export interface NetworkDto {
   readonly tasks: readonly TaskSummaryDto[];
   readonly inbox: readonly InboxItemDto[];
   readonly memoryProposals: number;
+  readonly obsoleteFlags: readonly ObsoleteFlagDto[];
 }
 
 export type SuggestedActionDto =
@@ -268,7 +269,15 @@ export interface TermDto {
 
 export type ProposedMemoryDto =
   | { readonly kind: 'lesson'; readonly text: string }
-  | { readonly kind: 'term'; readonly term: string; readonly definition: string };
+  | { readonly kind: 'term'; readonly term: string; readonly definition: string }
+  | { readonly kind: 'obsolete'; readonly targetTaskId: string; readonly targetTitle: string };
+
+export interface ObsoleteFlagDto {
+  readonly proposalId: string;
+  readonly taskId: string;
+  readonly sourceTitle: string;
+  readonly reason: string;
+}
 
 export interface MemoryProposalDto {
   readonly id: string;

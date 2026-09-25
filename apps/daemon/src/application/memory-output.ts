@@ -14,8 +14,12 @@ export const MEMORY_OUTPUT_SCHEMA = {
       type: 'array',
       items: { type: 'object', properties: { term: { type: 'string' }, definition: { type: 'string' }, why: { type: 'string' } }, required: ['term', 'definition', 'why'] },
     },
+    obsolete: {
+      type: 'array',
+      items: { type: 'object', properties: { stationId: { type: 'string' }, reason: { type: 'string' } }, required: ['stationId', 'reason'] },
+    },
   },
-  required: ['summary', 'lessons', 'terms'],
+  required: ['summary', 'lessons', 'terms', 'obsolete'],
 } as const;
 
 export interface ProposedEntry {
@@ -23,7 +27,7 @@ export interface ProposedEntry {
   readonly why: string;
 }
 
-export function readMemoryOutput(output: unknown): ProposedEntry[] {
+export function readMemoryOutput(output: unknown, openStations: ReadonlySet<string> = new Set()): ProposedEntry[] {
   if (!isRecord(output)) return [];
   const lessons = records(output['lessons'])
     .filter((entry) => nonEmpty(entry['text']))
@@ -33,7 +37,11 @@ export function readMemoryOutput(output: unknown): ProposedEntry[] {
     .filter((entry) => nonEmpty(entry['term']) && nonEmpty(entry['definition']))
     .slice(0, MAX_PROPOSALS)
     .map((entry): ProposedEntry => ({ proposed: { kind: 'term', term: String(entry['term']).trim(), definition: String(entry['definition']).trim() }, why: text(entry['why']) }));
-  return [...lessons, ...terms];
+  const obsolete = records(output['obsolete'])
+    .filter((entry) => typeof entry['stationId'] === 'string' && openStations.has(entry['stationId']))
+    .slice(0, MAX_PROPOSALS)
+    .map((entry): ProposedEntry => ({ proposed: { kind: 'obsolete', targetTaskId: String(entry['stationId']) }, why: text(entry['reason']) }));
+  return [...lessons, ...terms, ...obsolete];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -194,7 +194,7 @@ describe('HTTP API', () => {
 
   it('drives a task through every phase to the merge', async () => {
     const grill = { decisions: [{ question: 'Where do phases live?', options: [{ label: 'YAML', description: 'files', recommended: true }, { label: 'SQLite', description: 'rows', recommended: false }] }] };
-    start(finish(), finish(grill), finish({ decisions: [] }), finish(), finish(), finish({ verdict: 'approve', summary: 'good', findings: [] }), finish({ summary: 'Went well', lessons: [{ text: 'Keep phases in YAML.', why: 'Decided in the grill.' }], terms: [] }));
+    start(finish(), finish(grill), finish({ decisions: [] }), finish(), finish(), finish({ verdict: 'approve', summary: 'good', findings: [] }), finish({ summary: 'Went well', lessons: [{ text: 'Keep phases in YAML.', why: 'Decided in the grill.' }], terms: [], obsolete: [] }));
     const { appId, taskId } = await givenTask();
 
     await call('POST', `/api/tasks/${taskId}/open`);
