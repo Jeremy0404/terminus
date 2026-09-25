@@ -303,6 +303,18 @@ export interface MemoryDto {
   readonly pack: string;
 }
 
+export interface PlaybookSkillDto {
+  readonly name: string;
+  readonly playbook: string;
+  readonly researched: string | null;
+  readonly stale: boolean;
+}
+
+export interface RitualStartedDto {
+  readonly appId: string;
+  readonly task: TaskSummaryDto;
+}
+
 export type ServerEventDto =
   | { readonly type: 'task-changed'; readonly task: TaskSummaryDto }
   | { readonly type: 'epic-changed'; readonly epic: EpicDto }

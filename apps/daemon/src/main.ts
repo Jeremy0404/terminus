@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
 import { buildAgentHome, readAgentProfile } from './adapters/claude-cli/agent-home.js';
@@ -9,6 +9,7 @@ import { FsRepositoryInstructions } from './adapters/repo-context/fs-repository-
 import { FsRepositoryKnowledge } from './adapters/repo-context/fs-repository-knowledge.js';
 import { FsTaskNotes } from './adapters/fs-notes/fs-task-notes.js';
 import { FsPlaybookRegistry } from './adapters/fs-playbooks/fs-playbook-registry.js';
+import { FsSkillCatalog } from './adapters/fs-playbooks/fs-skill-catalog.js';
 import { GitWorkspace } from './adapters/git/git-workspace.js';
 import { GhCodeHost, GhIssueTracker } from './adapters/github/gh-code-host.js';
 import { GhRepositoryCreator } from './adapters/github/gh-repository-creator.js';
@@ -110,6 +111,7 @@ const { http, scheduler } = compose(
     knowledge: new FsRepositoryKnowledge(),
     repositories: new GhRepositoryCreator(),
     vault: vault ? new GitVault(vault) : null,
+    skills: new FsSkillCatalog(playbooksDir),
     checks: new ShellCheckRunner(CHECK_TIMEOUT_MS),
     codeHost: new GhCodeHost(),
     scanner: new FsRepoScanner(),
@@ -125,6 +127,7 @@ const { http, scheduler } = compose(
     budget: { maxTokens: 400_000, maxTurns: 80 },
     systemPromptAppend: '',
     projectsDir: env['TERMINUS_PROJECTS_DIR'] ?? join(homedir(), 'dev', 'projects'),
+    playbooksRepo: dirname(playbooksDir),
   },
 );
 

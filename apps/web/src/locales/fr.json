@@ -61,7 +61,8 @@
     "retro": "Rétrospective",
     "brief": "Brief produit",
     "options": "Options de stack",
-    "architecture": "Architecture"
+    "architecture": "Architecture",
+    "research": "Recherche"
   },
   "status": {
     "todo": "À faire",
@@ -91,7 +92,8 @@
     "retro": "Rétro",
     "brief": "Brief",
     "options": "Options",
-    "architecture": "Archi"
+    "architecture": "Archi",
+    "research": "Recherche"
   },
   "decision": {
     "eyebrow": "Grill · question {{position}} sur {{total}}",
@@ -425,7 +427,11 @@
       "app-scaffold.execute": "Socle : construction",
       "app-scaffold.review": "Socle : review",
       "app-scaffold.sync": "Socle : conflits",
-      "app-scaffold.retro": "Socle : rétrospective"
+      "app-scaffold.retro": "Socle : rétrospective",
+      "playbook-update.research": "Rituel : recherche",
+      "playbook-update.execute": "Rituel : édition",
+      "playbook-update.review": "Rituel : review",
+      "playbook-update.sync": "Rituel : conflits"
     },
     "save": "Enregistrer",
     "saving": "Enregistrement…",
@@ -501,5 +507,15 @@
     "build": "Construction",
     "production": "Production",
     "operations": "Exploitation"
+  },
+  "ritual": {
+    "title": "Playbooks",
+    "hint": "Rituel mensuel : chaque mise à jour passe par une station de recherche et une pull request sur Terminus.",
+    "researched": "recherchée le {{date}}",
+    "never": "jamais recherchée",
+    "stale": "à revoir",
+    "update": "Mettre à jour",
+    "pending_one": "{{count}} skill à revoir",
+    "pending_other": "{{count}} skills à revoir"
   }
 }

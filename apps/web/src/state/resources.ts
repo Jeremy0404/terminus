@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AppDto, NetworkDto, QuotaDto, ServerEventDto, TaskDetailDto } from '@terminus/contracts';
+import type { AppDto, NetworkDto, PlaybookSkillDto, QuotaDto, ServerEventDto, TaskDetailDto } from '@terminus/contracts';
 import { api } from '../api/client';
 import { useServerEvents } from '../api/events';
 
@@ -61,6 +61,11 @@ export function useNetwork(appId: string | null): Resource<NetworkDto> {
     if (event.type === 'task-changed' || event.type === 'epic-changed' || event.type === 'memory-changed') refresh();
   });
   return resource;
+}
+
+export function useStaleSkills(): number {
+  const skills = useResource<PlaybookSkillDto[]>(api.playbookSkills, 'playbook-skills');
+  return skills.data?.filter((skill) => skill.stale).length ?? 0;
 }
 
 export function useQuota(): QuotaDto | null {

@@ -17,7 +17,7 @@ import { ProjectMemory } from './components/memory/ProjectMemory';
 import { Trip } from './components/Trip';
 import { levelOf, up, usePlace } from './state/location';
 import { useInboxNotifications } from './state/notifications';
-import { useApps, useNetwork, useQuota } from './state/resources';
+import { useApps, useNetwork, useQuota, useStaleSkills } from './state/resources';
 
 const LAST_APP_KEY = 'terminus:last-app';
 
@@ -56,6 +56,7 @@ function Cockpit() {
   const appId = place.app ?? (apps.data ? (apps.data.find((app) => app.id === readLastApp())?.id ?? apps.data[0]?.id ?? null) : null);
   const network = useNetwork(appId);
   const quota = useQuota();
+  const staleSkills = useStaleSkills();
   const level = levelOf(place);
   const describe = useCallback((title: string, reason: string) => ({ title: t(`notify.${reason}`), body: title }), [t]);
   const notifications = useInboxNotifications(network.data, describe);
@@ -95,6 +96,7 @@ function Cockpit() {
         )}
         <button type="button" className="btn small" aria-pressed={panel === 'settings'} onClick={() => setPanel(panel === 'settings' ? null : 'settings')}>
           {t('settings.open')}
+          {staleSkills > 0 && <span className="badge" aria-label={t('ritual.pending', { count: staleSkills })}>{staleSkills}</span>}
         </button>
         {notifications.permission === 'default' && (
           <button type="button" className="btn small" onClick={notifications.ask}>{t('notify.enable')}</button>
@@ -129,7 +131,15 @@ function Cockpit() {
             <Trip network={network.data} place={{ ...place, app: appId }} go={go} panel={{ label: t(panel === 'settings' ? 'settings.open' : 'memory.open'), onClose: () => setPanel(null) }} />
           )}
           <div className="adoption-stage">
-            {panel === 'settings' ? <AgentSettings onClose={() => setPanel(null)} /> : current && <ProjectMemory key={current.id} app={current} onClose={() => setPanel(null)} />}
+            {panel === 'settings' ? (
+              <AgentSettings
+                onClose={() => setPanel(null)}
+                onOpenStation={(app, line, task) => {
+                  setPanel(null);
+                  go({ app, line, task });
+                }}
+              />
+            ) : current && <ProjectMemory key={current.id} app={current} onClose={() => setPanel(null)} />}
           </div>
         </>
       ) : !network.data ? (
