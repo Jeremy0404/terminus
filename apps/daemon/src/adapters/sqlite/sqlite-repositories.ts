@@ -38,8 +38,8 @@ export class SqliteAppRepository implements AppRepository {
   }
 }
 
-function toApp({ brief, ...app }: typeof apps.$inferSelect): App {
-  return brief ? { ...app, brief } : app;
+function toApp({ brief, stack, ...app }: typeof apps.$inferSelect): App {
+  return { ...app, ...(brief ? { brief } : {}), ...(stack ? { stack } : {}) };
 }
 
 export class SqliteEpicRepository implements EpicRepository {

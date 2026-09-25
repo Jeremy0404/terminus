@@ -15,7 +15,7 @@ export interface PhaseDefinition {
   readonly skill?: string;
   readonly model?: string;
   readonly effort?: Effort;
-  readonly output?: 'decisions' | 'review' | 'verdict' | 'memory' | 'brief';
+  readonly output?: 'decisions' | 'review' | 'verdict' | 'memory' | 'brief' | 'stack';
   readonly executor?: PhaseExecutorKind;
   readonly retryFrom?: string;
   readonly tracks?: readonly Track[];

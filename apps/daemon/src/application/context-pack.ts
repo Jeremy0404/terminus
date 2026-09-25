@@ -23,6 +23,9 @@ export class ContextPack implements ContextSource {
     const brief = app.brief?.trim();
     const sections = [
       brief ? `## Product brief (approved)\n\n${brief.slice(0, MAX_BRIEF_CHARS)}` : null,
+      app.stack
+        ? `## Stack and architecture (approved)\n\nStack: ${app.stack.name} (follow the \`${app.stack.id}\` skill)\n${app.stack.decisions.map((entry) => `- ${entry.title}: ${entry.decision}${entry.why ? ` (${entry.why})` : ''}`).join('\n')}`.trimEnd()
+        : null,
       terms.length > 0 ? `## Vocabulary\n\n${terms.map((term) => `- **${term.term}**: ${term.definition}`).join('\n')}` : null,
       lessons.length > 0 ? `## Lessons from earlier tasks\n\n${lessons.map((lesson) => `- ${lesson.text}`).join('\n')}` : null,
       context ? `## CONTEXT.md from the repository\n\n${context.trim().slice(0, MAX_CONTEXT_CHARS)}` : null,

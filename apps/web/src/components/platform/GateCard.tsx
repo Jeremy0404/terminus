@@ -42,9 +42,26 @@ const pullRequestOf = (runs: readonly RunDto[]): { number: number; url: string }
   return null;
 };
 
+function outputAt(runs: readonly RunDto[], phaseIndex: number): unknown {
+  return [...runs].reverse().find((run) => run.phaseIndex === phaseIndex && run.status === 'succeeded')?.output;
+}
+
 function briefOf(runs: readonly RunDto[], phaseIndex: number): string | null {
-  const output = [...runs].reverse().find((run) => run.phaseIndex === phaseIndex && run.status === 'succeeded')?.output;
+  const output = outputAt(runs, phaseIndex);
   return typeof output === 'object' && output !== null && 'brief' in output && typeof output.brief === 'string' ? output.brief : null;
+}
+
+interface StackOutput {
+  readonly stackName: string;
+  readonly decisions: readonly { readonly title: string; readonly decision: string; readonly why: string }[];
+  readonly verification: readonly { readonly name: string; readonly command: string }[];
+}
+
+function stackOf(runs: readonly RunDto[], phaseIndex: number): StackOutput | null {
+  const output = outputAt(runs, phaseIndex);
+  if (typeof output !== 'object' || output === null || !('stackName' in output) || typeof output.stackName !== 'string') return null;
+  const record = output as Partial<StackOutput>;
+  return { stackName: output.stackName, decisions: record.decisions ?? [], verification: record.verification ?? [] };
 }
 
 export function GateCard({ task, gate, runs }: Props) {
@@ -86,13 +103,25 @@ export function GateCard({ task, gate, runs }: Props) {
 
   const phaseId = task.phases[task.phaseIndex] ?? '';
   const brief = phaseId === 'brief' ? briefOf(runs, task.phaseIndex) : null;
-  const gateKey = phaseId === 'brief' ? 'gate.brief' : `gate.${gate}`;
+  const stack = phaseId === 'architecture' ? stackOf(runs, task.phaseIndex) : null;
+  const gateKey = phaseId === 'brief' ? 'gate.brief' : phaseId === 'architecture' ? 'gate.stack' : `gate.${gate}`;
 
   return (
     <div className="action-card">
       <span className="eyebrow">{t(`${gateKey}.eyebrow`)}</span>
       <h3>{t(`${gateKey}.title`)}</h3>
       {brief && <div className="brief-preview">{brief}</div>}
+      {stack && (
+        <div className="brief-preview">
+          <p><b>{stack.stackName}</b></p>
+          <ul className="findings">
+            {stack.decisions.map((entry) => (
+              <li key={entry.title}><b>{entry.title}</b> {entry.decision}{entry.why && <span className="muted"> · {entry.why}</span>}</li>
+            ))}
+          </ul>
+          {stack.verification.length > 0 && <p className="muted small">{t('gate.stack.checks', { commands: stack.verification.map((check) => check.command).join(' · ') })}</p>}
+        </div>
+      )}
       {gate === 'human-review' && isReview(review) && (
         <div className="review">
           <p><span className={`tag ${review.verdict === 'approve' ? 'good' : ''}`}>{t(`gate.verdict.${review.verdict}`, { defaultValue: review.verdict })}</span> {review.summary}</p>

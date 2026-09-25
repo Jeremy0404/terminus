@@ -31,10 +31,12 @@ describe('AppFounder', () => {
     expect(app).toMatchObject({ name: 'Carnet de Vélo', repoPath: '/home/me/dev/projects/carnet-de-velo', verification: [] });
     const [line] = epics.listByApp(app.id);
     expect(line).toMatchObject({ code: 'F', name: 'Fondations', description: 'Log my rides and see progress.' });
-    const [framing] = tasks.listByEpic(line?.id ?? '');
+    const [framing, stack] = tasks.listByEpic(line?.id ?? '');
     expect(framing).toMatchObject({ title: 'Cadrer l’idée', description: 'Log my rides and see progress.' });
     expect(framing?.lifecycle.id).toBe('app-framing');
     expect(framing?.lifecycle.phases.map((phase) => phase.id)).toEqual(['grill', 'brief']);
+    expect(stack).toMatchObject({ title: 'Choisir la stack et l’architecture', dependsOn: [framing?.id] });
+    expect(stack?.lifecycle.phases.map((phase) => phase.id)).toEqual(['options', 'architecture']);
   });
 
   it('uses the folder given, and refuses a name with nothing usable', () => {

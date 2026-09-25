@@ -42,8 +42,9 @@ function task(id: string, extra: Partial<Task> = {}): Task {
 describe('SqliteAppRepository and SqliteEpicRepository', () => {
   it('keeps the approved brief of an app', () => {
     const apps = new SqliteAppRepository(db);
-    apps.save({ ...app, brief: '## Problem\n\nToo many tabs.' });
-    expect(apps.get('terminus')?.brief).toBe('## Problem\n\nToo many tabs.');
+    const stack = { id: 'stack-static-site', name: 'Static site', decisions: [{ title: 'Hosting', decision: 'nginx', why: 'Simple' }] };
+    apps.save({ ...app, brief: '## Problem\n\nToo many tabs.', stack });
+    expect(apps.get('terminus')).toMatchObject({ brief: '## Problem\n\nToo many tabs.', stack });
   });
 
   it('round-trips apps and epics, and updates in place', () => {

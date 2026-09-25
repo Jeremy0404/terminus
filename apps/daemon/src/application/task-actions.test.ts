@@ -96,6 +96,26 @@ describe('TaskActions', () => {
     expect(workspace.removed).toEqual(['t1']);
   });
 
+  it('stores the approved stack on the app and makes its verification the app checks', () => {
+    const stackLifecycle = { id: 'app-stack', version: 'test', phases: [{ id: 'options', output: 'decisions' as const }, { id: 'architecture', output: 'stack' as const, gate: 'plan-approval' as const }] };
+    givenTask('t1', { kind: 'awaiting-gate', gate: 'plan-approval' }, { lifecycle: stackLifecycle, phaseIndex: 1 });
+    runs.save({
+      id: 'r1', taskId: 't1', phaseIndex: 1, sessionId: 's', status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null,
+      output: {
+        summary: 'ok', stackId: 'stack-ts-fastify-vue', stackName: 'TypeScript: Fastify, Kysely, PostgreSQL, Vue 3',
+        decisions: [{ title: 'Comptes', decision: 'Pas de comptes', why: 'Usage solo' }],
+        verification: [{ name: 'test', command: 'pnpm run test' }],
+      },
+    });
+
+    actions.approve('t1');
+
+    expect(apps.get('app')).toMatchObject({
+      stack: { id: 'stack-ts-fastify-vue', name: 'TypeScript: Fastify, Kysely, PostgreSQL, Vue 3', decisions: [{ title: 'Comptes', decision: 'Pas de comptes', why: 'Usage solo' }] },
+      verification: [{ name: 'test', command: 'pnpm run test' }],
+    });
+  });
+
   it('approves a gate and sends a review back to execution', () => {
     givenTask('t1', { kind: 'awaiting-gate', gate: 'plan-approval' }, { phaseIndex: 2 });
     expect(actions.approve('t1').phaseIndex).toBe(3);

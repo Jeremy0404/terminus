@@ -9,6 +9,7 @@ import { completePhase, failRun, holdForProposal, passChecks, rejectByChecks, re
 import { DECISIONS_OUTPUT_SCHEMA, readProposedDecisions } from './decision-output.js';
 import type { ContextSource } from './context-pack.js';
 import { BRIEF_OUTPUT_SCHEMA } from './brief-output.js';
+import { STACK_OUTPUT_SCHEMA } from './stack-output.js';
 import { MEMORY_OUTPUT_SCHEMA, readMemoryOutput } from './memory-output.js';
 import { buildPhasePrompt } from './phase-prompt.js';
 import { REVIEW_OUTPUT_SCHEMA } from './review-output.js';
@@ -398,6 +399,7 @@ function outputSchemaFor(phase: PhaseDefinition): object | null {
   if (phase.output === 'verdict') return VERDICT_OUTPUT_SCHEMA;
   if (phase.output === 'memory') return MEMORY_OUTPUT_SCHEMA;
   if (phase.output === 'brief') return BRIEF_OUTPUT_SCHEMA;
+  if (phase.output === 'stack') return STACK_OUTPUT_SCHEMA;
   return null;
 }
 
