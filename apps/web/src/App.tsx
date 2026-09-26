@@ -19,7 +19,7 @@ import { QuotaGauge } from './components/QuotaGauge';
 import { AgentSettings } from './components/settings/AgentSettings';
 import { ProjectMemory } from './components/memory/ProjectMemory';
 import { Trip } from './components/Trip';
-import { levelOf, up, usePlace } from './state/location';
+import { levelOf, up, usePlace, VIEWS, type View } from './state/location';
 import { useInboxNotifications } from './state/notifications';
 import { useApps, useNetwork, useQuota, useStaleSkills } from './state/resources';
 
@@ -52,8 +52,9 @@ export function App() {
 function Cockpit() {
   const { t } = useTranslation();
   const apps = useApps();
-  const [place, go] = usePlace();
-  const [view, setView] = useState<'overview' | 'decisions' | 'active' | 'deliveries' | 'map'>(() => window.matchMedia?.('(max-width: 640px)').matches ? 'decisions' : 'overview');
+  const [place, go, chosenView] = usePlace();
+  const [defaultView] = useState<View>(() => window.matchMedia?.('(max-width: 640px)').matches ? 'decisions' : 'overview');
+  const view = chosenView ?? defaultView;
   const [adopting, setAdopting] = useState(false);
   const [founding, setFounding] = useState(false);
   const [panel, setPanel] = useState<'settings' | 'memory' | null>(null);
@@ -160,7 +161,7 @@ function Cockpit() {
       ) : (
         <>
           <nav className="journey-nav" aria-label={t('pocket.label')}>
-            {(['overview', 'decisions', 'active', 'deliveries', 'map'] as const).map((item) => <button className="btn" key={item} aria-current={view === item ? 'page' : undefined} onClick={() => { setView(item); go({ app: appId, line: null, task: null }); }}>{t(`pocket.${item}`)}</button>)}
+            {VIEWS.map((item) => <button className="btn" key={item} aria-current={view === item ? 'page' : undefined} onClick={() => go({ app: appId, line: null, task: null }, item)}>{t(`pocket.${item}`)}</button>)}
           </nav>
           <Trip network={network.data} place={{ ...place, app: appId }} go={go} />
           {level !== 'platform' && view === 'deliveries' ? <DeliveryCenter network={network.data} onOpen={openStation} onMemory={() => setPanel('memory')} />

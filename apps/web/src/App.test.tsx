@@ -54,6 +54,27 @@ describe('the cockpit', () => {
     expect(screen.getByRole('region', { name: 'À toi de jouer' })).toBeInTheDocument();
   });
 
+  it('keeps the chosen view in the address across stations, a reload and the back button', async () => {
+    const first = render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Livraisons' }));
+    expect(window.location.search).toBe('?app=app-1&view=deliveries');
+
+    fireEvent.click(screen.getByRole('button', { name: /Rendu SVG/ }));
+    expect(window.location.search).toBe('?app=app-1&line=ui&task=i1&view=deliveries');
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(window.location.search).toBe('?app=app-1&view=deliveries');
+
+    first.unmount();
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Le quai des livraisons' })).toBeInTheDocument();
+
+    window.history.replaceState(null, '', '/?app=app-1&view=map');
+    fireEvent(window, new PopStateEvent('popstate'));
+    expect(screen.queryByRole('heading', { name: 'Le quai des livraisons' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Carte' })).toHaveAttribute('aria-current', 'page');
+  });
+
   it('jumps from an inbox item straight to its platform, and Escape goes back up', async () => {
     render(<App />);
     const inbox = await screen.findByRole('region', { name: 'À toi de jouer' });

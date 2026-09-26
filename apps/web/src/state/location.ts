@@ -8,34 +8,48 @@ export interface Place {
 
 export type Level = 'network' | 'line' | 'platform';
 
-export const levelOf = (place: Place): Level => (place.task ? 'platform' : place.line ? 'line' : 'network');
+export const VIEWS = ['overview', 'decisions', 'active', 'deliveries', 'map'] as const;
+export type View = (typeof VIEWS)[number];
 
-function read(): Place {
-  const params = new URLSearchParams(window.location.search);
-  return { app: params.get('app'), line: params.get('line'), task: params.get('task') };
+interface Location {
+  readonly place: Place;
+  readonly view: View | null;
 }
 
-function write(place: Place): void {
+export const levelOf = (place: Place): Level => (place.task ? 'platform' : place.line ? 'line' : 'network');
+
+function read(): Location {
+  const params = new URLSearchParams(window.location.search);
+  const view = params.get('view');
+  return {
+    place: { app: params.get('app'), line: params.get('line'), task: params.get('task') },
+    view: VIEWS.find((candidate) => candidate === view) ?? null,
+  };
+}
+
+function write({ place, view }: Location): void {
   const params = new URLSearchParams();
   if (place.app) params.set('app', place.app);
   if (place.line) params.set('line', place.line);
   if (place.task) params.set('task', place.task);
+  if (view) params.set('view', view);
   const query = params.toString();
   window.history.pushState(null, '', query ? `?${query}` : window.location.pathname);
 }
 
-export function usePlace(): [Place, (next: Place) => void] {
-  const [place, setPlace] = useState<Place>(read);
+export function usePlace(): [Place, (next: Place, view?: View) => void, View | null] {
+  const [location, setLocation] = useState<Location>(read);
   useEffect(() => {
-    const onPop = (): void => setPlace(read());
+    const onPop = (): void => setLocation(read());
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
-  const go = useCallback((next: Place) => {
-    write(next);
-    setPlace(next);
+  const go = useCallback((next: Place, view?: View) => {
+    const location = { place: next, view: view ?? read().view };
+    write(location);
+    setLocation(location);
   }, []);
-  return [place, go];
+  return [location.place, go, location.view];
 }
 
 export function up(place: Place): Place {
