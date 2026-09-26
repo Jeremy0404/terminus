@@ -7,9 +7,10 @@ export function pullRequestTitle(task: Task): string {
   return CONVENTIONAL_PREFIX.test(task.title) ? task.title : `feat: ${task.title.charAt(0).toLowerCase()}${task.title.slice(1)}`;
 }
 
-export function pullRequestBody(task: Task, runs: readonly Run[]): string {
+export function pullRequestBody(task: Task, runs: readonly Run[], summary: string | null = null): string {
   const review = [...runs].reverse().find((run) => isReview(run.output));
   const lines = [`Task: ${task.title}`, '', `Phases completed: ${task.checkpoints.length} of ${task.lifecycle.phases.length}.`];
+  if (summary?.trim()) lines.push('', summary.trim());
   if (review && isReview(review.output)) {
     lines.push('', `Review: ${review.output.verdict} — ${review.output.summary}`);
     for (const finding of review.output.findings) lines.push(`- [${finding.severity}] ${finding.file ? `${finding.file}: ` : ''}${finding.summary}`);

@@ -324,7 +324,7 @@ export class PhaseRunner {
     try {
       const sequence = task.checkpoints.length + 1;
       const ref = this.deps.workspace.checkpoint(taskWorkspace, sequence, phase.id);
-      const pullRequest = this.deps.codeHost.publish(taskWorkspace, this.deps.baseRef, pullRequestTitle(task), pullRequestBody(task, runs.listByTask(task.id)));
+      const pullRequest = this.deps.codeHost.publish(taskWorkspace, this.deps.baseRef, pullRequestTitle(task), pullRequestBody(task, runs.listByTask(task.id), this.deps.notes.read(task.id, PULL_REQUEST_SUMMARY)));
       task = completePhase(task, { sequence, phaseIndex: task.phaseIndex, ref, sessionId: null, takenAt: clock.now() });
       runs.save({ ...run, status: 'succeeded', endedAt: clock.now(), output: { pullRequest } });
     } catch (error) {
@@ -406,6 +406,8 @@ export class PhaseRunner {
     return task;
   }
 }
+
+const PULL_REQUEST_SUMMARY = 'pull-request.md';
 
 const OPEN_STATUSES: readonly TaskStatus['kind'][] = ['todo', 'ready', 'awaiting-decision', 'awaiting-gate', 'blocked', 'manual'];
 
