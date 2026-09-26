@@ -47,13 +47,22 @@ describe('GhReleaseTarget', () => {
     writeFileSync(join(repo, '.github/workflows/release.yml'), 'jobs:\n  build:\n    runs-on: x\n');
     expect(new GhReleaseTarget(fakeGh({ 'pr list': '[]', 'run list': '[]' })).state(repo)).toEqual({ deploysOnRelease: false, pending: null, latest: null, lastRun: null });
   });
-});
 
-it('does not confirm production when the deploy job was skipped', () => {
-  writeFileSync(join(repo, '.github/workflows/release.yml'), 'jobs:\n  deploy:\n    runs-on: x\n');
-  const gh = fakeGh({
-    'run list': '[{"databaseId":31,"status":"completed","conclusion":"success","headBranch":"v1.0.0","createdAt":"now","url":"run"}]',
-    'run view': '{"jobs":[{"name":"deploy","conclusion":"skipped"}]}',
+  it('does not confirm production when the deploy job was skipped', () => {
+    writeFileSync(join(repo, '.github/workflows/release.yml'), 'jobs:\n  deploy:\n    runs-on: x\n');
+    const gh = fakeGh({
+      'run list': '[{"databaseId":31,"status":"completed","conclusion":"success","headBranch":"v1.0.0","createdAt":"now","url":"run"}]',
+      'run view': '{"jobs":[{"name":"deploy","conclusion":"skipped"}]}',
+    });
+    expect(new GhReleaseTarget(gh).state(repo)?.lastRun?.deploymentVerified).toBe(false);
   });
-  expect(new GhReleaseTarget(gh).state(repo)?.lastRun?.deploymentVerified).toBe(false);
+
+  it('confirms a deploy job under the name GitHub shows for it', () => {
+    writeFileSync(join(repo, '.github/workflows/release.yml'), 'jobs:\n  deploy:\n    name: Deploy to mediaserver\n    runs-on: x\n');
+    const gh = fakeGh({
+      'run list': '[{"databaseId":31,"status":"completed","conclusion":"success","headBranch":"v1.0.0","createdAt":"now","url":"run"}]',
+      'run view': '{"jobs":[{"name":"deploy","conclusion":"skipped"},{"name":"Deploy to mediaserver","conclusion":"success"}]}',
+    });
+    expect(new GhReleaseTarget(gh).state(repo)).toMatchObject({ deploysOnRelease: true, lastRun: { deploymentVerified: true } });
+  });
 });
