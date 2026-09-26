@@ -17,6 +17,8 @@ const ORIGIN_LABEL_GAP = 12;
 const LINE_LABEL_GAP = 8;
 const LINE_NAME_RISE = 30;
 const LINE_META_RISE = 15;
+const SUMMARY_WIDTH = 36;
+const SUMMARY_HEIGHT = 18;
 
 const pathData = (points: readonly Point[]): string => points.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x} ${point.y}`).join(' ');
 
@@ -24,6 +26,7 @@ const shorten = (text: string): string => (text.length > LABEL_CHARS ? `${text.s
 
 interface Props {
   readonly layout: NetworkLayout;
+  readonly counts: ReadonlyMap<string, number>;
   readonly appName: string;
   readonly tasks: readonly TaskSummaryDto[];
   readonly level: Level;
@@ -34,7 +37,7 @@ interface Props {
   readonly onBackground: () => void;
 }
 
-export const MapDrawing = memo(function MapDrawing({ layout, appName, tasks, level, openLine, selectedTask, onLine, onStation, onBackground }: Props) {
+export const MapDrawing = memo(function MapDrawing({ layout, counts, appName, tasks, level, openLine, selectedTask, onLine, onStation, onBackground }: Props) {
   const { t } = useTranslation();
   const dimmed = (epicId: string): boolean => level !== 'network' && openLine !== epicId;
 
@@ -71,6 +74,21 @@ export const MapDrawing = memo(function MapDrawing({ layout, appName, tasks, lev
               </text>
             </g>
             {line.stations.map(({ task, x, y, labelSide, interchange }) => {
+              const count = counts.get(task.id) ?? 1;
+              if (count > 1) {
+                const summary = t('map.summarized', { count });
+                return (
+                  <g key={task.id} className="station station-summary" role="button" tabIndex={0} aria-label={summary}
+                    onClick={() => onStation(line.epic.id, task.id)}
+                    onKeyDown={(event) => event.key === 'Enter' && onStation(line.epic.id, task.id)}>
+                    <rect x={x - SUMMARY_WIDTH / 2} y={y - SUMMARY_HEIGHT / 2} width={SUMMARY_WIDTH} height={SUMMARY_HEIGHT} rx={SUMMARY_HEIGHT / 2} className="station-summary-pill" />
+                    <text x={x} y={labelSide === 'below' ? y + LABEL_BELOW : y - LABEL_ABOVE} textAnchor="middle" className="station-label">
+                      <title>{task.title}</title>
+                      {summary}
+                    </text>
+                  </g>
+                );
+              }
               const tone = toneOf(task.status);
               const active = isActive(task.status);
               const selected = selectedTask === task.id;

@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EpicDto, NetworkDto, TaskSummaryDto } from '@terminus/contracts';
+import { mapHeight } from '../network/camera';
+import { summarizeFinished } from '../network/compact';
 import { layoutNetwork } from '../network/layout';
 import { APP, NETWORK, task } from '../test/fixtures';
 import type { Place } from '../state/location';
@@ -220,6 +222,37 @@ describe('NetworkMap drag to pan', () => {
     drag(screen.getByRole('button', { name: /^a 1,/ }), 40, 'touch');
 
     expect(box.scrollLeft).toBe(0);
+  });
+});
+
+describe('NetworkMap finished runs', () => {
+  const network = networkOf([line('a', 1)], [...stations('a', 10, 10), task('a11', 'a', 'a 11', { kind: 'running', runId: 'r' }), task('a12', 'a', 'a 12', { kind: 'todo' })]);
+
+  it('folds a long run of finished stations into one marker that opens its last station', () => {
+    const onStation = vi.fn();
+    render(<NetworkMap network={network} place={NETWORK_PLACE} onLine={vi.fn()} onStation={onStation} onBackground={vi.fn()} />);
+
+    expect(screen.queryAllByRole('button', { name: /^a \d+,/ })).toHaveLength(2);
+    expect(screen.getByText('10 stations terminées')).toBeInTheDocument();
+    expect(screen.getByText('2 stations restantes')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '10 stations terminées' }));
+    expect(onStation).toHaveBeenCalledWith('a', 'a10');
+  });
+
+  it('keeps the frame height of the network when a line is opened', () => {
+    const others = Array.from({ length: 5 }, (_, index) => line(`o${index + 1}`, index + 2));
+    const wide = networkOf([line('a', 1), ...others], [...stations('a', 30, 28), ...others.flatMap((epic) => stations(epic.id, 1))]);
+    const compact = layoutNetwork(wide.epics, summarizeFinished(wide.tasks).tasks);
+    const complete = layoutNetwork(wide.epics, wide.tasks);
+    expect(mapHeight(compact, FRAME_WIDTH)).not.toBeCloseTo(mapHeight(complete, FRAME_WIDTH));
+
+    const view = renderMap(wide);
+    const height = drawn(view.container).box.style.height;
+    view.rerender(<NetworkMap network={wide} place={{ app: APP.id, line: 'a', task: null }} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+
+    expect(drawn(view.container).box.style.height).toBe(height);
+    expect(height).toBe(`${mapHeight(compact, FRAME_WIDTH)}px`);
   });
 });
 

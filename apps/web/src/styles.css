@@ -110,6 +110,8 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .station { cursor: pointer; }
 .station-dot { fill: var(--station); stroke: currentColor; stroke-width: 4; }
 .station:hover .station-dot { stroke-width: 6; }
+.station-summary-pill { fill: currentColor; stroke: var(--station); stroke-width: 3; }
+.station-summary:hover .station-summary-pill { stroke-width: 5; }
 .station.tone-done .station-dot { fill: currentColor; stroke: var(--station); stroke-width: 3; }
 .station.tone-go .station-dot { stroke-width: 5; }
 .station.tone-signal .station-dot { stroke: var(--signal); stroke-width: 5; }

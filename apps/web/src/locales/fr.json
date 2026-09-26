@@ -19,7 +19,9 @@
     "planned": "En projet",
     "empty": "Pas encore de station",
     "remaining_one": "{{count}} station restante",
-    "remaining_other": "{{count}} stations restantes"
+    "remaining_other": "{{count}} stations restantes",
+    "summarized_one": "{{count}} station terminée",
+    "summarized_other": "{{count}} stations terminées"
   },
   "trip": {
     "label": "Où je suis",
