@@ -1,4 +1,5 @@
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
+import { finishedLine } from './exploration';
 
 export const STEP = 80;
 export const ROW = 130;
@@ -73,12 +74,8 @@ export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSum
   const lineIndex = new Map(orderedEpics.map((epic, index) => [epic.id, index]));
   const xOf = (taskId: string): number => firstX + (ranks.get(taskId) ?? 0) * STEP;
   const epicOf = new Map(tasks.map((task) => [task.id, task.epicId]));
-  const crossDependencies = (task: TaskSummaryDto): string[] =>
-    task.dependsOn.filter((dependency) => epicOf.has(dependency) && epicOf.get(dependency) !== task.epicId);
-  const interchanges = new Set(tasks.flatMap((task) => {
-    const dependencies = crossDependencies(task);
-    return dependencies.length > 0 ? [task.id, ...dependencies] : [];
-  }));
+  const crossDependencies = (task: TaskSummaryDto): string[] => crossLineDependencies(task, epicOf);
+  const interchanges = interchangeIds(tasks);
   const bendOf = (task: TaskSummaryDto, index: number): number => {
     const waitedOn = crossDependencies(task).flatMap((dependency) => lineIndex.get(epicOf.get(dependency) ?? '') ?? []);
     return waitedOn.length === 0 ? 0 : Math.sign(Math.min(...waitedOn) - index) * INTERCHANGE_BEND;
@@ -122,14 +119,26 @@ export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSum
   };
 }
 
+export function interchangeIds(tasks: readonly TaskSummaryDto[]): ReadonlySet<string> {
+  const epicOf = new Map(tasks.map((task) => [task.id, task.epicId]));
+  return new Set(tasks.flatMap((task) => {
+    const dependencies = crossLineDependencies(task, epicOf);
+    return dependencies.length > 0 ? [task.id, ...dependencies] : [];
+  }));
+}
+
 export function withoutDeliveredLines(
   epics: readonly EpicDto[],
   tasks: readonly TaskSummaryDto[],
   keepEpicId: string | null,
 ): { readonly epics: readonly EpicDto[]; readonly tasks: readonly TaskSummaryDto[] } {
-  const visible = epics.filter((epic) => epic.id === keepEpicId || !(epic.status === 'delivered' || (tasks.some((task) => task.epicId === epic.id) && tasks.filter((task) => task.epicId === epic.id).every((task) => task.status.kind === 'done' || task.status.kind === 'closed'))));
+  const visible = epics.filter((epic) => epic.id === keepEpicId || !finishedLine(epic, tasks));
   const ids = new Set(visible.map((epic) => epic.id));
   return { epics: visible, tasks: tasks.filter((task) => ids.has(task.epicId)) };
+}
+
+function crossLineDependencies(task: TaskSummaryDto, epicOf: ReadonlyMap<string, string>): string[] {
+  return task.dependsOn.filter((dependency) => epicOf.has(dependency) && epicOf.get(dependency) !== task.epicId);
 }
 
 function trackPath(rowStart: Point, stops: readonly Point[]): Point[] {

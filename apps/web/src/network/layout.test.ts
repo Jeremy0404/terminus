@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
-import { layoutNetwork, ROUNDEL_RADIUS, ROW, STEP, TOP, withoutDeliveredLines, type NetworkLayout, type Point } from './layout';
+import { interchangeIds, layoutNetwork, ROUNDEL_RADIUS, ROW, STEP, TOP, withoutDeliveredLines, type NetworkLayout, type Point } from './layout';
 
 const epic = (id: string, position: number, status: EpicDto['status'] = 'active'): EpicDto => ({ id, appId: 'app', code: id.toUpperCase(), name: id, status, position, description: '', breakdown: { status: 'idle' } });
 const task = (id: string, epicId: string, dependsOn: string[] = []): TaskSummaryDto => ({
@@ -215,6 +215,13 @@ describe('layoutNetwork', () => {
       expectOctolinearPaths(layoutNetwork([epic('a', 1), epic('b', 2), epic('c', 3)], [task('a1', 'a'), task('c1', 'c'), task('b1', 'b', ['a1']), task('b2', 'b', ['c1'])]));
       expectOctolinearPaths(layoutNetwork([epic('a', 1), epic('b', 2)], [task('a1', 'a'), task('b1', 'b', ['a1'])]));
     });
+  });
+});
+
+describe('interchangeIds', () => {
+  it('flags both ends of a cross-line dependency, and nothing else', () => {
+    const tasks = [task('a1', 'a'), task('a2', 'a'), task('b1', 'b', ['a1']), task('b2', 'b', ['b1']), task('b3', 'b', ['gone'])];
+    expect([...interchangeIds(tasks)].sort()).toEqual(['a1', 'b1']);
   });
 });
 
