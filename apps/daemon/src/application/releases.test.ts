@@ -17,6 +17,8 @@ let state: ReleaseState;
 let checks: ChecksState;
 let merged: number[];
 let asked: number;
+let checksAsked: number;
+let checksUnavailable: boolean;
 let notes: string[];
 let deployments: InMemoryDeploymentRepository;
 let releases: Releases;
@@ -26,6 +28,8 @@ beforeEach(() => {
   checks = 'success';
   merged = [];
   asked = 0;
+  checksAsked = 0;
+  checksUnavailable = false;
   notes = [];
   deployments = new InMemoryDeploymentRepository();
   const apps = new InMemoryAppRepository();
@@ -37,16 +41,24 @@ beforeEach(() => {
     ids: new SequentialIds(),
     notifier: { notify: (message) => notes.push(message) },
     target: { state: () => { asked += 1; return state; } },
-    codeHost: { checks: () => checks, merge: (_repo, number) => merged.push(number) },
+    codeHost: {
+      checks: () => {
+        checksAsked += 1;
+        if (checksUnavailable) throw new Error('gh: network unreachable');
+        return checks;
+      },
+      merge: (_repo, number) => merged.push(number),
+    },
   });
 });
 
 describe('Releases', () => {
-  it('asks the deploy target at most every thirty seconds unless asked for a fresh state', () => {
+  it('asks the deploy target and the release checks at most every thirty seconds unless asked for a fresh state', () => {
     releases.state('app');
     releases.state('app');
     releases.state('app', true);
     expect(asked).toBe(2);
+    expect(checksAsked).toBe(2);
     expect(() => releases.state('ghost')).toThrow(DomainError);
   });
 
@@ -71,6 +83,8 @@ describe('Releases', () => {
     expect(() => releases.deploy('app', '0.9.0')).toThrow(/now v1\.0\.0, not v0\.9\.0/);
     checks = 'failure';
     expect(() => releases.deploy('app', '1.0.0')).toThrow(/CI on the release pull request #87 is failure/);
+    checksUnavailable = true;
+    expect(() => releases.deploy('app', '1.0.0')).toThrow(/CI on the release pull request #87 is unavailable/);
     state = { ...waiting, pending: null };
     expect(() => releases.deploy('app', '1.0.0')).toThrow(/no release waiting/);
     expect(merged).toEqual([]);
@@ -81,13 +95,13 @@ describe('Releases', () => {
     expect(versionOf('v0.2.0')).toBe('0.2.0');
     expect(versionOf('main')).toBeNull();
   });
-});
 
-it('does not announce production for a release-only workflow', () => {
-  state = { ...waiting, deploysOnRelease: false };
-  expect(releases.state('app')?.checks).toBe('success');
-  releases.deploy('app', '1.0.0');
-  state = { ...state, pending: null, lastRun: { id: 32, version: '1.0.0', state: 'succeeded', deploymentVerified: true, startedAt: 'y', url: 'run-32' } };
-  releases.state('app', true);
-  expect(notes.at(-1)).toBe('✅ tiny-prm v1.0.0 est publiée');
+  it('does not announce production for a release-only workflow', () => {
+    state = { ...waiting, deploysOnRelease: false };
+    expect(releases.state('app')?.checks).toBe('success');
+    releases.deploy('app', '1.0.0');
+    state = { ...state, pending: null, lastRun: { id: 32, version: '1.0.0', state: 'succeeded', deploymentVerified: true, startedAt: 'y', url: 'run-32' } };
+    releases.state('app', true);
+    expect(notes.at(-1)).toBe('✅ tiny-prm v1.0.0 est publiée');
+  });
 });
