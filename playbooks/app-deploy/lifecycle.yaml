@@ -1,0 +1,38 @@
+id: app-deploy
+phases:
+  - id: fit
+    skill: deploy-fit
+    output: verdict
+  - id: deploy-options
+    skill: deploy-options
+    output: decisions
+  - id: execute
+    skill: deploy-pipeline
+  - id: verify
+    executor: checks
+    retryFrom: execute
+  - id: review
+    skill: review
+    output: review
+    gate: human-review
+    skippable: true
+  - id: sync
+    executor: sync
+    skill: resolve-conflicts
+    retryFrom: execute
+  - id: merge
+    executor: code-host
+    gate: merge
+  - id: server
+    skill: server-checklist
+    gate: plan-approval
+  - id: server-check
+    skill: server-check
+    model: haiku
+    effort: low
+    output: readiness
+    retryFrom: server
+  - id: retro
+    skill: retro
+    output: memory
+    skippable: true

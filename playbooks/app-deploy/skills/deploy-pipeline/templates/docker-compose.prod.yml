@@ -1,0 +1,103 @@
+# Production stack for {{SLUG}}.
+#
+# The app is published on the host loopback only (127.0.0.1:${APP_PORT}),
+# never on a public interface. The host's reverse-proxy container reaches it
+# by container name ({{SLUG}}-app-1:{{INTERNAL_PORT}}) over this stack's
+# network, {{SLUG}}_default, which deploy/rollback.sh joins it to.
+#
+# `name:` pins the Compose project name. Without it Compose names the project
+# after this file's directory ("deploy"), so containers, networks and volumes
+# would not be the {{SLUG}}-* names the proxy and the scripts rely on.
+#
+# Every service has a mem_limit: an unbounded container can exhaust the
+# memory of a host shared with other apps.
+#
+# Usage, from the repository checkout on the host:
+#   docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d
+
+name: {{SLUG}}
+
+services:
+  app:
+    image: {{IMAGE}}:${RELEASE_VERSION}
+    restart: unless-stopped
+    mem_limit: 512m
+    ports:
+      - '127.0.0.1:${APP_PORT:-3000}:{{INTERNAL_PORT}}'
+    environment:
+      APP_VERSION: ${RELEASE_VERSION}
+      # >>> node
+      NODE_ENV: production
+      PORT: '{{INTERNAL_PORT}}'
+      NODE_OPTIONS: --max-old-space-size=384
+      # <<< node
+      # >>> postgres
+      PGHOST: postgres
+      PGPORT: '5432'
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      # <<< postgres
+    # >>> postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # <<< postgres
+    # >>> data-volume
+    volumes:
+      - {{SLUG}}-data:{{DATA_DIR}}
+    # <<< data-volume
+    healthcheck:
+      # >>> node
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:{{INTERNAL_PORT}}{{HEALTH_PATH}}',{headers:{'x-forwarded-proto':'https'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      # <<< node
+      # >>> busybox
+      test:
+        [
+          'CMD',
+          'wget',
+          '-q',
+          '-O',
+          '/dev/null',
+          '--header',
+          'X-Forwarded-Proto: https',
+          'http://127.0.0.1:{{INTERNAL_PORT}}{{HEALTH_PATH}}',
+        ]
+      # <<< busybox
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+  # >>> postgres
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - {{SLUG}}-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+volumes:
+  {{SLUG}}-pg:
+  # <<< postgres
+  # >>> data-volume
+
+volumes:
+  {{SLUG}}-data:
+  # <<< data-volume
