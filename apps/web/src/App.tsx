@@ -1,25 +1,28 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import type { NetworkDto } from '@terminus/contracts';
 import { useTranslation } from 'react-i18next';
 import { ServerEventsProvider } from './api/events';
+import { ActiveDepartures } from './components/ActiveDepartures';
 import { ActivityBar, Toasts } from './components/ActivityFeedback';
-import { AdoptionWizard } from './components/adoption/AdoptionWizard';
-import { IdeasWorkshop } from './components/IdeasWorkshop';
+import { AdoptionScreen } from './components/AdoptionScreen';
+import { EmptyState } from './components/EmptyState';
+import { FoundingScreen } from './components/FoundingScreen';
+import { JourneyFrame } from './components/JourneyFrame';
+import { PanelScreen } from './components/PanelScreen';
+import { PlatformScreen } from './components/PlatformScreen';
 import { DeliveryCenter } from './components/DeliveryCenter';
-import { StatusPill } from './components/StatusPill';
 import { appPhaseOf } from './network/app-phase';
 import { AppSelector } from './components/AppSelector';
 import { Inbox } from './components/Inbox';
 import { JourneyRecap } from './components/JourneyRecap';
 import { LineCard } from './components/LineCard';
-import { NetworkExplorer } from './components/NetworkExplorer';
-import { NetworkSummary } from './components/NetworkSummary';
-import { Platform } from './components/Platform';
-import { ProductionCard } from './components/ProductionCard';
+import { MapStage, Rail } from './components/MapStage';
+import { NetworkRail } from './components/NetworkRail';
 import { QuotaGauge } from './components/QuotaGauge';
 import { AgentSettings } from './components/settings/AgentSettings';
 import { ProjectMemory } from './components/memory/ProjectMemory';
-import { Trip } from './components/Trip';
-import { levelOf, up, usePlace, VIEWS, type View } from './state/location';
+import { up, usePlace, type View } from './state/location';
+import { screenOf, type Panel } from './state/screen';
 import { useInboxNotifications } from './state/notifications';
 import { useApps, useNetwork, useQuota, useStaleSkills } from './state/resources';
 
@@ -57,12 +60,11 @@ function Cockpit() {
   const view = chosenView ?? defaultView;
   const [adopting, setAdopting] = useState(false);
   const [founding, setFounding] = useState(false);
-  const [panel, setPanel] = useState<'settings' | 'memory' | null>(null);
+  const [panel, setPanel] = useState<Panel | null>(null);
   const appId = place.app ?? (apps.data ? (apps.data.find((app) => app.id === readLastApp())?.id ?? apps.data[0]?.id ?? null) : null);
   const network = useNetwork(appId);
   const quota = useQuota();
   const staleSkills = useStaleSkills();
-  const level = levelOf(place);
   const describe = useCallback((title: string, reason: string) => ({ title: t(`notify.${reason}`), body: title }), [t]);
   const notifications = useInboxNotifications(network.data, describe);
 
@@ -82,7 +84,105 @@ function Cockpit() {
   }, [place, appId, go, panel]);
 
   const openStation = (line: string, task: string): void => go({ app: appId, line, task });
+  const openLine = (line: string): void => go({ app: appId, line, task: null });
+  const arrive = (id: string): void => {
+    apps.reload();
+    go({ app: id, line: null, task: null });
+  };
   const current = apps.data?.find((app) => app.id === appId) ?? null;
+  const screen = screenOf({ founding, adopting, panel, current, network: network.data, place, view });
+
+  const here = { ...place, app: appId };
+  const closePanel = (): void => setPanel(null);
+  const openMemory = (): void => setPanel('memory');
+  const journey = (loaded: NetworkDto, content: ReactNode): ReactNode => (
+    <JourneyFrame network={loaded} place={here} view={view} go={go}>
+      {content}
+    </JourneyFrame>
+  );
+
+  const screenContent = (): ReactNode => {
+    switch (screen.kind) {
+      case 'founding':
+        return (
+          <FoundingScreen
+            onCancel={() => setFounding(false)}
+            onFounded={(id) => {
+              setFounding(false);
+              arrive(id);
+            }}
+          />
+        );
+      case 'adopting':
+        return (
+          <AdoptionScreen
+            onCancel={() => setAdopting(false)}
+            onAdopted={(id) => {
+              setAdopting(false);
+              arrive(id);
+            }}
+          />
+        );
+      case 'settings':
+        return (
+          <PanelScreen network={network.data} place={here} go={go} label={t('settings.open')} onClose={closePanel}>
+            <AgentSettings
+              onClose={closePanel}
+              onOpenStation={(app, line, task) => {
+                setPanel(null);
+                go({ app, line, task });
+              }}
+            />
+          </PanelScreen>
+        );
+      case 'memory':
+        return (
+          <PanelScreen network={network.data} place={here} go={go} label={t('memory.open')} onClose={closePanel}>
+            <ProjectMemory key={screen.app.id} app={screen.app} onClose={closePanel} />
+          </PanelScreen>
+        );
+      case 'empty':
+        return <EmptyState noApps={apps.data?.length === 0} onFound={() => setFounding(true)} onAdopt={() => setAdopting(true)} />;
+      case 'deliveries':
+        return journey(screen.network, <DeliveryCenter network={screen.network} onOpen={openStation} onMemory={openMemory} />);
+      case 'decisions':
+        return journey(screen.network, <main className="pocket-content"><Inbox network={screen.network} lineId={null} onOpen={openStation} onMemory={openMemory} /></main>);
+      case 'active':
+        return journey(screen.network, <ActiveDepartures network={screen.network} onOpen={openStation} />);
+      case 'network':
+        return journey(screen.network, (
+          <MapStage
+            network={screen.network}
+            place={place}
+            appId={appId}
+            go={go}
+            onStation={openStation}
+            rail={screen.mapOnly ? null : (
+              <Rail network={screen.network} lineId={null} onOpen={openStation} onMemory={openMemory}>
+                <NetworkRail network={screen.network} onLine={openLine} onStation={openStation} onMemory={openMemory} />
+              </Rail>
+            )}
+          />
+        ));
+      case 'line':
+        return journey(screen.network, (
+          <MapStage
+            network={screen.network}
+            place={place}
+            appId={appId}
+            go={go}
+            onStation={openStation}
+            rail={(
+              <Rail network={screen.network} lineId={screen.lineId} onOpen={openStation} onMemory={openMemory}>
+                <LineCard network={screen.network} lineId={screen.lineId} onStation={openStation} />
+              </Rail>
+            )}
+          />
+        ));
+      case 'platform':
+        return journey(screen.network, <PlatformScreen network={screen.network} place={place} appId={appId} taskId={screen.taskId} go={go} onStation={openStation} onMemory={openMemory} />);
+    }
+  };
 
   return (
     <div className="shell">
@@ -109,107 +209,7 @@ function Cockpit() {
         {apps.error && <span className="offline" role="status">{t('app.daemon.offline')}</span>}
       </header>
       {network.data && <JourneyRecap key={network.data.app.id} network={network.data} taskId={place.task} hidden={founding || adopting || panel !== null} onOpen={openStation} />}
-      {founding ? (
-        <div className="adoption-stage">
-          <IdeasWorkshop
-            onCancel={() => setFounding(false)}
-            onFounded={(id) => {
-              setFounding(false);
-              apps.reload();
-              go({ app: id, line: null, task: null });
-            }}
-          />
-        </div>
-      ) : adopting ? (
-        <div className="adoption-stage">
-          <AdoptionWizard
-            onCancel={() => setAdopting(false)}
-            onAdopted={(id) => {
-              setAdopting(false);
-              apps.reload();
-              go({ app: id, line: null, task: null });
-            }}
-          />
-        </div>
-      ) : panel === 'settings' || (panel === 'memory' && current) ? (
-        <>
-          {network.data && (
-            <Trip network={network.data} place={{ ...place, app: appId }} go={go} panel={{ label: t(panel === 'settings' ? 'settings.open' : 'memory.open'), onClose: () => setPanel(null) }} />
-          )}
-          <div className="adoption-stage">
-            {panel === 'settings' ? (
-              <AgentSettings
-                onClose={() => setPanel(null)}
-                onOpenStation={(app, line, task) => {
-                  setPanel(null);
-                  go({ app, line, task });
-                }}
-              />
-            ) : current && <ProjectMemory key={current.id} app={current} onClose={() => setPanel(null)} />}
-          </div>
-        </>
-      ) : !network.data ? (
-        <div className="empty-state" role="status">
-          <p>{apps.data && apps.data.length === 0 ? t('apps.empty') : t('app.loading')}</p>
-          {apps.data && apps.data.length === 0 && (
-            <div className="row">
-              <button type="button" className="btn primary" onClick={() => setFounding(true)}>{t('found.open')}</button>
-              <button type="button" className="btn" onClick={() => setAdopting(true)}>{t('adopt.open')}</button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <>
-          <nav className="journey-nav" aria-label={t('pocket.label')}>
-            {VIEWS.map((item) => <button className="btn" key={item} aria-current={view === item ? 'page' : undefined} onClick={() => go({ app: appId, line: null, task: null }, item)}>{t(`pocket.${item}`)}</button>)}
-          </nav>
-          <Trip network={network.data} place={{ ...place, app: appId }} go={go} />
-          {level !== 'platform' && view === 'deliveries' ? <DeliveryCenter network={network.data} onOpen={openStation} onMemory={() => setPanel('memory')} />
-            : level !== 'platform' && view === 'decisions' ? <main className="pocket-content"><Inbox network={network.data} lineId={null} onOpen={openStation} onMemory={() => setPanel('memory')} /></main>
-            : level !== 'platform' && view === 'active' ? <main className="pocket-content card"><h2>{t('pocket.active')}</h2><ul className="journey-list station-list">{network.data.tasks.filter((task) => ['running', 'ready', 'manual', 'blocked'].includes(task.status.kind)).map((task) => <li key={task.id}><button onClick={() => openStation(task.epicId, task.id)}><b>{task.title}</b><StatusPill status={task.status} /></button></li>)}</ul>{!network.data.tasks.some((task) => ['running', 'ready', 'manual', 'blocked'].includes(task.status.kind)) && <p className="muted">{t('pocket.empty')}</p>}</main>
-            : <div className={`stage ${view === 'map' && level === 'network' ? 'stage-map-only' : ''} ${level === 'platform' ? 'stage-platform' : ''}`}>
-            {level === 'platform' && place.task && (
-              <main className="workspace">
-                <Platform key={place.task} network={network.data} taskId={place.task} onClose={() => go({ ...place, app: appId, task: null })} />
-              </main>
-            )}
-            {level === 'platform' ? (
-              <details className="map-box workspace-map">
-                <summary>{t('platform.map')}</summary>
-                <p className="muted small map-hint">{t('platform.mapHint')}</p>
-                <NetworkExplorer
-                  network={network.data}
-                  place={place}
-                  onLine={(line) => go({ app: appId, line, task: null })}
-                  onStation={openStation}
-                  onBackground={() => go(up({ ...place, app: appId }))}
-                />
-              </details>
-            ) : (
-              <section className="map-box">
-                <NetworkExplorer
-                  network={network.data}
-                  place={place}
-                  onLine={(line) => go({ app: appId, line, task: null })}
-                  onStation={openStation}
-                  onBackground={() => go(up({ ...place, app: appId }))}
-                />
-              </section>
-            )}
-            {(view !== 'map' || level !== 'network') && <aside className="rail">
-              {level === 'network' && <ProductionCard key={network.data.app.id} appId={network.data.app.id} />}
-              {level === 'network' && <NetworkSummary network={network.data} onStation={openStation} onLine={(line) => go({ app: appId, line, task: null })} onMemory={() => setPanel('memory')} />}
-              {level === 'line' && place.line && <LineCard network={network.data} lineId={place.line} onStation={openStation} />}
-              <Inbox
-                network={network.data}
-                lineId={level === 'network' ? null : place.line}
-                onOpen={openStation}
-                onMemory={() => setPanel('memory')}
-              />
-            </aside>}
-          </div>}
-        </>
-      )}
+      {screenContent()}
       <Toasts />
     </div>
   );
