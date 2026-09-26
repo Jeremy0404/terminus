@@ -43,6 +43,17 @@ describe('the cockpit', () => {
     expect(within(screen.getByRole('region', { name: 'À toi de jouer' })).getByText('Rien ne t’attend ici.')).toBeInTheDocument();
   });
 
+  it('keeps the map alone on the network, but shows the line card when a line is opened from the map view', async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Carte' }));
+    expect(screen.queryByRole('region', { name: 'À toi de jouer' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ligne Moteur' }));
+
+    expect(screen.getByRole('heading', { name: 'Moteur' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'À toi de jouer' })).toBeInTheDocument();
+  });
+
   it('jumps from an inbox item straight to its platform, and Escape goes back up', async () => {
     render(<App />);
     const inbox = await screen.findByRole('region', { name: 'À toi de jouer' });

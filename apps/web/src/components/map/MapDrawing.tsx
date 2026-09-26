@@ -67,7 +67,7 @@ export const MapDrawing = memo(function MapDrawing({ layout, appName, tasks, lev
                 {line.epic.name}
               </text>
               <text x={line.startX + ROUNDEL_RADIUS + LINE_LABEL_GAP} y={line.y - LINE_META_RISE} className="line-meta">
-                {t('map.remaining', { count: remaining })}
+                {planned ? t('map.planned') : line.stations.length === 0 ? t('map.empty') : t('map.remaining', { count: remaining })}
               </text>
             </g>
             {line.stations.map(({ task, x, y, labelSide, interchange }) => {
