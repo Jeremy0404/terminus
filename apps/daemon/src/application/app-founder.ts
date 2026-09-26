@@ -30,7 +30,8 @@ export class AppFounder {
     const line = this.deps.catalog.createEpic(app.id, { ...FOUNDATION_LINE, status: 'active', description: input.idea.trim() });
     const framing = this.deps.catalog.createTask(line.id, { title: 'Cadrer l’idée', description: input.idea.trim(), dependsOn: [], autonomy: 'up-to-pr', lifecycleId: 'app-framing' });
     const stack = this.deps.catalog.createTask(line.id, { title: 'Choisir la stack et l’architecture', dependsOn: [framing.id], autonomy: 'up-to-pr', lifecycleId: 'app-stack' });
-    this.deps.catalog.createTask(line.id, { title: 'Poser le socle', dependsOn: [stack.id], autonomy: 'up-to-pr', lifecycleId: 'app-scaffold' });
+    const scaffold = this.deps.catalog.createTask(line.id, { title: 'Poser le socle', dependsOn: [stack.id], autonomy: 'up-to-pr', lifecycleId: 'app-scaffold' });
+    this.deps.catalog.createTask(line.id, { title: 'Mettre en production', dependsOn: [scaffold.id], autonomy: 'up-to-pr', lifecycleId: 'app-deploy' });
     return app;
   }
 }

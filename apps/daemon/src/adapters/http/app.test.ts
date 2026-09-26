@@ -146,6 +146,7 @@ describe('HTTP API', () => {
       expect.objectContaining({ title: 'Cadrer l’idée', description: 'Log my rides.', phases: ['grill', 'brief'], lifecycleId: 'app-framing' }),
       expect.objectContaining({ title: 'Choisir la stack et l’architecture', phases: ['options', 'architecture'], lifecycleId: 'app-stack' }),
       expect.objectContaining({ title: 'Poser le socle', lifecycleId: 'app-scaffold' }),
+      expect.objectContaining({ title: 'Mettre en production', lifecycleId: 'app-deploy' }),
     ]);
     expect((await call('POST', '/api/apps/found', { name: 'x', idea: '' })).status).toBe(400);
   });
@@ -430,7 +431,7 @@ describe('idea workshop and product direction', () => {
     expect(founded).toEqual([{ path: '/projects/ride-journal', name: 'ride-journal', visibility: 'private' }]);
     expect((await call('GET', '/api/ideas')).json).toEqual([]);
     const network = (await call<NetworkDto>('GET', `/api/apps/${launched.json.id}/network`)).json;
-    expect(network.tasks).toHaveLength(3);
+    expect(network.tasks).toHaveLength(4);
   });
 
   it('keeps product direction in the context pack and rejects unsafe app links', async () => {
