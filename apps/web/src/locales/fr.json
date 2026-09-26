@@ -16,6 +16,8 @@
     "origin": "{{app}}",
     "hideDelivered": "Replier les lignes terminées",
     "allDelivered": "Toutes les lignes de cette vue sont terminées ou clôturées.",
+    "planned": "En projet",
+    "empty": "Pas encore de station",
     "remaining_one": "{{count}} station restante",
     "remaining_other": "{{count}} stations restantes"
   },

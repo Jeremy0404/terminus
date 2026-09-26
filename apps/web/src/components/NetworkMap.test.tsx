@@ -284,3 +284,18 @@ describe('NetworkMap origin and interchanges', () => {
     expect(handlers.onStation).toHaveBeenCalledWith('ui', 'i2');
   });
 });
+
+describe('NetworkMap line labels', () => {
+  it('counts the stations left, and says when a line is planned or has no station yet', () => {
+    const extra: EpicDto[] = [
+      { id: 'next', appId: 'app-1', code: 'N', name: 'Suite', status: 'planned', position: 3, description: '', breakdown: { status: 'idle' } },
+      { id: 'blank', appId: 'app-1', code: 'V', name: 'Vide', status: 'active', position: 4, description: '', breakdown: { status: 'idle' } },
+    ];
+    renderMap({ ...NETWORK, epics: [...NETWORK.epics, ...extra], tasks: [...NETWORK.tasks, task('n1', 'next', 'Plus tard', { kind: 'todo' })] });
+
+    expect(screen.getByText('1 station restante')).toBeInTheDocument();
+    expect(screen.getByText('2 stations restantes')).toBeInTheDocument();
+    expect(screen.getByText('En projet')).toBeInTheDocument();
+    expect(screen.getByText('Pas encore de station')).toBeInTheDocument();
+  });
+});
