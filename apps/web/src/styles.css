@@ -97,6 +97,8 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .line-track { fill: none; stroke: currentColor; stroke-width: 11; stroke-linecap: round; stroke-linejoin: round; }
 .line-track.planned { stroke-dasharray: 18 10; stroke-linecap: butt; }
 .line-terminus { stroke: currentColor; stroke-width: 6; stroke-linecap: round; }
+.line.thin .line-track { stroke-width: 6; }
+.line.thin .line-terminus { stroke-width: 4; }
 .line-roundel { fill: currentColor; }
 .pinned-roundel { cursor: pointer; }
 .pinned-roundel .line-roundel { stroke: var(--surface); stroke-width: 4; }

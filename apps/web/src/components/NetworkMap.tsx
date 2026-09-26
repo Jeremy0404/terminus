@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { NetworkDto } from '@terminus/contracts';
 import { canvasFor, lineView, mapHeight, networkView, reveal, viewOf, type Canvas, type Frame, type ViewBox } from '../network/camera';
-import { summarizeFinished } from '../network/compact';
+import { compactNetwork } from '../network/compact';
 import { layoutNetwork, STEP, withoutDeliveredLines, type NetworkLayout } from '../network/layout';
 import { levelOf, type Place } from '../state/location';
 import { useHideDelivered } from '../state/preferences';
@@ -52,8 +52,8 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground, co
   const anyDelivered = collapseFinished && withoutDeliveredLines(network.epics, network.tasks, null).epics.length < network.epics.length;
   const overview = useMemo(() => {
     const visible = collapseFinished && hideDelivered ? withoutDeliveredLines(network.epics, network.tasks, null) : network;
-    const shown = collapseFinished ? summarizeFinished(visible.tasks) : { tasks: visible.tasks, counts: NO_COUNTS };
-    return { layout: layoutNetwork(visible.epics, shown.tasks), counts: shown.counts };
+    const shown = collapseFinished ? compactNetwork(visible.epics, visible.tasks) : { ...visible, counts: NO_COUNTS, thin: NO_COUNTS };
+    return { layout: layoutNetwork(shown.epics, shown.tasks, new Set(shown.thin.keys())), counts: shown.counts, thin: shown.thin };
   }, [network, hideDelivered, collapseFinished]);
   const full = useMemo(() => {
     if (place.line === null) return null;
@@ -163,7 +163,7 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground, co
         >
           <svg ref={svg} className="network-map" preserveAspectRatio="xMinYMin meet" role="img" aria-label={t('map.label', { app: network.app.name })}>
             <rect className="map-background" x={-5000} y={-5000} width={10000} height={10000} onClick={onBackground} />
-            <MapDrawing layout={layout} counts={full ? NO_COUNTS : overview.counts} appName={network.app.name} tasks={network.tasks} level={level} openLine={place.line} selectedTask={place.task} onLine={onLine} onStation={onStation} onBackground={onBackground} />
+            <MapDrawing layout={layout} counts={full ? NO_COUNTS : overview.counts} thin={full ? NO_COUNTS : overview.thin} appName={network.app.name} tasks={network.tasks} level={level} openLine={place.line} selectedTask={place.task} onLine={onLine} onStation={onStation} onBackground={onBackground} />
             {view && !fitted && <PinnedRoundels layout={layout} view={view} level={level} openLine={place.line} onLine={onLine} />}
           </svg>
         </div>

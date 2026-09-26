@@ -256,6 +256,74 @@ describe('NetworkMap finished runs', () => {
   });
 });
 
+describe('NetworkMap finished lines', () => {
+  const finishedLines = networkOf([line('x', 1), line('y', 2)], [...stations('x', 5, 5), ...stations('y', 2), task('y3', 'y', 'y 3', { kind: 'todo' }, { dependsOn: ['x3'] })]);
+
+  it('draws a finished line as a thin row that opens the line', () => {
+    const onLine = vi.fn();
+    const { container } = render(<NetworkMap network={finishedLines} place={NETWORK_PLACE} onLine={onLine} onStation={vi.fn()} onBackground={vi.fn()} />);
+
+    expect(screen.getByText('x', { selector: '.line-name' })).toBeInTheDocument();
+    expect(screen.getByText('5 stations terminées')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^x \d+,/ }).map((station) => station.getAttribute('aria-label'))).toEqual(['x 3, Intégrée au projet']);
+    expect(container.querySelector('.line.thin')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ligne x' }));
+    expect(onLine).toHaveBeenCalledWith('x');
+  });
+
+  it('shows every station, unfolded, while searching or following a route', () => {
+    const network = networkOf([...finishedLines.epics, line('z', 3)], [...finishedLines.tasks, ...stations('z', 12, 10)]);
+    const { container } = render(<NetworkMap collapseFinished={false} network={network} place={NETWORK_PLACE} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+
+    expect(screen.getAllByRole('button', { name: /^[xyz] \d+,/ })).toHaveLength(network.tasks.length);
+    expect(screen.queryByText(/stations? terminées?$/)).not.toBeInTheDocument();
+    expect(container.querySelector('.line.thin')).not.toBeInTheDocument();
+    const map = drawn(container);
+    expect(map.pixelWidth).toBeLessThanOrEqual(FRAME_WIDTH + FIT_TOLERANCE);
+    expect(map.pixelHeight).toBeLessThanOrEqual(FRAME_HEIGHT + FIT_TOLERANCE);
+  });
+
+  it('draws every station of a finished line once it is open', () => {
+    renderMap(finishedLines, { app: APP.id, line: 'x', task: null });
+    expect(screen.getAllByRole('button', { name: /^x \d+,/ })).toHaveLength(5);
+  });
+});
+
+describe('NetworkMap mature network', () => {
+  const kinds = [(id: string) => stations(id, 8, 8), (id: string) => stations(id, 18, 15), (id: string) => stations(id, 4)];
+  const epics = Array.from({ length: 22 }, (_, index) => line(`l${index + 1}`, index + 1));
+  const mature = networkOf(epics, epics.flatMap((epic, index) => kinds[index % kinds.length]?.(epic.id) ?? []));
+
+  it('shows every line in the box, without scroll, pan or pinned roundel', async () => {
+    const { container } = renderMap(mature);
+    const map = drawn(container);
+    expect(map.pixelWidth).toBeLessThanOrEqual(FRAME_WIDTH + FIT_TOLERANCE);
+    expect(map.pixelHeight).toBeLessThanOrEqual(FRAME_HEIGHT + FIT_TOLERANCE);
+
+    drag(container.querySelector('.map-background') as Element, 200);
+    expect([map.box.scrollLeft, map.box.scrollTop]).toEqual([0, 0]);
+
+    map.box.scrollLeft += 400;
+    fireEvent.scroll(map.box);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(container.querySelector('.pinned-roundel')).not.toBeInTheDocument();
+
+    const [x = 0, y = 0, width = 0, height = 0] = (container.querySelector('svg.network-map')?.getAttribute('viewBox') ?? '').split(' ').map(Number);
+    const lines = [...container.querySelectorAll('.line')];
+    expect(lines).toHaveLength(22);
+    for (const drawnLine of lines) {
+      const roundel = drawnLine.querySelector('.line-roundel');
+      const terminus = drawnLine.querySelector('.line-terminus');
+      const lineY = Number(roundel?.getAttribute('cy'));
+      expect(lineY).toBeGreaterThanOrEqual(y);
+      expect(lineY).toBeLessThanOrEqual(y + height);
+      expect(Number(roundel?.getAttribute('cx'))).toBeGreaterThanOrEqual(x);
+      expect(Number(terminus?.getAttribute('x1'))).toBeLessThanOrEqual(x + width);
+    }
+  });
+});
+
 describe('NetworkMap fitted network', () => {
   const network = networkOf([line('a', 1), line('b', 2)], [...stations('a', 30), ...stations('b', 30)]);
 
