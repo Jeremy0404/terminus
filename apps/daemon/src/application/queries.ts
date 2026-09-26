@@ -13,7 +13,7 @@ import type { QuotaStore } from './ports/quota-store.js';
 import type { TaskNotes } from './ports/task-notes.js';
 import type { TranscriptStore } from './ports/transcript-store.js';
 
-const TASK_DOCUMENTS = ['spec.md', 'plan.md', 'preview.json'];
+const TASK_DOCUMENTS = ['spec.md', 'plan.md', 'checklist.md', 'preview.json'];
 const MAX_DOCUMENT_CHARS = 60_000;
 
 export interface Network {

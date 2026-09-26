@@ -459,4 +459,13 @@ describe('task documents', () => {
     expect(detail.documents?.map((doc) => doc.name)).toEqual(['spec.md', 'plan.md']);
     expect(detail.documents?.[0]).toMatchObject({ truncated: true, content: 'x'.repeat(60000) });
   });
+
+  it('exposes the server checklist with the other documents, in order', async () => {
+    const { taskId } = await givenTask();
+    taskNotes.files.set(`${taskId}/checklist.md`, '- [ ] DNS record');
+    taskNotes.files.set(`${taskId}/plan.md`, 'A readable plan');
+    taskNotes.files.set(`${taskId}/spec.md`, 'A spec');
+    const detail = (await call<TaskDetailDto>('GET', `/api/tasks/${taskId}`)).json;
+    expect(detail.documents?.map((doc) => doc.name)).toEqual(['spec.md', 'plan.md', 'checklist.md']);
+  });
 });
