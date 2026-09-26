@@ -52,6 +52,13 @@ describe('FsPlaybookRegistry', () => {
     expect(new FsPlaybookRegistry(root).lifecycle('scaffold').phases).toEqual([{ id: 'review', skill: 'review' }]);
   });
 
+  it('loads a phase that reports readiness and where to go back', () => {
+    const registry = new FsPlaybookRegistry(
+      playbooks({ task: 'id: task\nphases:\n  - id: plan\n    skill: plan\n  - id: check\n    skill: plan\n    output: readiness\n    retryFrom: plan\n' }),
+    );
+    expect(registry.lifecycle('task').phases[1]).toEqual({ id: 'check', skill: 'plan', output: 'readiness', retryFrom: 'plan' });
+  });
+
   it('gives a new version whenever the file content changes', () => {
     const first = new FsPlaybookRegistry(playbooks({ task: 'id: task\nphases:\n  - id: spec\n' })).lifecycle('task').version;
     rmSync(root, { recursive: true, force: true });
