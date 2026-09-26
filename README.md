@@ -84,3 +84,28 @@ Other modes:
 - `pnpm run typecheck` — type-check every workspace.
 - `pnpm test` — run every workspace's tests.
 - `pnpm run build` — build every workspace.
+
+## Product cockpit
+
+Use **Nouvelle app** to keep an idea in the workshop before creating a GitHub repository. Drafts
+and the product journal are stored in the daemon database, so they are available from another
+device connected to the same Terminus. Save a draft before closing the browser. The journal's
+purpose, audience, exclusions and decisions accompany subsequent agent runs.
+
+The cockpit offers focused views for decisions, ongoing work, deliveries and the map. Map search
+also has a list view; an itinerary includes a chosen line and its dependencies. It does not select
+the contents of a release. The delivery view uses the release pull request and its checks; a
+successful publication is distinct from a verified deployment job. Enter the app URL in the
+product journal to open it after a confirmed deployment. Deployment confirmation currently
+recognizes a successful job named `deploy` in `.github/workflows/release.yml`.
+
+Station dossiers expose the available `spec.md` and `plan.md` from that station's notes folder.
+Optional preview links can be supplied in `preview.json` in the same folder:
+
+```json
+{"before":"https://example.com/current","after":"https://example.com/preview"}
+```
+
+Only HTTP(S) links without embedded credentials are accepted. Previews open separately and are
+not generated automatically. Documents are displayed as text, with a notice when an excerpt is
+limited to 60,000 characters.

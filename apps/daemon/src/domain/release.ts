@@ -15,6 +15,7 @@ export interface PublishedRelease {
 export type DeployRunState = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
 
 export interface DeployRun {
+  readonly deploymentVerified?: boolean;
   readonly id: number;
   readonly version: string | null;
   readonly state: DeployRunState;

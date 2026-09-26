@@ -16,8 +16,8 @@
     "origin": "{{app}}",
     "planned": "En projet",
     "progress": "{{done}}/{{total}} mergées",
-    "hideDelivered": "Masquer les lignes livrées",
-    "allDelivered": "Toutes les lignes sont livrées.",
+    "hideDelivered": "Replier les lignes terminées",
+    "allDelivered": "Toutes les lignes de cette vue sont terminées ou clôturées.",
     "remaining_one": "{{count}} station restante",
     "remaining_other": "{{count}} stations restantes"
   },
@@ -472,7 +472,7 @@
     "reviewMemory_other": "Relire {{count}} propositions de mémoire"
   },
   "memory": {
-    "open": "Mémoire",
+    "open": "Carnet produit",
     "close": "Fermer la mémoire du projet",
     "eyebrow": "Mémoire du projet",
     "hint": "Chaque agent reçoit ce contexte au début de son run.",
@@ -549,7 +549,7 @@
     "run": {
       "queued": "v{{version}} en file",
       "running": "v{{version}} en cours",
-      "succeeded": "v{{version}} livrée",
+      "succeeded": "Workflow réussi · v{{version}}",
       "failed": "v{{version}} en échec",
       "cancelled": "v{{version}} annulée"
     },
@@ -562,10 +562,13 @@
     "deployment": {
       "requested": "v{{version}} demandée",
       "running": "v{{version}} en cours",
-      "succeeded": "v{{version}} en production",
+      "succeeded": "Workflow réussi · v{{version}}",
       "failed": "v{{version}} en échec",
       "cancelled": "v{{version}} annulée"
-    }
+    },
+    "publish": "Publier v{{version}}",
+    "confirmPublishTitle": "Publier v{{version}} ?",
+    "confirmPublish": "Oui, publier"
   },
   "progress": {
     "total": "{{complete}} réalisées sur {{total}} stations",
@@ -590,5 +593,120 @@
     "added_other": "{{count}} nouvelles stations",
     "attention_one": "{{count}} nouvelle intervention",
     "attention_other": "{{count}} nouvelles interventions"
+  },
+  "journal": {
+    "title": "Carnet produit",
+    "hint": "Le cap à conserver : ces repères accompagnent chaque travail des agents.",
+    "purpose": "Objectif et résultat attendu",
+    "audience": "Pour qui ?",
+    "outOfScope": "Hors périmètre",
+    "decisions": "Décisions à préserver",
+    "appUrl": "Adresse de l’application",
+    "save": "Enregistrer le carnet",
+    "saved": "Carnet enregistré.",
+    "brief": "Relire le cadrage approuvé"
+  },
+  "ideas": {
+    "eyebrow": "Avant le départ",
+    "title": "Atelier des idées",
+    "hint": "Pose une idée, laisse-la mûrir. Enregistrer un brouillon ne crée aucun dépôt.",
+    "close": "Fermer l’atelier",
+    "drafts": "Idées sauvegardées",
+    "new": "Nouvelle idée",
+    "untitled": "Idée sans nom",
+    "loadError": "Impossible de charger les brouillons.",
+    "name": "Nom provisoire",
+    "audience": "À qui cela rend service ?",
+    "problem": "Quel problème veux-tu résoudre ?",
+    "outcome": "Quel premier résultat serait utile ?",
+    "save": "Garder le brouillon",
+    "prepare": "Voir le parcours de création",
+    "saved": "Brouillon enregistré dans Terminus.",
+    "route": "Les premières étapes",
+    "frame": "Cadrer l’idée et valider le besoin",
+    "architecture": "Choisir une architecture adaptée",
+    "scaffold": "Créer le socle et le vérifier",
+    "consequence": "Le bouton ci-dessous crée le dépôt GitHub et les trois premières stations. Tu valideras ensuite le cadrage et l’architecture dans Terminus.",
+    "launch": "Créer le dépôt et démarrer le projet"
+  },
+  "explorer": {
+    "search": "Rechercher une station",
+    "searchHint": "Nom ou description…",
+    "all": "Tout",
+    "remaining": "Reste à faire",
+    "route": "Itinéraire",
+    "target": "Ligne à préparer pour la prochaine livraison",
+    "routeHint": "Les stations de cette ligne et leurs dépendances, y compris celles déjà terminées. Ce périmètre ne définit pas le contenu d’une release.",
+    "list": "Vue liste",
+    "map": "Vue carte",
+    "recenter": "Recentrer",
+    "count_one": "{{count}} station sélectionnée",
+    "count_other": "{{count}} stations sélectionnées",
+    "empty": "Aucune station dans cette vue. Modifie les filtres pour élargir la recherche.",
+    "legend": "Lire les symboles du réseau",
+    "symbols": "○ À faire · ▶ En cours · ? À décider · ! Intervention nécessaire · ✓ Intégrée ou déjà existante · × Clôturée. Les correspondances relient les dépendances."
+  },
+  "dossier": {
+    "eyebrow": "Décider avec les éléments en main",
+    "title": "Le dossier de cette étape",
+    "proposal": "Ce qui est proposé",
+    "benefit": "Le résultat recherché",
+    "unspecified": "Le résultat attendu reste à préciser dans le carnet produit.",
+    "consequence": "Ce que ton accord déclenche",
+    "verify": "Avant de valider : vérifie le périmètre, les cas importants pour tes utilisateurs et les preuves disponibles ci-dessous.",
+    "context": "Le cap et les décisions à préserver",
+    "documents_one": "{{count}} document de travail",
+    "documents_other": "{{count}} documents de travail",
+    "noDocuments": "Aucun document disponible pour cette station. Un document absent ne constitue pas une validation.",
+    "spec": "Spécification",
+    "plan": "Plan de réalisation",
+    "truncated": "Aperçu limité aux 60 000 premiers caractères.",
+    "before": "Ouvrir l’aperçu avant",
+    "after": "Ouvrir l’aperçu après",
+    "rationale": "Pourquoi cette recommandation",
+    "tradeoff": "Compromis",
+    "effect": {
+      "answer": "Ta réponse sera enregistrée. Le travail reprendra une fois les questions de cette étape résolues.",
+      "merge": "La pull request sera intégrée au projet. Cela ne confirme pas une mise en production.",
+      "brief": "Le cadrage sera conservé comme référence et le parcours pourra avancer.",
+      "architecture": "Les choix d’architecture seront conservés avant la création du socle.",
+      "plan": "Le plan sera approuvé et sa réalisation pourra démarrer.",
+      "approve": "Cette étape sera approuvée et le parcours passera à la suite prévue."
+    }
+  },
+  "delivery": {
+    "title": "Le quai des livraisons",
+    "hint": "Du travail intégré à la version réellement déployée : chaque étape a sa preuve.",
+    "production": "En production",
+    "live": "Déploiement réussi : v{{version}}",
+    "unconfirmed": "Aucun déploiement réussi confirmé par le dernier état disponible.",
+    "open": "Ouvrir l’application",
+    "ready": "Prêt à livrer",
+    "candidate": "Une version candidate est préparée. Relis son contenu et ses contrôles avant de la publier.",
+    "noCandidate": "Aucune version candidate en attente.",
+    "remaining": "Encore nécessaire dans le projet",
+    "scope": "Ces stations restent ouvertes dans le projet. Elles ne sont pas nécessairement toutes requises pour la version candidate ci-dessus.",
+    "clear": "Toutes les stations sont terminées ou clôturées. La publication et le déploiement se vérifient séparément.",
+    "configure": "Renseigner l’adresse et le cap du produit",
+    "refresh": "Actualiser les livraisons",
+    "unconfigured": "Le suivi des releases n’est pas disponible pour ce dépôt.",
+    "loadError": "Impossible de charger les livraisons. Réessaie pour obtenir leur état.",
+    "stale": "L’actualisation a échoué. L’état affiché peut être ancien.",
+    "checks": {
+      "success": "Contrôles de la version candidate réussis",
+      "none": "Aucun contrôle déclaré sur la version candidate",
+      "pending": "Contrôles en cours — livraison en attente",
+      "failure": "Contrôles en échec — livraison bloquée",
+      "unavailable": "Contrôles non disponibles — actualise avant de livrer"
+    }
+  },
+  "pocket": {
+    "label": "Navigation du cockpit",
+    "overview": "Vue d’ensemble",
+    "decisions": "À décider",
+    "active": "En cours",
+    "deliveries": "Livraisons",
+    "map": "Carte",
+    "empty": "Aucun travail en cours pour le moment."
   }
 }

@@ -12,6 +12,7 @@ import { openDatabase, type TerminusDatabase } from './database.js';
 import {
   SqliteAgentDefaultsStore,
   SqliteAppRepository,
+  SqliteIdeaRepository,
   SqliteDecisionRepository,
   SqliteDeploymentRepository,
   SqliteEpicRepository,
@@ -222,4 +223,16 @@ describe('SqliteDeploymentRepository', () => {
 
     expect(repository.listByApp('terminus').map((deployment) => [deployment.id, deployment.state])).toEqual([['d2', 'requested'], ['d1', 'succeeded']]);
   });
+});
+
+it('persists idea drafts and product direction across database connections', () => {
+  const ideas = new SqliteIdeaRepository(db);
+  const draft = { id: 'idea-1', name: 'Routes', audience: 'Cyclists', problem: '', outcome: '', appId: null, updatedAt: '2026-09-26T10:00:00Z' };
+  ideas.save(draft);
+  ideas.save({ ...draft, problem: 'Lost rides' });
+  const product = { purpose: 'Remember rides', audience: 'Cyclists', outOfScope: '', decisions: 'Offline', appUrl: 'https://example.com' };
+  new SqliteAppRepository(db).save({ ...app, product });
+  const reopened = openDatabase(join(directory, 'terminus.db'));
+  expect(new SqliteIdeaRepository(reopened).list()).toEqual([{ ...draft, problem: 'Lost rides' }]);
+  expect(new SqliteAppRepository(reopened).get(app.id)?.product).toEqual(product);
 });

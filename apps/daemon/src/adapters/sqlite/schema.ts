@@ -1,4 +1,5 @@
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import type { ProductJournal } from '../../domain/product.js';
 import { EFFORTS } from '../../domain/agent-choice.js';
 import type { AppStack, VerificationCommand } from '../../domain/app.js';
 import type { Breakdown } from '../../domain/epic.js';
@@ -15,6 +16,7 @@ export const apps = sqliteTable('apps', {
   repoPath: text('repo_path').notNull(),
   verification: text('verification', { mode: 'json' }).$type<VerificationCommand[]>().notNull().default([]),
   brief: text('brief').notNull().default(''),
+  product: text('product', { mode: 'json' }).$type<ProductJournal>(),
   stack: text('stack', { mode: 'json' }).$type<AppStack>(),
   createdAt: text('created_at').notNull(),
 });
@@ -188,3 +190,13 @@ export const deployments = sqliteTable(
   },
   (table) => [index('deployments_app_idx').on(table.appId)],
 );
+
+export const ideas = sqliteTable('ideas', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  audience: text('audience').notNull(),
+  problem: text('problem').notNull(),
+  outcome: text('outcome').notNull(),
+  appId: text('app_id').references(() => apps.id),
+  updatedAt: text('updated_at').notNull(),
+});

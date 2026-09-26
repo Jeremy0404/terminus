@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { AgentSettingsDto, LessonDto, MemoryDto, NetworkDto, StationDraftDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
+import type { AppDto, IdeaDraftDto, ProductJournalDto, AgentSettingsDto, LessonDto, MemoryDto, NetworkDto, StationDraftDto, TaskDetailDto, TaskSummaryDto } from '@terminus/contracts';
 import { HealthResponse } from '@terminus/contracts';
 import type { AgentEvent } from '../../application/ports/agent-runner.js';
 import type { CheckResult, CheckRunner } from '../../application/ports/check-runner.js';
@@ -13,6 +13,7 @@ import { FakeCodeHost, FakeTaskNotes, FakeWorkspace, FixedClock, SequentialIds }
 import {
   InMemoryAgentDefaultsStore,
   InMemoryAppRepository,
+  InMemoryIdeaRepository,
   InMemoryDecisionRepository,
   InMemoryDeploymentRepository,
   InMemoryEpicRepository,
@@ -36,15 +37,18 @@ const greenChecks: CheckRunner = {
 let services: Services;
 let servedWeb: string | null = null;
 let codeHost: FakeCodeHost;
+let taskNotes: FakeTaskNotes;
 let founded: { path: string; name: string; visibility: string }[];
 
 function start(...scripts: AgentScript[]): void {
   const epics = new InMemoryEpicRepository();
   codeHost = new FakeCodeHost();
+  taskNotes = new FakeTaskNotes();
   founded = [];
   services = compose(
     {
       apps: new InMemoryAppRepository(),
+      ideas: new InMemoryIdeaRepository(),
       epics,
       tasks: new InMemoryTaskRepository(epics),
       runs: new InMemoryRunRepository(),
@@ -52,7 +56,7 @@ function start(...scripts: AgentScript[]): void {
       transcripts: new InMemoryTranscriptStore(),
       quota: new InMemoryQuotaStore(),
       workspace: new FakeWorkspace(),
-      notes: new FakeTaskNotes(),
+      notes: taskNotes,
       instructions: { localOnly: () => '' },
       agent: new ScriptedAgentRunner(...scripts),
       agentDefaults: new InMemoryAgentDefaultsStore(),
@@ -408,4 +412,48 @@ describe('serving the built web app', () => {
     expect((await http.request('/api/health')).headers.get('content-type')).toContain('application/json');
     expect((await http.request('/api/nothing-here')).status).toBe(404);
   });
+});
+
+describe('idea workshop and product direction', () => {
+  beforeEach(() => start());
+  it('keeps incomplete ideas without creating repositories and promotes a complete draft only once', async () => {
+    const draft = await call<IdeaDraftDto>('POST', '/api/ideas', { name: '', audience: 'Cyclists', problem: 'Lost routes', outcome: '' });
+    expect(draft.status).toBe(201);
+    expect(founded).toEqual([]);
+    expect((await call('POST', `/api/ideas/${draft.json.id}/launch`, { visibility: 'private' })).status).toBe(409);
+    await call('PUT', `/api/ideas/${draft.json.id}`, { name: 'Ride journal', audience: 'Cyclists', problem: 'Lost routes', outcome: 'Save a ride' });
+    expect((await call<IdeaDraftDto[]>('GET', '/api/ideas')).json).toMatchObject([{ name: 'Ride journal' }]);
+    const launched = await call<AppDto>('POST', `/api/ideas/${draft.json.id}/launch`, { visibility: 'private' });
+    expect(launched.status).toBe(201);
+    expect(launched.json.product).toMatchObject({ audience: 'Cyclists', purpose: 'Save a ride' });
+    expect((await call<AppDto>('POST', `/api/ideas/${draft.json.id}/launch`, { visibility: 'private' })).json.id).toBe(launched.json.id);
+    expect(founded).toEqual([{ path: '/projects/ride-journal', name: 'ride-journal', visibility: 'private' }]);
+    expect((await call('GET', '/api/ideas')).json).toEqual([]);
+    const network = (await call<NetworkDto>('GET', `/api/apps/${launched.json.id}/network`)).json;
+    expect(network.tasks).toHaveLength(3);
+  });
+
+  it('keeps product direction in the context pack and rejects unsafe app links', async () => {
+    const { appId } = await givenTask();
+    const product: ProductJournalDto = { purpose: '  Save rides  ', audience: 'Cyclists', outOfScope: 'No social feed', decisions: 'Offline first', appUrl: 'https://rides.example' };
+    expect((await call('PUT', `/api/apps/${appId}/product`, product)).status).toBe(200);
+    const network = (await call<NetworkDto>('GET', `/api/apps/${appId}/network`)).json;
+    expect(network.app.product?.purpose).toBe('Save rides');
+    const memory = (await call<MemoryDto>('GET', `/api/apps/${appId}/memory`)).json;
+    expect(memory.pack).toContain('No social feed');
+    expect(memory.pack).toContain('Offline first');
+    expect((await call('PUT', `/api/apps/${appId}/product`, { ...product, appUrl: 'javascript:alert(1)' })).status).toBe(409);
+    expect((await call('PUT', `/api/apps/${appId}/product`, { ...product, appUrl: 'https://user:secret@example.com' })).status).toBe(409);
+  });
+});
+
+it('exposes only fixed task documents, with an explicit truncation indicator', async () => {
+  start();
+  const { taskId } = await givenTask();
+  taskNotes.files.set(`${taskId}/spec.md`, 'x'.repeat(60010));
+  taskNotes.files.set(`${taskId}/plan.md`, 'A readable plan');
+  taskNotes.files.set(`${taskId}/private.txt`, 'Not a task document');
+  const detail = (await call<TaskDetailDto>('GET', `/api/tasks/${taskId}`)).json;
+  expect(detail.documents?.map((doc) => doc.name)).toEqual(['spec.md', 'plan.md']);
+  expect(detail.documents?.[0]).toMatchObject({ truncated: true, content: 'x'.repeat(60000) });
 });

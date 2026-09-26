@@ -11,6 +11,7 @@ const FRESH_FOR_MS = 30_000;
 const HISTORY = 5;
 
 export interface ReleaseView extends ReleaseState {
+  readonly checks: 'success' | 'none' | 'pending' | 'failure' | 'unavailable' | null;
   readonly deployments: readonly Deployment[];
 }
 
@@ -35,7 +36,11 @@ export class Releases {
     const cached = this.cache.get(appId);
     const state = !fresh && cached && now - cached.at < FRESH_FOR_MS ? cached.state : this.load(appId, app.repoPath, now);
     if (!state) return null;
-    return { ...state, deployments: this.follow(app.name, appId, state) };
+    let checks: ReleaseView['checks'] = null;
+    if (state.pending) {
+      try { checks = this.deps.codeHost.checks(app.repoPath, state.pending.number); } catch { checks = 'unavailable'; }
+    }
+    return { ...state, checks, deployments: this.follow(app.name, appId, state) };
   }
 
   deploy(appId: string, version: string): Deployment {
@@ -71,7 +76,7 @@ export class Releases {
         const followed = followRun(deployment, state.lastRun, this.deps.clock.now());
         if (followed.state !== deployment.state) {
           this.deps.deployments.save(followed);
-          if (followed.state === 'succeeded') this.deps.notifier.notify(`✅ ${appName} v${followed.version} est en production`);
+          if (followed.state === 'succeeded') this.deps.notifier.notify(state.deploysOnRelease && state.lastRun?.deploymentVerified ? `✅ ${appName} v${followed.version} est en production` : `✅ ${appName} v${followed.version} est publiée`);
           if (followed.state === 'failed') this.deps.notifier.notify(`❌ ${appName} v${followed.version} : le déploiement a échoué ${followed.runUrl ?? ''}`.trim());
         }
         return followed;

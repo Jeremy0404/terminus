@@ -60,7 +60,7 @@ describe('Releases', () => {
     state = { ...waiting, pending: null, lastRun: { id: 32, version: '1.0.0', state: 'running', startedAt: 'y', url: 'run-32' } };
     expect(releases.state('app', true)?.deployments[0]).toMatchObject({ state: 'running', runUrl: 'run-32' });
 
-    state = { ...state, lastRun: { id: 32, version: '1.0.0', state: 'succeeded', startedAt: 'y', url: 'run-32' } };
+    state = { ...state, lastRun: { id: 32, version: '1.0.0', state: 'succeeded', deploymentVerified: true, startedAt: 'y', url: 'run-32' } };
     expect(releases.state('app', true)?.deployments[0]).toMatchObject({ state: 'succeeded', finishedAt: '2026-09-25T10:00:00.000Z' });
     expect(notes.at(-1)).toBe('✅ tiny-prm v1.0.0 est en production');
     releases.state('app', true);
@@ -81,4 +81,13 @@ describe('Releases', () => {
     expect(versionOf('v0.2.0')).toBe('0.2.0');
     expect(versionOf('main')).toBeNull();
   });
+});
+
+it('does not announce production for a release-only workflow', () => {
+  state = { ...waiting, deploysOnRelease: false };
+  expect(releases.state('app')?.checks).toBe('success');
+  releases.deploy('app', '1.0.0');
+  state = { ...state, pending: null, lastRun: { id: 32, version: '1.0.0', state: 'succeeded', deploymentVerified: true, startedAt: 'y', url: 'run-32' } };
+  releases.state('app', true);
+  expect(notes.at(-1)).toBe('✅ tiny-prm v1.0.0 est publiée');
 });

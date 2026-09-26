@@ -13,6 +13,7 @@ import { useFrame } from './map/useFrame';
 const ZOOM_MS = 520;
 
 interface Props {
+  readonly collapseFinished?: boolean;
   readonly network: NetworkDto;
   readonly place: Place;
   readonly onLine: (epicId: string) => void;
@@ -43,14 +44,14 @@ function paint(svg: SVGSVGElement, box: HTMLDivElement, canvas: Canvas): void {
   box.scrollTop = canvas.scrollTop;
 }
 
-export function NetworkMap({ network, place, onLine, onStation, onBackground }: Props) {
+export function NetworkMap({ network, place, onLine, onStation, onBackground, collapseFinished = true }: Props) {
   const { t } = useTranslation();
   const [hideDelivered, setHideDelivered] = useHideDelivered();
-  const anyDelivered = network.epics.some((epic) => epic.status === 'delivered');
+  const anyDelivered = collapseFinished && withoutDeliveredLines(network.epics, network.tasks, null).epics.length < network.epics.length;
   const layout = useMemo(() => {
-    const visible = hideDelivered ? withoutDeliveredLines(network.epics, network.tasks, place.line) : network;
+    const visible = collapseFinished && hideDelivered ? withoutDeliveredLines(network.epics, network.tasks, place.line) : network;
     return layoutNetwork(visible.epics, visible.tasks);
-  }, [network, hideDelivered, place.line]);
+  }, [network, hideDelivered, place.line, collapseFinished]);
   const svg = useRef<SVGSVGElement>(null);
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const frame = useFrame(box);

@@ -21,7 +21,9 @@ export const DECISIONS_OUTPUT_SCHEMA = {
               type: 'object',
               properties: {
                 label: { type: 'string' },
-                description: { type: 'string' },
+                description: { type: 'string', description: 'The user benefit of this option, in plain language.' },
+                rationale: { type: 'string', description: 'Why this option fits the product goal; explain the recommendation when recommended.' },
+                tradeoff: { type: 'string', description: 'The concrete cost, limitation or risk accepted by choosing this option.' },
                 recommended: { type: 'boolean' },
               },
               required: ['label', 'description', 'recommended'],
@@ -51,7 +53,9 @@ function isProposedDecision(value: unknown): value is ProposedDecision {
         isRecord(option) &&
         typeof option['label'] === 'string' &&
         typeof option['description'] === 'string' &&
-        typeof option['recommended'] === 'boolean',
+        typeof option['recommended'] === 'boolean' &&
+        (option['rationale'] === undefined || typeof option['rationale'] === 'string') &&
+        (option['tradeoff'] === undefined || typeof option['tradeoff'] === 'string'),
     )
   );
 }

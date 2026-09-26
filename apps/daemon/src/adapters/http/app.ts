@@ -1,3 +1,5 @@
+import { ProductJournalBody, IdeaBody, LaunchIdeaBody } from '@terminus/contracts';
+import type { Ideas } from '../../application/ideas.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { serveStatic } from '@hono/node-server/serve-static';
@@ -55,6 +57,7 @@ export interface HttpDeps {
   readonly catalog: Catalog;
   readonly adoption: Adoption;
   readonly founder: AppFounder;
+  readonly ideas: Ideas;
   readonly planner: EpicPlanner;
   readonly drafter: StationDrafter;
   readonly actions: TaskActions;
@@ -116,6 +119,11 @@ export function createHttpApp(deps: HttpDeps): Hono {
     const { name, idea, repoPath, visibility } = await body(c, FoundAppBody);
     return c.json(toAppDto(deps.founder.found({ name, idea, visibility, ...(repoPath ? { repoPath } : {}) })), 201);
   });
+  app.get('/api/ideas', (c) => c.json(deps.ideas.list()));
+  app.post('/api/ideas', async (c) => c.json(deps.ideas.save(await body(c, IdeaBody)), 201));
+  app.put('/api/ideas/:ideaId', async (c) => c.json(deps.ideas.save(await body(c, IdeaBody), c.req.param('ideaId'))));
+  app.post('/api/ideas/:ideaId/launch', async (c) => c.json(toAppDto(deps.ideas.launch(c.req.param('ideaId'), await body(c, LaunchIdeaBody))), 201));
+  app.put('/api/apps/:appId/product', async (c) => c.json(deps.memory.setProduct(c.req.param('appId'), await body(c, ProductJournalBody))));
   app.get('/api/apps/:appId/memory', (c) => {
     const appId = c.req.param('appId');
     const { lessons, terms, proposals } = deps.memory.view(appId);

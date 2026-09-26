@@ -1,3 +1,4 @@
+import { productJournal, type ProductJournal } from '../domain/product.js';
 import { DomainError } from '../domain/errors.js';
 import type { CloseReason } from '../domain/task.js';
 import { MAX_DEFINITION_CHARS, MAX_LESSON_CHARS, MAX_TERM_CHARS, memoryText, sameTerm, type Lesson, type MemoryProposal, type Term } from '../domain/memory.js';
@@ -28,6 +29,14 @@ export interface ProjectMemoryDeps {
 
 export class ProjectMemory {
   constructor(private readonly deps: ProjectMemoryDeps) {}
+
+  setProduct(appId: string, input: ProductJournal): ProductJournal {
+    const app = this.appOf(appId);
+    const product = productJournal(input);
+    this.deps.apps.save({ ...app, product });
+    this.deps.bus.publish({ kind: 'memory-changed', appId });
+    return product;
+  }
 
   view(appId: string): MemoryView {
     this.appOf(appId);

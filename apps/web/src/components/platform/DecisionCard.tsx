@@ -28,6 +28,8 @@ export function DecisionCard({ decision, position, total }: { decision: Decision
               {option.recommended && <span className="tag">{t('decision.recommended')}</span>}
             </b>
             <span>{option.description}</span>
+            {option.rationale && <span><strong>{t('dossier.rationale')}</strong> — {option.rationale}</span>}
+            {option.tradeoff && <span><strong>{t('dossier.tradeoff')}</strong> — {option.tradeoff}</span>}
           </button>
         ))}
       </div>

@@ -15,7 +15,7 @@ export class FsTaskNotes implements TaskNotes {
   }
 
   read(taskId: string, file: string): string | null {
-    if (!SAFE_ID.test(file.replace(/\.md$/, ''))) throw new Error(`Unsafe note name: ${file}`);
+    if (!SAFE_ID.test(file.replace(/\.(md|json)$/, ''))) throw new Error(`Unsafe note name: ${file}`);
     const path = join(this.directoryFor(taskId), file);
     return existsSync(path) ? readFileSync(path, 'utf8') : null;
   }

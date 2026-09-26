@@ -1,3 +1,4 @@
+import { stationSymbol } from '../../network/exploration';
 import { memo } from 'react';
 import { progressOf } from '../../network/progress';
 import { useTranslation } from 'react-i18next';
@@ -87,6 +88,7 @@ export const MapDrawing = memo(function MapDrawing({ layout, appName, tasks, lev
                       <circle cx={x} cy={y} r={2.5} className="train-light" />
                     </>
                   )}
+                  {task.status.kind !== 'running' && <text x={x} y={y + 4} textAnchor="middle" className="station-symbol" aria-hidden="true">{stationSymbol(task)}</text>}
                   {selected && <circle cx={x} cy={y} r={21} className="station-selected" />}
                   <text x={x} y={labelSide === 'below' ? y + LABEL_BELOW : y - LABEL_ABOVE} textAnchor="middle" className={`station-label ${active ? 'active' : ''}`}>
                     <title>{task.title}</title>

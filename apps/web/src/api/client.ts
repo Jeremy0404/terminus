@@ -1,4 +1,7 @@
 import type {
+  IdeaDraftDto,
+  IdeaContentDto,
+  ProductJournalDto,
   AgentChoiceDto,
   AgentSettingsDto,
   PlaybookSkillDto,
@@ -52,6 +55,12 @@ const post = <T>(path: string, body?: unknown): Promise<T> =>
 export type TaskAction = 'open' | 'approve' | 'merge' | 'resume-from-manual' | 'interrupt';
 
 export const api = {
+  ideas: () => request<IdeaDraftDto[]>('/ideas'),
+  saveIdea: (body: IdeaContentDto, id?: string) => id
+    ? request<IdeaDraftDto>(`/ideas/${id}`, { method: 'PUT', body: JSON.stringify(body) })
+    : post<IdeaDraftDto>('/ideas', body),
+  launchIdea: (id: string, body: { visibility: 'private' | 'public'; repoPath: string }) => post<AppDto>(`/ideas/${id}/launch`, body),
+  saveProduct: (id: string, body: ProductJournalDto) => request<ProductJournalDto>(`/apps/${id}/product`, { method: 'PUT', body: JSON.stringify(body) }),
   apps: () => request<AppDto[]>('/apps'),
   quota: () => request<QuotaDto | null>('/quota'),
   memory: (appId: string) => request<MemoryDto>(`/apps/${appId}/memory`),

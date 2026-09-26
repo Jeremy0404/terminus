@@ -1,3 +1,5 @@
+import type { IdeaRepository } from '../../application/ports/idea-repository.js';
+import type { IdeaDraft } from '../../domain/idea.js';
 import type {
   AppRepository,
   DecisionRepository,
@@ -162,4 +164,11 @@ export class InMemoryTranscriptStore implements TranscriptStore {
   read(runId: string): unknown[] {
     return this.events.get(runId) ?? [];
   }
+}
+
+export class InMemoryIdeaRepository implements IdeaRepository {
+  private readonly items = new Map<string, IdeaDraft>();
+  list(): IdeaDraft[] { return [...this.items.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)); }
+  get(id: string): IdeaDraft | null { return this.items.get(id) ?? null; }
+  save(idea: IdeaDraft): void { this.items.set(idea.id, idea); }
 }

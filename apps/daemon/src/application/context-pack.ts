@@ -23,6 +23,7 @@ export class ContextPack implements ContextSource {
     const decisions = this.deps.knowledge.decisions(app.repoPath).slice(0, MAX_DECISIONS);
     const brief = app.brief?.trim();
     const sections = [
+      app.product ? `## Product direction (maintained by the owner)\n\nPurpose: ${app.product.purpose}\nAudience: ${app.product.audience}\nOut of scope: ${app.product.outOfScope}\nDecisions to preserve: ${app.product.decisions}\nFlag any conflict with this direction as a decision before implementing a deviation.` : null,
       brief ? `## Product brief (approved)\n\n${brief.slice(0, MAX_BRIEF_CHARS)}` : null,
       app.stack
         ? `## Stack and architecture (approved)\n\nStack: ${app.stack.name} (${app.stack.id.startsWith(CUSTOM_STACK) ? 'outside the catalog: follow the decisions below' : `follow the \`${app.stack.id}\` skill`})\n${app.stack.decisions.map((entry) => `- ${entry.title}: ${entry.decision}${entry.why ? ` (${entry.why})` : ''}`).join('\n')}`.trimEnd()

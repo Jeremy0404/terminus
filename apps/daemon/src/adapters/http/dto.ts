@@ -13,7 +13,7 @@ import type { Quota } from '../../domain/quota.js';
 import type { Run } from '../../domain/run.js';
 import type { Task } from '../../domain/task.js';
 
-export const toAppDto = ({ id, name, repoPath }: App): AppDto => ({ id, name, repoPath });
+export const toAppDto = ({ id, name, repoPath, product, brief }: App): AppDto => ({ id, name, repoPath, ...(product ? { product } : {}), ...(brief ? { brief } : {}) });
 
 export const toEpicDto = ({ id, appId, code, name, status, position, description, breakdown }: Epic): EpicDto => ({ id, appId, code, name, status, position, description, breakdown });
 
@@ -55,6 +55,7 @@ export const toNetworkDto = (network: Network): NetworkDto => ({
 
 export const toTaskDetailDto = (detail: TaskDetail): TaskDetailDto => ({
   task: toTaskSummaryDto(detail.task),
+  documents: detail.documents,
   checkpoints: detail.task.checkpoints.map(({ sequence, phaseIndex, ref, takenAt }) => ({ sequence, phaseIndex, ref, takenAt })),
   failures: detail.task.failuresInPhase,
   actions: detail.actions,
