@@ -56,6 +56,21 @@ describe('ProductionCard', () => {
     await waitFor(() => expect(posted).toEqual([{ path: '/api/apps/app-1/release/deploy', body: { version: '1.0.0' } }]));
   });
 
+  it('waits for the server checklist before offering to deploy', async () => {
+    serve({
+      deploysOnRelease: true,
+      pending: { number: 87, version: '1.0.0', title: 'chore(main): release 1.0.0', url: 'u', notes: '' },
+      latest: null,
+      lastRun: null,
+      deployments: [],
+      serverChecklistPending: true,
+    });
+    render(<ProductionCard appId="app-1" />);
+
+    expect(await screen.findByRole('button', { name: 'Déployer v1.0.0' })).toBeDisabled();
+    expect(screen.getByText(/Checklist serveur à confirmer/)).toBeInTheDocument();
+  });
+
   it('stays hidden for an app without a release workflow', async () => {
     serve(null);
     const { container } = render(<ProductionCard appId="app-1" />);

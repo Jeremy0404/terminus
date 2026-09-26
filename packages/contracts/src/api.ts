@@ -335,6 +335,7 @@ export interface ReleaseStateDto {
   readonly latest: { readonly version: string; readonly publishedAt: string; readonly url: string } | null;
   readonly lastRun: { readonly deploymentVerified?: boolean; readonly id: number; readonly version: string | null; readonly state: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'; readonly startedAt: string; readonly url: string } | null;
   readonly deployments: readonly DeploymentDto[];
+  readonly serverChecklistPending?: boolean;
 }
 
 export interface DeploymentDto {

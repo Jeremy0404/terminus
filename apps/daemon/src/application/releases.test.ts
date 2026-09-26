@@ -3,8 +3,12 @@ import { FixedClock, SequentialIds } from '../adapters/in-memory/fakes.js';
 import { InMemoryAppRepository, InMemoryDeploymentRepository } from '../adapters/in-memory/in-memory-repositories.js';
 import { DomainError } from '../domain/errors.js';
 import { versionOf, type ReleaseState } from '../domain/release.js';
+import { closeTask, createTask, type Task } from '../domain/task.js';
 import type { ChecksState } from './ports/code-host.js';
 import { Releases } from './releases.js';
+
+const productionStation = (): Task =>
+  createTask({ id: 'production', epicId: 'foundations', title: 'Mettre en production', lifecycle: { id: 'app-deploy', version: '1', phases: [{ id: 'server', gate: 'plan-approval' }] } });
 
 const waiting: ReleaseState = {
   deploysOnRelease: true,
@@ -21,6 +25,7 @@ let checksAsked: number;
 let checksUnavailable: boolean;
 let notes: string[];
 let deployments: InMemoryDeploymentRepository;
+let stations: Task[];
 let releases: Releases;
 
 beforeEach(() => {
@@ -31,12 +36,14 @@ beforeEach(() => {
   checksAsked = 0;
   checksUnavailable = false;
   notes = [];
+  stations = [];
   deployments = new InMemoryDeploymentRepository();
   const apps = new InMemoryAppRepository();
   apps.save({ id: 'app', name: 'tiny-prm', repoPath: '/repo', verification: [], createdAt: 'x' });
   releases = new Releases({
     apps,
     deployments,
+    tasks: { listByApp: (appId) => (appId === 'app' ? stations : []) },
     clock: new FixedClock('2026-09-25T10:00:00.000Z'),
     ids: new SequentialIds(),
     notifier: { notify: (message) => notes.push(message) },
@@ -103,5 +110,30 @@ describe('Releases', () => {
     state = { ...state, pending: null, lastRun: { id: 32, version: '1.0.0', state: 'succeeded', deploymentVerified: true, startedAt: 'y', url: 'run-32' } };
     releases.state('app', true);
     expect(notes.at(-1)).toBe('✅ tiny-prm v1.0.0 est publiée');
+  });
+
+  it('waits for the server checklist of an open production station before deploying', () => {
+    stations = [productionStation()];
+
+    expect(releases.state('app')?.serverChecklistPending).toBe(true);
+    expect(() => releases.deploy('app', '1.0.0')).toThrow(/server checklist/);
+    expect(merged).toEqual([]);
+  });
+
+  it('deploys once the production station is done or closed as local', () => {
+    stations = [{ ...productionStation(), status: { kind: 'done' } }];
+    expect(releases.state('app', true)?.serverChecklistPending).toBe(false);
+    releases.deploy('app', '1.0.0');
+
+    stations = [closeTask(productionStation(), 'obsolete', "the app stays on the user's machine")];
+    releases.deploy('app', '1.0.0');
+    expect(merged).toEqual([87, 87]);
+  });
+
+  it('leaves apps without a production station unaffected', () => {
+    stations = [createTask({ id: 'feature', epicId: 'e', title: 'Feature', lifecycle: { id: 'default', version: '1', phases: [{ id: 'execute' }] } })];
+    expect(releases.state('app')?.serverChecklistPending).toBe(false);
+    releases.deploy('app', '1.0.0');
+    expect(merged).toEqual([87]);
   });
 });

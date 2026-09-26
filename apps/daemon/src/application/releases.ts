@@ -1,10 +1,10 @@
 import { DomainError } from '../domain/errors.js';
-import { followRun, type Deployment, type ReleaseState } from '../domain/release.js';
+import { followRun, serverChecklistPending, type Deployment, type ReleaseState } from '../domain/release.js';
 import type { ChecksState, CodeHost } from './ports/code-host.js';
 import type { DeployNotifier } from './ports/deploy-notifier.js';
 import type { DeployTarget } from './ports/deploy-target.js';
 import type { DeploymentRepository } from './ports/deployment-repository.js';
-import type { AppRepository } from './ports/repositories.js';
+import type { AppRepository, TaskRepository } from './ports/repositories.js';
 import type { Clock, IdGenerator } from './ports/system.js';
 
 const FRESH_FOR_MS = 30_000;
@@ -15,6 +15,7 @@ type ReleaseChecks = ChecksState | 'unavailable' | null;
 export interface ReleaseView extends ReleaseState {
   readonly checks: ReleaseChecks;
   readonly deployments: readonly Deployment[];
+  readonly serverChecklistPending: boolean;
 }
 
 interface Snapshot {
@@ -25,6 +26,7 @@ interface Snapshot {
 
 export interface ReleasesDeps {
   readonly apps: AppRepository;
+  readonly tasks: Pick<TaskRepository, 'listByApp'>;
   readonly target: DeployTarget;
   readonly codeHost: Pick<CodeHost, 'checks' | 'merge'>;
   readonly deployments: DeploymentRepository;
@@ -44,11 +46,12 @@ export class Releases {
     const cached = this.cache.get(appId);
     const { state, checks } = !fresh && cached && now - cached.at < FRESH_FOR_MS ? cached : this.load(appId, app.repoPath, now);
     if (!state) return null;
-    return { ...state, checks, deployments: this.follow(app.name, appId, state) };
+    return { ...state, checks, deployments: this.follow(app.name, appId, state), serverChecklistPending: serverChecklistPending(this.deps.tasks.listByApp(appId)) };
   }
 
   deploy(appId: string, version: string): Deployment {
     const app = this.appOf(appId);
+    if (serverChecklistPending(this.deps.tasks.listByApp(appId))) throw new DomainError(`${app.name} waits for its server checklist: confirm it in the production station first`);
     const { state, checks } = this.load(appId, app.repoPath, Date.parse(this.deps.clock.now()));
     const pending = state?.pending;
     if (!pending) throw new DomainError(`${app.name} has no release waiting to ship`);
