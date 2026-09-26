@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EpicDto, NetworkDto, TaskSummaryDto } from '@terminus/contracts';
-import { mapHeight } from '../network/camera';
+import { canvasFor, lineView, mapHeight } from '../network/camera';
 import { summarizeFinished } from '../network/compact';
 import { layoutNetwork } from '../network/layout';
 import { APP, NETWORK, task } from '../test/fixtures';
@@ -396,6 +396,87 @@ describe('NetworkMap pinned roundels', () => {
     await waitFor(() => expect(container.querySelectorAll('.pinned-roundel')).toHaveLength(2));
     expect(container.querySelector('.pinned-roundel[aria-label="Ligne a"]')).not.toHaveClass('dim');
     expect(container.querySelector('.pinned-roundel[aria-label="Ligne b"]')).toHaveClass('dim');
+  });
+});
+
+describe('NetworkMap level switch', () => {
+  const network = networkOf([line('a', 1), line('b', 2)], [...stations('a', 30, 20), ...stations('b', 4)]);
+  const complete = layoutNetwork(network.epics, network.tasks);
+  const FRAME = { width: FRAME_WIDTH, height: FRAME_HEIGHT };
+  const lineCanvas = (epicId: string) => canvasFor(lineView(complete, epicId, FRAME), complete, FRAME);
+  let frames: FrameRequestCallback[] = [];
+  const animate = vi.fn();
+
+  const motion = (reduced: boolean) =>
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: (query: string) => ({ matches: reduced, media: query }) });
+
+  beforeEach(() => {
+    frames = [];
+    animate.mockReset();
+    motion(false);
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback));
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    Object.defineProperty(SVGElement.prototype, 'animate', { configurable: true, value: animate });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    Reflect.deleteProperty(window, 'matchMedia');
+    Reflect.deleteProperty(SVGElement.prototype, 'animate');
+  });
+
+  function switchTo(view: ReturnType<typeof render>, place: Place) {
+    const svg = view.container.querySelector('svg.network-map') as SVGSVGElement;
+    const observer = new MutationObserver(() => undefined);
+    observer.observe(svg, { attributeFilter: ['viewBox'] });
+    view.rerender(<NetworkMap network={network} place={place} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+    const writes = observer.takeRecords().length;
+    observer.disconnect();
+    return { svg, writes };
+  }
+
+  it('fades onto the open line instead of zooming from the network', () => {
+    const view = renderMap(network);
+    const { svg, writes } = switchTo(view, { app: APP.id, line: 'a', task: null });
+
+    expect(svg.getAttribute('viewBox')).toBe(lineCanvas('a').viewBox.join(' '));
+    expect(writes).toBe(1);
+    expect(frames).toHaveLength(0);
+    expect(animate).toHaveBeenCalledWith([{ opacity: 0 }, { opacity: 1 }], expect.anything());
+  });
+
+  it('fades back onto the fitted network when the line is closed', () => {
+    const view = renderMap(network, { app: APP.id, line: 'a', task: null });
+    const { svg, writes } = switchTo(view, NETWORK_PLACE);
+    const map = drawn(view.container);
+
+    expect(svg.getAttribute('viewBox')).not.toBe(lineCanvas('a').viewBox.join(' '));
+    expect(map.pixelWidth).toBeLessThanOrEqual(FRAME_WIDTH + FIT_TOLERANCE);
+    expect(map.pixelHeight).toBeLessThanOrEqual(FRAME_HEIGHT + FIT_TOLERANCE);
+    expect(writes).toBe(1);
+    expect(frames).toHaveLength(0);
+    expect(animate).toHaveBeenCalledWith([{ opacity: 0 }, { opacity: 1 }], expect.anything());
+  });
+
+  it('still zooms from one open line to another', () => {
+    const view = renderMap(network, { app: APP.id, line: 'a', task: null });
+    const { svg } = switchTo(view, { app: APP.id, line: 'b', task: null });
+    const target = lineCanvas('b').viewBox;
+    const shown = () => (svg.getAttribute('viewBox') ?? '').split(' ').map(Number);
+
+    expect(shown()).not.toEqual([...target]);
+    for (let now = 0; frames.length > 0 && now <= 1000; now += 100) frames.shift()?.(now);
+    shown().forEach((value, index) => expect(value).toBeCloseTo(target[index] ?? NaN));
+    expect(animate).not.toHaveBeenCalled();
+  });
+
+  it('switches at once, without a fade, when motion is reduced', () => {
+    motion(true);
+    const view = renderMap(network);
+    const { svg } = switchTo(view, { app: APP.id, line: 'a', task: null });
+
+    expect(svg.getAttribute('viewBox')).toBe(lineCanvas('a').viewBox.join(' '));
+    expect(animate).not.toHaveBeenCalled();
   });
 });
 

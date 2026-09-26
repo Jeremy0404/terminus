@@ -12,6 +12,8 @@ import { useDragPan } from './map/useDragPan';
 import { useFrame } from './map/useFrame';
 
 const ZOOM_MS = 520;
+const FADE_MS = 200;
+const FADE_IN: Keyframe[] = [{ opacity: 0 }, { opacity: 1 }];
 const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 
 interface Props {
@@ -111,6 +113,12 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground, co
       paint(element, box, canvas.current);
       setView(view);
     };
+    const switched = from !== null && (previous?.line === null) !== (place.line === null);
+    if (switched) {
+      show(to);
+      if (!prefersReducedMotion()) element.animate?.(FADE_IN, FADE_MS);
+      return;
+    }
     if (!from || resized || prefersReducedMotion() || typeof requestAnimationFrame === 'undefined') {
       show(to);
       return;
