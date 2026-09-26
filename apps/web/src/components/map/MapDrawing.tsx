@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TaskSummaryDto } from '@terminus/contracts';
 import { stationSymbol } from '../../network/exploration';
@@ -17,6 +17,8 @@ const ORIGIN_LABEL_GAP = 12;
 const LINE_LABEL_GAP = 8;
 const LINE_NAME_RISE = 30;
 const LINE_META_RISE = 15;
+const SUMMARY_WIDTH = 36;
+const SUMMARY_HEIGHT = 18;
 
 const pathData = (points: readonly Point[]): string => points.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x} ${point.y}`).join(' ');
 
@@ -24,6 +26,8 @@ const shorten = (text: string): string => (text.length > LABEL_CHARS ? `${text.s
 
 interface Props {
   readonly layout: NetworkLayout;
+  readonly counts: ReadonlyMap<string, number>;
+  readonly thin: ReadonlyMap<string, number>;
   readonly appName: string;
   readonly tasks: readonly TaskSummaryDto[];
   readonly level: Level;
@@ -34,7 +38,7 @@ interface Props {
   readonly onBackground: () => void;
 }
 
-export const MapDrawing = memo(function MapDrawing({ layout, appName, tasks, level, openLine, selectedTask, onLine, onStation, onBackground }: Props) {
+export const MapDrawing = memo(function MapDrawing({ layout, counts, thin, appName, tasks, level, openLine, selectedTask, onLine, onStation, onBackground }: Props) {
   const { t } = useTranslation();
   const dimmed = (epicId: string): boolean => level !== 'network' && openLine !== epicId;
 
@@ -55,8 +59,10 @@ export const MapDrawing = memo(function MapDrawing({ layout, appName, tasks, lev
         const planned = line.epic.status === 'planned';
         const progress = progressOf(line.stations.map((station) => station.task));
         const remaining = progress.todo + progress.active;
+        const thinCount = thin.get(line.epic.id);
+        const meta = thinCount !== undefined ? t('map.summarized', { count: thinCount }) : planned ? t('map.planned') : line.stations.length === 0 ? t('map.empty') : t('map.remaining', { count: remaining });
         return (
-          <g key={line.epic.id} className={`line ${dimmed(line.epic.id) ? 'dim' : ''}`} style={{ color }}>
+          <g key={line.epic.id} className={`line ${thinCount !== undefined ? 'thin' : ''} ${dimmed(line.epic.id) ? 'dim' : ''}`} style={{ color }}>
             <g className="line-hit" role="button" tabIndex={0} aria-label={t('map.line', { name: line.epic.name })} onClick={() => onLine(line.epic.id)}
               onKeyDown={(event) => event.key === 'Enter' && onLine(line.epic.id)}>
               <path d={pathData(line.path)} className="line-hit-area" />
@@ -67,18 +73,39 @@ export const MapDrawing = memo(function MapDrawing({ layout, appName, tasks, lev
                 {line.epic.name}
               </text>
               <text x={line.startX + ROUNDEL_RADIUS + LINE_LABEL_GAP} y={line.y - LINE_META_RISE} className="line-meta">
-                {planned ? t('map.planned') : line.stations.length === 0 ? t('map.empty') : t('map.remaining', { count: remaining })}
+                {meta}
               </text>
             </g>
             {line.stations.map(({ task, x, y, labelSide, interchange }) => {
+              const count = counts.get(task.id) ?? 1;
+              if (count > 1) {
+                const summary = t('map.summarized', { count });
+                return (
+                  <StationButton key={task.id} className="station-summary" label={summary} onOpen={() => onStation(line.epic.id, task.id)}>
+                    <rect x={x - SUMMARY_WIDTH / 2} y={y - SUMMARY_HEIGHT / 2} width={SUMMARY_WIDTH} height={SUMMARY_HEIGHT} rx={SUMMARY_HEIGHT / 2} className="station-summary-pill" />
+                    <text x={x} y={labelSide === 'below' ? y + LABEL_BELOW : y - LABEL_ABOVE} textAnchor="middle" className="station-label">
+                      <title>{task.title}</title>
+                      {summary}
+                    </text>
+                  </StationButton>
+                );
+              }
               const tone = toneOf(task.status);
               const active = isActive(task.status);
               const selected = selectedTask === task.id;
+              const className = `tone-${tone} ${interchange ? 'interchange' : ''}`;
+              const label = `${task.title}, ${t(statusKey(task.status))}`;
+              const open = (): void => onStation(line.epic.id, task.id);
+              if (thinCount !== undefined) {
+                return (
+                  <StationButton key={task.id} className={className} label={label} onOpen={open}>
+                    {interchange && <circle cx={x} cy={y} r={INTERCHANGE_R} className="interchange-ring" />}
+                    <circle cx={x} cy={y} r={9} className="station-dot" />
+                  </StationButton>
+                );
+              }
               return (
-                <g key={task.id} className={`station tone-${tone} ${interchange ? 'interchange' : ''}`} role="button" tabIndex={0}
-                  aria-label={`${task.title}, ${t(statusKey(task.status))}`}
-                  onClick={() => onStation(line.epic.id, task.id)}
-                  onKeyDown={(event) => event.key === 'Enter' && onStation(line.epic.id, task.id)}>
+                <StationButton key={task.id} className={className} label={label} onOpen={open}>
                   {interchange && <circle cx={x} cy={y} r={INTERCHANGE_R} className="interchange-ring" />}
                   {(tone === 'signal' || tone === 'stop') && <circle cx={x} cy={y} r={13} className="station-pulse" />}
                   <circle cx={x} cy={y} r={active ? 12 : 9} className="station-dot" />
@@ -94,7 +121,7 @@ export const MapDrawing = memo(function MapDrawing({ layout, appName, tasks, lev
                     <title>{task.title}</title>
                     {shorten(task.title)}
                   </text>
-                </g>
+                </StationButton>
               );
             })}
           </g>
@@ -110,6 +137,21 @@ export const MapDrawing = memo(function MapDrawing({ layout, appName, tasks, lev
     </>
   );
 });
+
+interface StationButtonProps {
+  readonly className: string;
+  readonly label: string;
+  readonly onOpen: () => void;
+  readonly children: ReactNode;
+}
+
+function StationButton({ className, label, onOpen, children }: StationButtonProps) {
+  return (
+    <g className={`station ${className}`} role="button" tabIndex={0} aria-label={label} onClick={onOpen} onKeyDown={(event) => event.key === 'Enter' && onOpen()}>
+      {children}
+    </g>
+  );
+}
 
 export function LineRoundel({ x, y, code }: { readonly x: number; readonly y: number; readonly code: string }) {
   return (

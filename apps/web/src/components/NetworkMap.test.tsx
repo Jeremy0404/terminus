@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EpicDto, NetworkDto, TaskSummaryDto } from '@terminus/contracts';
+import { canvasFor, lineView, mapHeight } from '../network/camera';
+import { summarizeFinished } from '../network/compact';
 import { layoutNetwork } from '../network/layout';
 import { APP, NETWORK, task } from '../test/fixtures';
 import type { Place } from '../state/location';
@@ -71,6 +73,8 @@ describe('NetworkMap delivered lines', () => {
 });
 
 const FRAME_WIDTH = 970;
+const FRAME_HEIGHT = 485;
+const FIT_TOLERANCE = 1e-6;
 const line = (id: string, position: number): EpicDto => ({ id, appId: APP.id, code: id.toUpperCase(), name: id, status: 'active', position, description: '', breakdown: { status: 'idle' } });
 const stations = (epicId: string, count: number, done = 0): TaskSummaryDto[] =>
   Array.from({ length: count }, (_, index) => task(`${epicId}${index + 1}`, epicId, `${epicId} ${index + 1}`, index < done ? { kind: 'done' } : { kind: 'todo' }));
@@ -90,6 +94,7 @@ function drawn(container: HTMLElement) {
   return {
     box,
     scale,
+    pixelWidth,
     pixelHeight,
     viewBoxHeight: height,
     showsX: (unitX: number): boolean => {
@@ -103,13 +108,24 @@ function drawn(container: HTMLElement) {
 const stationX = (index: number): number => layoutNetwork([line('a', 1)], stations('a', index + 1)).lines[0]?.stations[index]?.x ?? NaN;
 
 describe('NetworkMap scale and scroll', () => {
-  it('draws twenty lines at the same scale as one, taller than the box', () => {
-    const one = drawn(renderMap(manyLines(1)).container);
-    const oneRatio = one.pixelHeight / one.viewBoxHeight;
+  it('fits twenty lines in the box at the network level', () => {
     const twenty = drawn(renderMap(manyLines(20)).container);
 
-    expect(twenty.pixelHeight / twenty.viewBoxHeight).toBeCloseTo(oneRatio);
-    expect(twenty.pixelHeight).toBeGreaterThan(FRAME_WIDTH / 2);
+    expect(twenty.pixelWidth).toBeLessThanOrEqual(FRAME_WIDTH + FIT_TOLERANCE);
+    expect(twenty.pixelHeight).toBeLessThanOrEqual(FRAME_HEIGHT + FIT_TOLERANCE);
+  });
+
+  it('fits the network again when lines are added', () => {
+    const view = renderMap(manyLines(1));
+    view.rerender(<NetworkMap network={manyLines(20)} place={NETWORK_PLACE} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+    const map = drawn(view.container);
+
+    expect(map.pixelWidth).toBeLessThanOrEqual(FRAME_WIDTH + FIT_TOLERANCE);
+    expect(map.pixelHeight).toBeLessThanOrEqual(FRAME_HEIGHT + FIT_TOLERANCE);
+  });
+
+  it('keeps a one-line network frame at half the box width', () => {
+    expect(drawn(renderMap(manyLines(1)).container).box.style.height).toBe('485px');
   });
 
   it('opens a long line on its first unfinished station', () => {
@@ -161,6 +177,13 @@ describe('NetworkMap scale and scroll', () => {
   });
 });
 
+function drag(target: Element, by: number, pointerType = 'mouse') {
+  fireEvent.pointerDown(target, { pointerType, button: 0, clientX: 500, clientY: 200 });
+  fireEvent.pointerMove(window, { pointerType, clientX: 500 - by, clientY: 200 });
+  fireEvent.pointerUp(window, { pointerType, clientX: 500 - by, clientY: 200 });
+  fireEvent.click(target);
+}
+
 describe('NetworkMap drag to pan', () => {
   const network = networkOf([line('a', 1)], stations('a', 30));
   const place = { app: APP.id, line: 'a', task: null };
@@ -170,13 +193,6 @@ describe('NetworkMap drag to pan', () => {
     const onBackground = vi.fn();
     const view = render(<NetworkMap network={network} place={place} onLine={vi.fn()} onStation={onStation} onBackground={onBackground} />);
     return { ...view, box: drawn(view.container).box, onStation, onBackground };
-  }
-
-  function drag(target: Element, by: number, pointerType = 'mouse') {
-    fireEvent.pointerDown(target, { pointerType, button: 0, clientX: 500, clientY: 200 });
-    fireEvent.pointerMove(window, { pointerType, clientX: 500 - by, clientY: 200 });
-    fireEvent.pointerUp(window, { pointerType, clientX: 500 - by, clientY: 200 });
-    fireEvent.click(target);
   }
 
   it('pans the map when dragging from a station, without opening it', () => {
@@ -209,6 +225,148 @@ describe('NetworkMap drag to pan', () => {
   });
 });
 
+describe('NetworkMap finished runs', () => {
+  const network = networkOf([line('a', 1)], [...stations('a', 10, 10), task('a11', 'a', 'a 11', { kind: 'running', runId: 'r' }), task('a12', 'a', 'a 12', { kind: 'todo' })]);
+
+  it('folds a long run of finished stations into one marker that opens its last station', () => {
+    const onStation = vi.fn();
+    render(<NetworkMap network={network} place={NETWORK_PLACE} onLine={vi.fn()} onStation={onStation} onBackground={vi.fn()} />);
+
+    expect(screen.queryAllByRole('button', { name: /^a \d+,/ })).toHaveLength(2);
+    expect(screen.getByText('10 stations terminées')).toBeInTheDocument();
+    expect(screen.getByText('2 stations restantes')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '10 stations terminées' }));
+    expect(onStation).toHaveBeenCalledWith('a', 'a10');
+  });
+
+  it('keeps the frame height of the network when a line is opened', () => {
+    const others = Array.from({ length: 5 }, (_, index) => line(`o${index + 1}`, index + 2));
+    const wide = networkOf([line('a', 1), ...others], [...stations('a', 30, 28), ...others.flatMap((epic) => stations(epic.id, 1))]);
+    const compact = layoutNetwork(wide.epics, summarizeFinished(wide.tasks).tasks);
+    const complete = layoutNetwork(wide.epics, wide.tasks);
+    expect(mapHeight(compact, FRAME_WIDTH)).not.toBeCloseTo(mapHeight(complete, FRAME_WIDTH));
+
+    const view = renderMap(wide);
+    const height = drawn(view.container).box.style.height;
+    view.rerender(<NetworkMap network={wide} place={{ app: APP.id, line: 'a', task: null }} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+
+    expect(drawn(view.container).box.style.height).toBe(height);
+    expect(height).toBe(`${mapHeight(compact, FRAME_WIDTH)}px`);
+  });
+});
+
+describe('NetworkMap finished lines', () => {
+  const finishedLines = networkOf([line('x', 1), line('y', 2)], [...stations('x', 5, 5), ...stations('y', 2), task('y3', 'y', 'y 3', { kind: 'todo' }, { dependsOn: ['x3'] })]);
+
+  it('draws a finished line as a thin row that opens the line', () => {
+    const onLine = vi.fn();
+    const { container } = render(<NetworkMap network={finishedLines} place={NETWORK_PLACE} onLine={onLine} onStation={vi.fn()} onBackground={vi.fn()} />);
+
+    expect(screen.getByText('x', { selector: '.line-name' })).toBeInTheDocument();
+    expect(screen.getByText('5 stations terminées')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^x \d+,/ }).map((station) => station.getAttribute('aria-label'))).toEqual(['x 3, Intégrée au projet']);
+    expect(container.querySelector('.line.thin')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ligne x' }));
+    expect(onLine).toHaveBeenCalledWith('x');
+  });
+
+  it('shows every station, unfolded, while searching or following a route', () => {
+    const network = networkOf([...finishedLines.epics, line('z', 3)], [...finishedLines.tasks, ...stations('z', 12, 10)]);
+    const { container } = render(<NetworkMap collapseFinished={false} network={network} place={NETWORK_PLACE} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+
+    expect(screen.getAllByRole('button', { name: /^[xyz] \d+,/ })).toHaveLength(network.tasks.length);
+    expect(screen.queryByText(/stations? terminées?$/)).not.toBeInTheDocument();
+    expect(container.querySelector('.line.thin')).not.toBeInTheDocument();
+    const map = drawn(container);
+    expect(map.pixelWidth).toBeLessThanOrEqual(FRAME_WIDTH + FIT_TOLERANCE);
+    expect(map.pixelHeight).toBeLessThanOrEqual(FRAME_HEIGHT + FIT_TOLERANCE);
+  });
+
+  it('draws every station of a finished line once it is open', () => {
+    renderMap(finishedLines, { app: APP.id, line: 'x', task: null });
+    expect(screen.getAllByRole('button', { name: /^x \d+,/ })).toHaveLength(5);
+  });
+});
+
+describe('NetworkMap mature network', () => {
+  const kinds = [(id: string) => stations(id, 8, 8), (id: string) => stations(id, 18, 15), (id: string) => stations(id, 4)];
+  const epics = Array.from({ length: 22 }, (_, index) => line(`l${index + 1}`, index + 1));
+  const mature = networkOf(epics, epics.flatMap((epic, index) => kinds[index % kinds.length]?.(epic.id) ?? []));
+
+  it('shows every line in the box, without scroll, pan or pinned roundel', async () => {
+    const { container } = renderMap(mature);
+    const map = drawn(container);
+    expect(map.pixelWidth).toBeLessThanOrEqual(FRAME_WIDTH + FIT_TOLERANCE);
+    expect(map.pixelHeight).toBeLessThanOrEqual(FRAME_HEIGHT + FIT_TOLERANCE);
+
+    drag(container.querySelector('.map-background') as Element, 200);
+    expect([map.box.scrollLeft, map.box.scrollTop]).toEqual([0, 0]);
+
+    map.box.scrollLeft += 400;
+    fireEvent.scroll(map.box);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(container.querySelector('.pinned-roundel')).not.toBeInTheDocument();
+
+    const [x = 0, y = 0, width = 0, height = 0] = (container.querySelector('svg.network-map')?.getAttribute('viewBox') ?? '').split(' ').map(Number);
+    const lines = [...container.querySelectorAll('.line')];
+    expect(lines).toHaveLength(22);
+    for (const drawnLine of lines) {
+      const roundel = drawnLine.querySelector('.line-roundel');
+      const terminus = drawnLine.querySelector('.line-terminus');
+      const lineY = Number(roundel?.getAttribute('cy'));
+      expect(lineY).toBeGreaterThanOrEqual(y);
+      expect(lineY).toBeLessThanOrEqual(y + height);
+      expect(Number(roundel?.getAttribute('cx'))).toBeGreaterThanOrEqual(x);
+      expect(Number(terminus?.getAttribute('x1'))).toBeLessThanOrEqual(x + width);
+    }
+  });
+});
+
+describe('NetworkMap fitted network', () => {
+  const network = networkOf([line('a', 1), line('b', 2)], [...stations('a', 30), ...stations('b', 30)]);
+
+  function renderWithSpies() {
+    const handlers = { onLine: vi.fn(), onStation: vi.fn(), onBackground: vi.fn() };
+    const view = render(<NetworkMap network={network} place={NETWORK_PLACE} {...handlers} />);
+    return { ...view, ...handlers, box: drawn(view.container).box };
+  }
+
+  it('does not pan when dragging from a station, and still opens it', () => {
+    const { box, onStation } = renderWithSpies();
+    drag(screen.getByRole('button', { name: /^a 1,/ }), 40);
+
+    expect([box.scrollLeft, box.scrollTop]).toEqual([0, 0]);
+    expect(onStation).toHaveBeenCalledWith('a', 'a1');
+  });
+
+  it('does not pan when dragging across the background, and still reads the click', () => {
+    const { box, container, onBackground } = renderWithSpies();
+    drag(container.querySelector('.map-background') as Element, 40);
+
+    expect([box.scrollLeft, box.scrollTop]).toEqual([0, 0]);
+    expect(onBackground).toHaveBeenCalledOnce();
+  });
+
+  it('never pins a roundel, even when the box is scrolled', async () => {
+    const { box, container } = renderWithSpies();
+    box.scrollLeft += 400;
+    fireEvent.scroll(box);
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(container.querySelector('.pinned-roundel')).not.toBeInTheDocument();
+  });
+
+  it('marks the viewport as fitted at the network level only', () => {
+    const view = renderWithSpies();
+    expect(view.box).toHaveClass('fitted');
+
+    view.rerender(<NetworkMap network={network} place={{ app: APP.id, line: 'a', task: null }} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+    expect(drawn(view.container).box).not.toHaveClass('fitted');
+  });
+});
+
 describe('NetworkMap pinned roundels', () => {
   const network = networkOf([line('a', 1), line('b', 2)], [...stations('a', 30), ...stations('b', 30)]);
 
@@ -220,7 +378,7 @@ describe('NetworkMap pinned roundels', () => {
 
   it('pins the roundel of a line scrolled past its start, and it opens the line', async () => {
     const onLine = vi.fn();
-    const { container } = render(<NetworkMap network={network} place={NETWORK_PLACE} onLine={onLine} onStation={vi.fn()} onBackground={vi.fn()} />);
+    const { container } = render(<NetworkMap network={network} place={{ app: APP.id, line: 'a', task: null }} onLine={onLine} onStation={vi.fn()} onBackground={vi.fn()} />);
     expect(screen.getAllByRole('button', { name: 'Ligne a' })).toHaveLength(1);
 
     scrollRight(container);
@@ -238,6 +396,87 @@ describe('NetworkMap pinned roundels', () => {
     await waitFor(() => expect(container.querySelectorAll('.pinned-roundel')).toHaveLength(2));
     expect(container.querySelector('.pinned-roundel[aria-label="Ligne a"]')).not.toHaveClass('dim');
     expect(container.querySelector('.pinned-roundel[aria-label="Ligne b"]')).toHaveClass('dim');
+  });
+});
+
+describe('NetworkMap level switch', () => {
+  const network = networkOf([line('a', 1), line('b', 2)], [...stations('a', 30, 20), ...stations('b', 4)]);
+  const complete = layoutNetwork(network.epics, network.tasks);
+  const FRAME = { width: FRAME_WIDTH, height: FRAME_HEIGHT };
+  const lineCanvas = (epicId: string) => canvasFor(lineView(complete, epicId, FRAME), complete, FRAME);
+  let frames: FrameRequestCallback[] = [];
+  const animate = vi.fn();
+
+  const motion = (reduced: boolean) =>
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: (query: string) => ({ matches: reduced, media: query }) });
+
+  beforeEach(() => {
+    frames = [];
+    animate.mockReset();
+    motion(false);
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback));
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    Object.defineProperty(SVGElement.prototype, 'animate', { configurable: true, value: animate });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    Reflect.deleteProperty(window, 'matchMedia');
+    Reflect.deleteProperty(SVGElement.prototype, 'animate');
+  });
+
+  function switchTo(view: ReturnType<typeof render>, place: Place) {
+    const svg = view.container.querySelector('svg.network-map') as SVGSVGElement;
+    const observer = new MutationObserver(() => undefined);
+    observer.observe(svg, { attributeFilter: ['viewBox'] });
+    view.rerender(<NetworkMap network={network} place={place} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+    const writes = observer.takeRecords().length;
+    observer.disconnect();
+    return { svg, writes };
+  }
+
+  it('fades onto the open line instead of zooming from the network', () => {
+    const view = renderMap(network);
+    const { svg, writes } = switchTo(view, { app: APP.id, line: 'a', task: null });
+
+    expect(svg.getAttribute('viewBox')).toBe(lineCanvas('a').viewBox.join(' '));
+    expect(writes).toBe(1);
+    expect(frames).toHaveLength(0);
+    expect(animate).toHaveBeenCalledWith([{ opacity: 0 }, { opacity: 1 }], expect.anything());
+  });
+
+  it('fades back onto the fitted network when the line is closed', () => {
+    const view = renderMap(network, { app: APP.id, line: 'a', task: null });
+    const { svg, writes } = switchTo(view, NETWORK_PLACE);
+    const map = drawn(view.container);
+
+    expect(svg.getAttribute('viewBox')).not.toBe(lineCanvas('a').viewBox.join(' '));
+    expect(map.pixelWidth).toBeLessThanOrEqual(FRAME_WIDTH + FIT_TOLERANCE);
+    expect(map.pixelHeight).toBeLessThanOrEqual(FRAME_HEIGHT + FIT_TOLERANCE);
+    expect(writes).toBe(1);
+    expect(frames).toHaveLength(0);
+    expect(animate).toHaveBeenCalledWith([{ opacity: 0 }, { opacity: 1 }], expect.anything());
+  });
+
+  it('still zooms from one open line to another', () => {
+    const view = renderMap(network, { app: APP.id, line: 'a', task: null });
+    const { svg } = switchTo(view, { app: APP.id, line: 'b', task: null });
+    const target = lineCanvas('b').viewBox;
+    const shown = () => (svg.getAttribute('viewBox') ?? '').split(' ').map(Number);
+
+    expect(shown()).not.toEqual([...target]);
+    for (let now = 0; frames.length > 0 && now <= 1000; now += 100) frames.shift()?.(now);
+    shown().forEach((value, index) => expect(value).toBeCloseTo(target[index] ?? NaN));
+    expect(animate).not.toHaveBeenCalled();
+  });
+
+  it('switches at once, without a fade, when motion is reduced', () => {
+    motion(true);
+    const view = renderMap(network);
+    const { svg } = switchTo(view, { app: APP.id, line: 'a', task: null });
+
+    expect(svg.getAttribute('viewBox')).toBe(lineCanvas('a').viewBox.join(' '));
+    expect(animate).not.toHaveBeenCalled();
   });
 });
 

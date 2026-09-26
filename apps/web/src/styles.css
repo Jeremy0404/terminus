@@ -83,6 +83,7 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .map-viewport { overflow: auto; max-height: calc(100vh - 150px); scrollbar-gutter: stable; overscroll-behavior: contain; scroll-padding-left: 64px; }
 .map-viewport { cursor: grab; }
 .map-viewport.dragging, .map-viewport.dragging * { cursor: grabbing; user-select: none; }
+.map-viewport.fitted { overflow: hidden; cursor: default; }
 .map-toggle { position: absolute; top: 12px; right: 12px; z-index: 1; border: 1.5px solid var(--rule); border-radius: 999px; background: var(--surface); color: var(--ink-2); padding: 5px 12px; font-size: 12px; font-weight: 700; }
 .map-toggle:hover { background: var(--surface-2); color: var(--ink); }
 .map-toggle[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
@@ -96,6 +97,8 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .line-track { fill: none; stroke: currentColor; stroke-width: 11; stroke-linecap: round; stroke-linejoin: round; }
 .line-track.planned { stroke-dasharray: 18 10; stroke-linecap: butt; }
 .line-terminus { stroke: currentColor; stroke-width: 6; stroke-linecap: round; }
+.line.thin .line-track { stroke-width: 6; }
+.line.thin .line-terminus { stroke-width: 4; }
 .line-roundel { fill: currentColor; }
 .pinned-roundel { cursor: pointer; }
 .pinned-roundel .line-roundel { stroke: var(--surface); stroke-width: 4; }
@@ -109,6 +112,8 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .station { cursor: pointer; }
 .station-dot { fill: var(--station); stroke: currentColor; stroke-width: 4; }
 .station:hover .station-dot { stroke-width: 6; }
+.station-summary-pill { fill: currentColor; stroke: var(--station); stroke-width: 3; }
+.station-summary:hover .station-summary-pill { stroke-width: 5; }
 .station.tone-done .station-dot { fill: currentColor; stroke: var(--station); stroke-width: 3; }
 .station.tone-go .station-dot { stroke-width: 5; }
 .station.tone-signal .station-dot { stroke: var(--signal); stroke-width: 5; }

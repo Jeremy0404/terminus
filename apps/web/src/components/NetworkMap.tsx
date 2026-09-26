@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { NetworkDto } from '@terminus/contracts';
 import { canvasFor, lineView, mapHeight, networkView, reveal, viewOf, type Canvas, type Frame, type ViewBox } from '../network/camera';
+import { compactNetwork } from '../network/compact';
 import { layoutNetwork, STEP, withoutDeliveredLines, type NetworkLayout } from '../network/layout';
 import { levelOf, type Place } from '../state/location';
 import { useHideDelivered } from '../state/preferences';
@@ -11,6 +12,9 @@ import { useDragPan } from './map/useDragPan';
 import { useFrame } from './map/useFrame';
 
 const ZOOM_MS = 520;
+const FADE_MS = 200;
+const FADE_IN: Keyframe[] = [{ opacity: 0 }, { opacity: 1 }];
+const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 
 interface Props {
   readonly collapseFinished?: boolean;
@@ -48,17 +52,26 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground, co
   const { t } = useTranslation();
   const [hideDelivered, setHideDelivered] = useHideDelivered();
   const anyDelivered = collapseFinished && withoutDeliveredLines(network.epics, network.tasks, null).epics.length < network.epics.length;
-  const layout = useMemo(() => {
+  const overview = useMemo(() => {
+    const visible = collapseFinished && hideDelivered ? withoutDeliveredLines(network.epics, network.tasks, null) : network;
+    const shown = collapseFinished ? compactNetwork(visible.epics, visible.tasks) : { ...visible, counts: NO_COUNTS, thin: NO_COUNTS };
+    return { layout: layoutNetwork(shown.epics, shown.tasks, new Set(shown.thin.keys())), counts: shown.counts, thin: shown.thin };
+  }, [network, hideDelivered, collapseFinished]);
+  const full = useMemo(() => {
+    if (place.line === null) return null;
     const visible = collapseFinished && hideDelivered ? withoutDeliveredLines(network.epics, network.tasks, place.line) : network;
     return layoutNetwork(visible.epics, visible.tasks);
   }, [network, hideDelivered, place.line, collapseFinished]);
+  const layout = full ?? overview.layout;
   const svg = useRef<SVGSVGElement>(null);
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const frame = useFrame(box);
   const canvas = useRef<Canvas | null>(null);
   const shown = useRef<Shown | null>(null);
   const animation = useRef<number | null>(null);
+  const fitted = place.line === null;
   const layoutNow = useRef<NetworkLayout>(layout);
+  const fittedNow = useRef(fitted);
   const [view, setView] = useState<ViewBox | null>(null);
   const scrollFrame = useRef<number | null>(null);
   const level = levelOf(place);
@@ -70,14 +83,16 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground, co
 
   useLayoutEffect(() => {
     const resized = layoutNow.current.width !== layout.width || layoutNow.current.height !== layout.height;
+    const levelChanged = fittedNow.current !== fitted;
     layoutNow.current = layout;
+    fittedNow.current = fitted;
     const element = svg.current;
-    if (!resized || !box || !element || !canvas.current || animation.current !== null || shown.current?.box !== box) return;
-    const current = viewOf(canvas.current, { left: box.scrollLeft, top: box.scrollTop }, frame);
+    if (!resized || levelChanged || !box || !element || !canvas.current || animation.current !== null || shown.current?.box !== box) return;
+    const current = fitted ? networkView(layout, frame) : viewOf(canvas.current, { left: box.scrollLeft, top: box.scrollTop }, frame);
     canvas.current = canvasFor(current, layout, frame);
     paint(element, box, canvas.current);
     setView(current);
-  }, [layout, box, frame]);
+  }, [layout, fitted, box, frame]);
 
   useLayoutEffect(() => {
     const element = svg.current;
@@ -98,6 +113,12 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground, co
       paint(element, box, canvas.current);
       setView(view);
     };
+    const switched = from !== null && (previous?.line === null) !== (place.line === null);
+    if (switched) {
+      show(to);
+      if (!prefersReducedMotion()) element.animate?.(FADE_IN, FADE_MS);
+      return;
+    }
     if (!from || resized || prefersReducedMotion() || typeof requestAnimationFrame === 'undefined') {
       show(to);
       return;
@@ -142,16 +163,16 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground, co
       ) : (
         <div
           ref={setBox}
-          className={`map-viewport ${pan.dragging ? 'dragging' : ''}`}
-          style={{ height: mapHeight(layout, frame.width) }}
-          onPointerDown={pan.onPointerDown}
-          onClickCapture={pan.onClickCapture}
-          onScroll={followScroll}
+          className={`map-viewport ${fitted ? 'fitted' : ''} ${pan.dragging ? 'dragging' : ''}`}
+          style={{ height: mapHeight(overview.layout, frame.width) }}
+          onPointerDown={fitted ? undefined : pan.onPointerDown}
+          onClickCapture={fitted ? undefined : pan.onClickCapture}
+          onScroll={fitted ? undefined : followScroll}
         >
           <svg ref={svg} className="network-map" preserveAspectRatio="xMinYMin meet" role="img" aria-label={t('map.label', { app: network.app.name })}>
             <rect className="map-background" x={-5000} y={-5000} width={10000} height={10000} onClick={onBackground} />
-            <MapDrawing layout={layout} appName={network.app.name} tasks={network.tasks} level={level} openLine={place.line} selectedTask={place.task} onLine={onLine} onStation={onStation} onBackground={onBackground} />
-            {view && <PinnedRoundels layout={layout} view={view} level={level} openLine={place.line} onLine={onLine} />}
+            <MapDrawing layout={layout} counts={full ? NO_COUNTS : overview.counts} thin={full ? NO_COUNTS : overview.thin} appName={network.app.name} tasks={network.tasks} level={level} openLine={place.line} selectedTask={place.task} onLine={onLine} onStation={onStation} onBackground={onBackground} />
+            {view && !fitted && <PinnedRoundels layout={layout} view={view} level={level} openLine={place.line} onLine={onLine} />}
           </svg>
         </div>
       )}

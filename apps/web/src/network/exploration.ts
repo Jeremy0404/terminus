@@ -1,6 +1,10 @@
-import type { NetworkDto, TaskSummaryDto } from '@terminus/contracts';
+import type { EpicDto, NetworkDto, TaskSummaryDto } from '@terminus/contracts';
 
 export const finished = (task: TaskSummaryDto): boolean => task.status.kind === 'done' || task.status.kind === 'closed';
+export function finishedLine(epic: EpicDto, tasks: readonly TaskSummaryDto[]): boolean {
+  const stations = tasks.filter((task) => task.epicId === epic.id);
+  return epic.status === 'delivered' || (stations.length > 0 && stations.every(finished));
+}
 export function routeTo(tasks: readonly TaskSummaryDto[], epicId: string): ReadonlySet<string> {
   const byId = new Map(tasks.map((task) => [task.id, task]));
   const ids = new Set<string>();

@@ -1,7 +1,9 @@
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
+import { finishedLine } from './exploration';
 
 export const STEP = 80;
 export const ROW = 130;
+export const THIN_ROW = 50;
 export const LEFT = 230;
 export const TOP = 110;
 export const ROUNDEL_RADIUS = 17;
@@ -62,31 +64,32 @@ export interface NetworkLayout {
   readonly height: number;
 }
 
-export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSummaryDto[]): NetworkLayout {
+export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSummaryDto[], thin: ReadonlySet<string> = new Set()): NetworkLayout {
   const orderedEpics = [...epics].sort((a, b) => a.position - b.position);
   const ranks = rankTasks(tasks);
   const middle = Math.max(orderedEpics.length - 1, 0) / 2;
-  const origin: OriginPosition = { x: ORIGIN_X, y: TOP + middle * ROW, top: TOP + middle * (ROW - LANE), bottom: TOP + middle * (ROW + LANE) };
-  const fanOf = (index: number): number => Math.abs(index - middle) * (ROW - LANE);
-  const firstX = ORIGIN_X + Math.max(fanOf(0), ROW_START_MIN_RUN) + FIRST_STATION_GAP;
-  const rows = new Map(orderedEpics.map((epic, index) => [epic.id, TOP + index * ROW]));
+  const rowYs = rowPositions(orderedEpics.map((epic) => (thin.has(epic.id) ? THIN_ROW : ROW)));
+  const lastRow = rowYs.at(-1) ?? TOP;
+  const originY = (TOP + lastRow) / 2;
+  const origin: OriginPosition = { x: ORIGIN_X, y: originY, top: originY - middle * LANE, bottom: originY + middle * LANE };
+  const laneOf = (index: number): number => originY + (index - middle) * LANE;
+  const fanOf = (index: number): number => Math.abs((rowYs[index] ?? TOP) - laneOf(index));
+  const firstX = ORIGIN_X + Math.max(...orderedEpics.map((_, index) => fanOf(index)), ROW_START_MIN_RUN) + FIRST_STATION_GAP;
+  const rows = new Map(orderedEpics.map((epic, index) => [epic.id, rowYs[index] ?? TOP]));
   const lineIndex = new Map(orderedEpics.map((epic, index) => [epic.id, index]));
   const xOf = (taskId: string): number => firstX + (ranks.get(taskId) ?? 0) * STEP;
   const epicOf = new Map(tasks.map((task) => [task.id, task.epicId]));
-  const crossDependencies = (task: TaskSummaryDto): string[] =>
-    task.dependsOn.filter((dependency) => epicOf.has(dependency) && epicOf.get(dependency) !== task.epicId);
-  const interchanges = new Set(tasks.flatMap((task) => {
-    const dependencies = crossDependencies(task);
-    return dependencies.length > 0 ? [task.id, ...dependencies] : [];
-  }));
+  const crossDependencies = (task: TaskSummaryDto): string[] => crossLineDependencies(task, epicOf);
+  const interchanges = interchangeIds(tasks);
   const bendOf = (task: TaskSummaryDto, index: number): number => {
+    if (thin.has(task.epicId)) return 0;
     const waitedOn = crossDependencies(task).flatMap((dependency) => lineIndex.get(epicOf.get(dependency) ?? '') ?? []);
     return waitedOn.length === 0 ? 0 : Math.sign(Math.min(...waitedOn) - index) * INTERCHANGE_BEND;
   };
 
   const lines = orderedEpics.map((epic, index): LinePosition => {
     const y = rows.get(epic.id) ?? TOP;
-    const lane: Point = { x: ORIGIN_X, y: origin.y + (index - middle) * LANE };
+    const lane: Point = { x: ORIGIN_X, y: laneOf(index) };
     const fan = fanOf(index);
     const stations = tasks
       .filter((task) => task.epicId === epic.id)
@@ -118,8 +121,16 @@ export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSum
     lines,
     transfers,
     width: Math.max(maxX + RIGHT_MARGIN, MIN_WIDTH),
-    height: Math.max(TOP + Math.max(orderedEpics.length - 1, 0) * ROW + BOTTOM_MARGIN, MIN_HEIGHT),
+    height: Math.max(lastRow + BOTTOM_MARGIN, MIN_HEIGHT),
   };
+}
+
+export function interchangeIds(tasks: readonly TaskSummaryDto[]): ReadonlySet<string> {
+  const epicOf = new Map(tasks.map((task) => [task.id, task.epicId]));
+  return new Set(tasks.flatMap((task) => {
+    const dependencies = crossLineDependencies(task, epicOf);
+    return dependencies.length > 0 ? [task.id, ...dependencies] : [];
+  }));
 }
 
 export function withoutDeliveredLines(
@@ -127,9 +138,21 @@ export function withoutDeliveredLines(
   tasks: readonly TaskSummaryDto[],
   keepEpicId: string | null,
 ): { readonly epics: readonly EpicDto[]; readonly tasks: readonly TaskSummaryDto[] } {
-  const visible = epics.filter((epic) => epic.id === keepEpicId || !(epic.status === 'delivered' || (tasks.some((task) => task.epicId === epic.id) && tasks.filter((task) => task.epicId === epic.id).every((task) => task.status.kind === 'done' || task.status.kind === 'closed'))));
+  const visible = epics.filter((epic) => epic.id === keepEpicId || !finishedLine(epic, tasks));
   const ids = new Set(visible.map((epic) => epic.id));
   return { epics: visible, tasks: tasks.filter((task) => ids.has(task.epicId)) };
+}
+
+function rowPositions(pitches: readonly number[]): number[] {
+  return pitches.reduce<number[]>((ys, pitch, index) => {
+    const previous = ys.at(-1);
+    const gap = (pitch + (pitches[index - 1] ?? pitch)) / 2;
+    return [...ys, previous === undefined ? TOP : previous + gap];
+  }, []);
+}
+
+function crossLineDependencies(task: TaskSummaryDto, epicOf: ReadonlyMap<string, string>): string[] {
+  return task.dependsOn.filter((dependency) => epicOf.has(dependency) && epicOf.get(dependency) !== task.epicId);
 }
 
 function trackPath(rowStart: Point, stops: readonly Point[]): Point[] {
