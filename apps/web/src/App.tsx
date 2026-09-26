@@ -166,7 +166,7 @@ function Cockpit() {
           {level !== 'platform' && view === 'deliveries' ? <DeliveryCenter network={network.data} onOpen={openStation} onMemory={() => setPanel('memory')} />
             : level !== 'platform' && view === 'decisions' ? <main className="pocket-content"><Inbox network={network.data} lineId={null} onOpen={openStation} onMemory={() => setPanel('memory')} /></main>
             : level !== 'platform' && view === 'active' ? <main className="pocket-content card"><h2>{t('pocket.active')}</h2><ul className="journey-list station-list">{network.data.tasks.filter((task) => ['running', 'ready', 'manual', 'blocked'].includes(task.status.kind)).map((task) => <li key={task.id}><button onClick={() => openStation(task.epicId, task.id)}><b>{task.title}</b><StatusPill status={task.status} /></button></li>)}</ul>{!network.data.tasks.some((task) => ['running', 'ready', 'manual', 'blocked'].includes(task.status.kind)) && <p className="muted">{t('pocket.empty')}</p>}</main>
-            : <div className={`stage ${view === 'map' && level !== 'platform' ? 'stage-map-only' : ''} ${level === 'platform' ? 'stage-platform' : ''}`}>
+            : <div className={`stage ${view === 'map' && level === 'network' ? 'stage-map-only' : ''} ${level === 'platform' ? 'stage-platform' : ''}`}>
             {level === 'platform' && place.task && (
               <main className="workspace">
                 <Platform key={place.task} network={network.data} taskId={place.task} onClose={() => go({ ...place, app: appId, task: null })} />
@@ -195,7 +195,7 @@ function Cockpit() {
                 />
               </section>
             )}
-            {view !== 'map' && <aside className="rail">
+            {(view !== 'map' || level !== 'network') && <aside className="rail">
               {level === 'network' && <ProductionCard key={network.data.app.id} appId={network.data.app.id} />}
               {level === 'network' && <NetworkSummary network={network.data} onStation={openStation} onLine={(line) => go({ app: appId, line, task: null })} onMemory={() => setPanel('memory')} />}
               {level === 'line' && place.line && <LineCard network={network.data} lineId={place.line} onStation={openStation} />}
