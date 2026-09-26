@@ -1,3 +1,5 @@
+import type { ProductJournal } from './product.js';
+
 export interface VerificationCommand {
   readonly name: string;
   readonly command: string;
@@ -20,6 +22,7 @@ export interface App {
   readonly name: string;
   readonly repoPath: string;
   readonly verification: readonly VerificationCommand[];
+  readonly product?: ProductJournal;
   readonly brief?: string;
   readonly stack?: AppStack;
   readonly createdAt: string;

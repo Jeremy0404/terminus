@@ -1,3 +1,5 @@
+import { Ideas } from './application/ideas.js';
+import type { IdeaRepository } from './application/ports/idea-repository.js';
 import type { Hono } from 'hono';
 import { EmitterBus } from './adapters/events/emitter-bus.js';
 import { createHttpApp } from './adapters/http/app.js';
@@ -48,6 +50,7 @@ import { NO_EXPORT, VaultExport } from './application/vault-export.js';
 import { DEFAULT_FAILURE_POLICY } from './domain/failure.js';
 
 export interface Adapters {
+  readonly ideas: IdeaRepository;
   readonly apps: AppRepository;
   readonly epics: EpicRepository;
   readonly tasks: TaskRepository;
@@ -117,13 +120,15 @@ export function compose(given: Adapters, settings: Settings): Services {
   const catalog = new Catalog({ ...adapters, bus });
   const planner = new EpicPlanner({ ...adapters, catalog, bus, budget: settings.budget, baseRef: settings.baseRef });
   const drafter = new StationDrafter({ ...adapters, timeoutMs: STATION_DRAFT_TIMEOUT_MS });
+  const founder = new AppFounder({ catalog, repositories: adapters.repositories, projectsDir: settings.projectsDir });
   const http = createHttpApp({
     version: settings.version,
     webDir: settings.webDir ?? null,
     owner: settings.owner ?? null,
     queries: new Queries(adapters),
     catalog,
-    founder: new AppFounder({ catalog, repositories: adapters.repositories, projectsDir: settings.projectsDir }),
+    founder,
+    ideas: new Ideas({ ...adapters, founder }),
     adoption: new Adoption(adapters.scanner, adapters.checks, adapters.issues, catalog, adapters.apps),
     planner,
     drafter,

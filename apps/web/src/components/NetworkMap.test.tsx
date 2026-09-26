@@ -17,7 +17,7 @@ function renderMap(network: NetworkDto, place: Place = NETWORK_PLACE) {
   return render(<NetworkMap network={network} place={place} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
 }
 
-const hideToggle = () => screen.queryByRole('button', { name: 'Masquer les lignes livrées' });
+const hideToggle = () => screen.queryByRole('button', { name: 'Replier les lignes terminées' });
 
 beforeEach(() => window.localStorage.clear());
 
@@ -65,7 +65,7 @@ describe('NetworkMap delivered lines', () => {
   it('says so instead of drawing an empty map when every line is delivered and hidden', () => {
     renderMap(withDelivered(NETWORK, 'engine', 'ui'));
     fireEvent.click(hideToggle() as HTMLElement);
-    expect(screen.getByText('Toutes les lignes sont livrées.')).toBeInTheDocument();
+    expect(screen.getByText('Toutes les lignes de cette vue sont terminées ou clôturées.')).toBeInTheDocument();
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 });

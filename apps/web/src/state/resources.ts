@@ -51,7 +51,9 @@ function useDebounced(callback: () => void): () => void {
 }
 
 export function useApps(): Resource<AppDto[]> {
-  return useResource(api.apps, 'apps');
+  const resource = useResource(api.apps, 'apps');
+  useServerEvents((event) => { if (event.type === 'memory-changed') resource.reload(); });
+  return resource;
 }
 
 export function useNetwork(appId: string | null): Resource<NetworkDto> {

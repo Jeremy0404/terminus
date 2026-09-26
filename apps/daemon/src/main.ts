@@ -24,6 +24,7 @@ import { openDatabase } from './adapters/sqlite/database.js';
 import {
   SqliteAgentDefaultsStore,
   SqliteAppRepository,
+  SqliteIdeaRepository,
   SqliteDecisionRepository,
   SqliteDeploymentRepository,
   SqliteEpicRepository,
@@ -104,6 +105,7 @@ console.log(`loaded playbooks: ${playbooks.lifecycles().map((lifecycle) => `${li
 const { http, scheduler } = compose(
   {
     apps: new SqliteAppRepository(db),
+    ideas: new SqliteIdeaRepository(db),
     epics: new SqliteEpicRepository(db),
     tasks: new SqliteTaskRepository(db),
     runs: new SqliteRunRepository(db),

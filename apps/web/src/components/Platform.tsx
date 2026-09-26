@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { NetworkDto } from '@terminus/contracts';
 import { lineColor } from '../network/line-colors';
 import { useTask } from '../state/resources';
+import { DecisionDossier } from './platform/DecisionDossier';
 import { ActionPanel } from './platform/ActionPanel';
 import { AgentPicker } from './platform/AgentPicker';
 import { ObsoleteFlag } from './platform/ObsoleteFlag';
@@ -56,6 +57,7 @@ export function Platform({ network, taskId, onClose }: Props) {
       {error && <div role="alert"><p>{t('platform.loadError')}</p><button type="button" className="btn" onClick={reload}>{t('platform.retry')}</button></div>}
       {data && data.task.id === taskId && (
         <>
+          <DecisionDossier detail={data} network={network} />
           <ActionPanel detail={data} live={live} />
           {task.status.kind !== 'closed' && task.status.kind !== 'done' && <details className="platform-options"><summary>{t('platform.options')}</summary><TaskDeviations detail={data} /></details>}
           <RunHistory runs={data.runs} checkpoints={data.checkpoints} phases={data.task.phases} />

@@ -112,7 +112,19 @@ export type TaskStatusDto =
   | { readonly kind: 'done' }
   | { readonly kind: 'closed'; readonly reason: CloseReasonDto; readonly evidence: string };
 
+export const ProductJournalBody = z.object({
+  purpose: z.string().trim().max(4000), audience: z.string().trim().max(4000),
+  outOfScope: z.string().trim().max(4000), decisions: z.string().trim().max(4000), appUrl: z.string().trim().max(4000),
+});
+export type ProductJournalDto = z.infer<typeof ProductJournalBody>;
+export const IdeaBody = z.object({ name: z.string().trim().max(80), audience: z.string().trim().max(1200), problem: z.string().trim().max(1200), outcome: z.string().trim().max(1200) });
+export type IdeaContentDto = z.infer<typeof IdeaBody>;
+export interface IdeaDraftDto extends IdeaContentDto { readonly id: string; readonly appId: string | null; readonly updatedAt: string; }
+export const LaunchIdeaBody = z.object({ visibility: z.enum(['private', 'public']), repoPath: z.string().trim().optional() });
+
 export interface AppDto {
+  readonly product?: ProductJournalDto;
+  readonly brief?: string;
   readonly id: string;
   readonly name: string;
   readonly repoPath: string;
@@ -222,11 +234,12 @@ export interface DecisionDto {
   readonly proposal: ProposalDto | null;
   readonly phaseIndex: number;
   readonly question: string;
-  readonly options: readonly { readonly label: string; readonly description: string; readonly recommended: boolean }[];
+  readonly options: readonly { readonly label: string; readonly description: string; readonly recommended: boolean; readonly rationale?: string; readonly tradeoff?: string }[];
   readonly answer: { readonly kind: 'option'; readonly index: number } | { readonly kind: 'other'; readonly text: string } | null;
 }
 
 export interface TaskDetailDto {
+  readonly documents?: readonly { readonly name: string; readonly content: string; readonly truncated: boolean }[];
   readonly task: TaskSummaryDto;
   readonly checkpoints: readonly CheckpointDto[];
   readonly failures: readonly FailureDto[];
@@ -316,10 +329,11 @@ export interface RitualStartedDto {
 }
 
 export interface ReleaseStateDto {
+  readonly checks?: 'success' | 'none' | 'pending' | 'failure' | 'unavailable' | null;
   readonly deploysOnRelease: boolean;
   readonly pending: { readonly number: number; readonly version: string | null; readonly title: string; readonly url: string; readonly notes: string } | null;
   readonly latest: { readonly version: string; readonly publishedAt: string; readonly url: string } | null;
-  readonly lastRun: { readonly id: number; readonly version: string | null; readonly state: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'; readonly startedAt: string; readonly url: string } | null;
+  readonly lastRun: { readonly deploymentVerified?: boolean; readonly id: number; readonly version: string | null; readonly state: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'; readonly startedAt: string; readonly url: string } | null;
   readonly deployments: readonly DeploymentDto[];
 }
 

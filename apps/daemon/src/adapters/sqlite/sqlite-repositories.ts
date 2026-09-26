@@ -1,3 +1,6 @@
+import type { IdeaRepository } from '../../application/ports/idea-repository.js';
+import type { IdeaDraft } from '../../domain/idea.js';
+import { ideas } from './schema.js';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type {
   AppRepository,
@@ -40,8 +43,8 @@ export class SqliteAppRepository implements AppRepository {
   }
 }
 
-function toApp({ brief, stack, ...app }: typeof apps.$inferSelect): App {
-  return { ...app, ...(brief ? { brief } : {}), ...(stack ? { stack } : {}) };
+function toApp({ brief, stack, product, ...app }: typeof apps.$inferSelect): App {
+  return { ...app, ...(product ? { product } : {}), ...(brief ? { brief } : {}), ...(stack ? { stack } : {}) };
 }
 
 export class SqliteEpicRepository implements EpicRepository {
@@ -301,4 +304,11 @@ export class SqliteDeploymentRepository implements DeploymentRepository {
   listByApp(appId: string): Deployment[] {
     return this.db.select().from(deployments).where(eq(deployments.appId, appId)).orderBy(desc(deployments.requestedAt), sql`rowid desc`).all();
   }
+}
+
+export class SqliteIdeaRepository implements IdeaRepository {
+  constructor(private readonly db: TerminusDatabase) {}
+  list(): IdeaDraft[] { return this.db.select().from(ideas).orderBy(desc(ideas.updatedAt)).all(); }
+  get(id: string): IdeaDraft | null { return this.db.select().from(ideas).where(eq(ideas.id, id)).get() ?? null; }
+  save(idea: IdeaDraft): void { this.db.insert(ideas).values(idea).onConflictDoUpdate({ target: ideas.id, set: idea }).run(); }
 }

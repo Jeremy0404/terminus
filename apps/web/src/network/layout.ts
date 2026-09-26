@@ -127,7 +127,7 @@ export function withoutDeliveredLines(
   tasks: readonly TaskSummaryDto[],
   keepEpicId: string | null,
 ): { readonly epics: readonly EpicDto[]; readonly tasks: readonly TaskSummaryDto[] } {
-  const visible = epics.filter((epic) => epic.status !== 'delivered' || epic.id === keepEpicId);
+  const visible = epics.filter((epic) => epic.id === keepEpicId || !(epic.status === 'delivered' || (tasks.some((task) => task.epicId === epic.id) && tasks.filter((task) => task.epicId === epic.id).every((task) => task.status.kind === 'done' || task.status.kind === 'closed'))));
   const ids = new Set(visible.map((epic) => epic.id));
   return { epics: visible, tasks: tasks.filter((task) => ids.has(task.epicId)) };
 }

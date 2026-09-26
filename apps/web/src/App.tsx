@@ -3,13 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { ServerEventsProvider } from './api/events';
 import { ActivityBar, Toasts } from './components/ActivityFeedback';
 import { AdoptionWizard } from './components/adoption/AdoptionWizard';
-import { NewAppForm } from './components/NewAppForm';
+import { IdeasWorkshop } from './components/IdeasWorkshop';
+import { DeliveryCenter } from './components/DeliveryCenter';
+import { StatusPill } from './components/StatusPill';
 import { appPhaseOf } from './network/app-phase';
 import { AppSelector } from './components/AppSelector';
 import { Inbox } from './components/Inbox';
 import { JourneyRecap } from './components/JourneyRecap';
 import { LineCard } from './components/LineCard';
-import { NetworkMap } from './components/NetworkMap';
+import { NetworkExplorer } from './components/NetworkExplorer';
 import { NetworkSummary } from './components/NetworkSummary';
 import { Platform } from './components/Platform';
 import { ProductionCard } from './components/ProductionCard';
@@ -51,6 +53,7 @@ function Cockpit() {
   const { t } = useTranslation();
   const apps = useApps();
   const [place, go] = usePlace();
+  const [view, setView] = useState<'overview' | 'decisions' | 'active' | 'deliveries' | 'map'>(() => window.matchMedia?.('(max-width: 640px)').matches ? 'decisions' : 'overview');
   const [adopting, setAdopting] = useState(false);
   const [founding, setFounding] = useState(false);
   const [panel, setPanel] = useState<'settings' | 'memory' | null>(null);
@@ -107,7 +110,7 @@ function Cockpit() {
       {network.data && <JourneyRecap key={network.data.app.id} network={network.data} taskId={place.task} hidden={founding || adopting || panel !== null} onOpen={openStation} />}
       {founding ? (
         <div className="adoption-stage">
-          <NewAppForm
+          <IdeasWorkshop
             onCancel={() => setFounding(false)}
             onFounded={(id) => {
               setFounding(false);
@@ -156,8 +159,14 @@ function Cockpit() {
         </div>
       ) : (
         <>
+          <nav className="journey-nav" aria-label={t('pocket.label')}>
+            {(['overview', 'decisions', 'active', 'deliveries', 'map'] as const).map((item) => <button className="btn" key={item} aria-current={view === item ? 'page' : undefined} onClick={() => { setView(item); go({ app: appId, line: null, task: null }); }}>{t(`pocket.${item}`)}</button>)}
+          </nav>
           <Trip network={network.data} place={{ ...place, app: appId }} go={go} />
-          <div className={`stage ${level === 'platform' ? 'stage-platform' : ''}`}>
+          {level !== 'platform' && view === 'deliveries' ? <DeliveryCenter network={network.data} onOpen={openStation} onMemory={() => setPanel('memory')} />
+            : level !== 'platform' && view === 'decisions' ? <main className="pocket-content"><Inbox network={network.data} lineId={null} onOpen={openStation} onMemory={() => setPanel('memory')} /></main>
+            : level !== 'platform' && view === 'active' ? <main className="pocket-content card"><h2>{t('pocket.active')}</h2><ul className="journey-list station-list">{network.data.tasks.filter((task) => ['running', 'ready', 'manual', 'blocked'].includes(task.status.kind)).map((task) => <li key={task.id}><button onClick={() => openStation(task.epicId, task.id)}><b>{task.title}</b><StatusPill status={task.status} /></button></li>)}</ul>{!network.data.tasks.some((task) => ['running', 'ready', 'manual', 'blocked'].includes(task.status.kind)) && <p className="muted">{t('pocket.empty')}</p>}</main>
+            : <div className={`stage ${view === 'map' && level !== 'platform' ? 'stage-map-only' : ''} ${level === 'platform' ? 'stage-platform' : ''}`}>
             {level === 'platform' && place.task && (
               <main className="workspace">
                 <Platform key={place.task} network={network.data} taskId={place.task} onClose={() => go({ ...place, app: appId, task: null })} />
@@ -167,7 +176,7 @@ function Cockpit() {
               <details className="map-box workspace-map">
                 <summary>{t('platform.map')}</summary>
                 <p className="muted small map-hint">{t('platform.mapHint')}</p>
-                <NetworkMap
+                <NetworkExplorer
                   network={network.data}
                   place={place}
                   onLine={(line) => go({ app: appId, line, task: null })}
@@ -177,7 +186,7 @@ function Cockpit() {
               </details>
             ) : (
               <section className="map-box">
-                <NetworkMap
+                <NetworkExplorer
                   network={network.data}
                   place={place}
                   onLine={(line) => go({ app: appId, line, task: null })}
@@ -186,7 +195,7 @@ function Cockpit() {
                 />
               </section>
             )}
-            <aside className="rail">
+            {view !== 'map' && <aside className="rail">
               {level === 'network' && <ProductionCard key={network.data.app.id} appId={network.data.app.id} />}
               {level === 'network' && <NetworkSummary network={network.data} onStation={openStation} onLine={(line) => go({ app: appId, line, task: null })} onMemory={() => setPanel('memory')} />}
               {level === 'line' && place.line && <LineCard network={network.data} lineId={place.line} onStation={openStation} />}
@@ -196,8 +205,8 @@ function Cockpit() {
                 onOpen={openStation}
                 onMemory={() => setPanel('memory')}
               />
-            </aside>
-          </div>
+            </aside>}
+          </div>}
         </>
       )}
       <Toasts />

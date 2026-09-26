@@ -1,3 +1,4 @@
+import type { TaskNotes } from './ports/task-notes.js';
 import type { App } from '../domain/app.js';
 import type { Decision } from '../domain/decision.js';
 import type { Epic } from '../domain/epic.js';
@@ -29,6 +30,7 @@ export interface ObsoleteFlag {
 }
 
 export interface TaskDetail {
+  readonly documents: readonly { name: string; content: string; truncated: boolean }[];
   readonly task: Task;
   readonly actions: readonly SuggestedAction[];
   readonly runs: readonly Run[];
@@ -36,6 +38,7 @@ export interface TaskDetail {
 }
 
 export interface QueriesDeps {
+  readonly notes: TaskNotes;
   readonly apps: AppRepository;
   readonly epics: EpicRepository;
   readonly tasks: TaskRepository;
@@ -74,6 +77,10 @@ export class Queries {
     const siblings = epic ? this.deps.tasks.listByApp(epic.appId) : [task];
     return {
       task,
+      documents: ['spec.md', 'plan.md', 'preview.json'].flatMap((name) => {
+        const content = this.deps.notes.read(taskId, name);
+        return content?.trim() ? [{ name, content: content.slice(0, 60000), truncated: content.length > 60000 }] : [];
+      }),
       actions: suggestedActions(task, siblings),
       runs: this.deps.runs.listByTask(taskId),
       decisions: this.deps.decisions.listByTask(taskId),

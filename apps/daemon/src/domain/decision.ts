@@ -2,6 +2,8 @@ export interface DecisionOption {
   readonly label: string;
   readonly description: string;
   readonly recommended: boolean;
+  readonly rationale?: string;
+  readonly tradeoff?: string;
 }
 
 export type DecisionAnswer = { readonly kind: 'option'; readonly index: number } | { readonly kind: 'other'; readonly text: string };

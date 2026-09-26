@@ -33,7 +33,9 @@ export class GhReleaseTarget implements DeployTarget {
 
   private lastRun(repoPath: string): DeployRun | null {
     const [run] = this.json<{ databaseId: number; status: string; conclusion: string; headBranch: string; createdAt: string; url: string }[]>(repoPath, ['run', 'list', '--workflow', 'release.yml', '--limit', '1', '--json', 'databaseId,status,conclusion,headBranch,createdAt,url']) ?? [];
-    return run ? { id: run.databaseId, version: versionOf(run.headBranch), state: runState(run.status, run.conclusion), startedAt: run.createdAt, url: run.url } : null;
+    const jobs = run?.conclusion === 'success' ? this.json<{ jobs: { name: string; conclusion: string }[] }>(repoPath, ['run', 'view', String(run.databaseId), '--json', 'jobs'])?.jobs : [];
+    const deploymentVerified = jobs?.some((job) => /^deploy(?:$| \()/i.test(job.name) && job.conclusion === 'success') ?? false;
+    return run ? { deploymentVerified, id: run.databaseId, version: versionOf(run.headBranch), state: runState(run.status, run.conclusion), startedAt: run.createdAt, url: run.url } : null;
   }
 
   private json<T>(repoPath: string, args: readonly string[]): T | null {
