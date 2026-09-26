@@ -74,18 +74,19 @@ Other modes:
 - `TERMINUS_AGENT_ISOLATION=off` — run agents on your own Claude Code configuration instead.
 - `TERMINUS_HOME`, `TERMINUS_PORT`, `TERMINUS_CONCURRENCY` — data folder, daemon port, parallel runs.
 - `TERMINUS_PROJECTS_DIR` — where "Nouvelle app" creates repositories (default `~/dev/projects`).
-- `TERMINUS_DISCORD_WEBHOOK` — a Discord webhook (a dedicated channel) told when a production deploy starts, succeeds or fails; also read from `~/.terminus/.env`.
+- `TERMINUS_DISCORD_WEBHOOK` — a Discord webhook (a dedicated channel) told when a release is launched from Terminus and when it succeeds or fails; a success says "en production" only when the deployment job is confirmed, "publiée" otherwise; also read from `~/.terminus/.env`.
 - `TERMINUS_VAULT_DIR` — an Obsidian vault (a git repository) to export approved briefs, architecture decisions and validated plans into, under `Projects/<app>/`, each export in its own commit; also read from `~/.terminus/.env`. Unset, nothing is exported.
 
-## Scripts
+## Using the cockpit
 
-- `pnpm dev` — run the daemon and the web UI together, with reload.
-- `pnpm run lint` — lint the whole repository with ESLint.
-- `pnpm run typecheck` — type-check every workspace.
-- `pnpm test` — run every workspace's tests.
-- `pnpm run build` — build every workspace.
-
-## Product cockpit
+Opening a station gives it most of the screen; the map folds into a panel beside it, and the
+agent settings and the other actions (skip a phase, switch track, close without merge) open on
+demand. Progress counts every station by outcome: integrated through Terminus, already done
+elsewhere, in progress, to do, and each closure reason. Neither a merge nor a published release
+counts as production. The action board groups decisions, blockers and stations ready to start,
+says how many stations each one unblocks, and keeps the requests of other lines visible while you
+work in one. "Depuis ta dernière visite" and "Reprendre là où j'en étais" come from the browser's
+local storage, so they are not shared between devices.
 
 Use **Nouvelle app** to keep an idea in the workshop before creating a GitHub repository. Drafts
 and the product journal are stored in the daemon database, so they are available from another
@@ -99,8 +100,9 @@ successful publication is distinct from a verified deployment job. Enter the app
 product journal to open it after a confirmed deployment. Deployment confirmation currently
 recognizes a successful job named `deploy` in `.github/workflows/release.yml`.
 
-Station dossiers expose the available `spec.md` and `plan.md` from that station's notes folder.
-Optional preview links can be supplied in `preview.json` in the same folder:
+Station dossiers expose the available `spec.md` and `plan.md` from the station's notes folder
+(`~/.terminus/tasks/<task>/`). Optional preview links can be supplied in `preview.json` in the
+same folder:
 
 ```json
 {"before":"https://example.com/current","after":"https://example.com/preview"}
@@ -109,3 +111,11 @@ Optional preview links can be supplied in `preview.json` in the same folder:
 Only HTTP(S) links without embedded credentials are accepted. Previews open separately and are
 not generated automatically. Documents are displayed as text, with a notice when an excerpt is
 limited to 60,000 characters.
+
+## Scripts
+
+- `pnpm dev` — run the daemon and the web UI together, with reload.
+- `pnpm run lint` — lint the whole repository with ESLint.
+- `pnpm run typecheck` — type-check every workspace.
+- `pnpm test` — run every workspace's tests.
+- `pnpm run build` — build every workspace.
