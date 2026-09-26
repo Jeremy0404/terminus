@@ -104,7 +104,8 @@ export function GateCard({ task, gate, runs }: Props) {
   const phaseId = task.phases[task.phaseIndex] ?? '';
   const brief = phaseId === 'brief' ? briefOf(runs, task.phaseIndex) : null;
   const stack = phaseId === 'architecture' ? stackOf(runs, task.phaseIndex) : null;
-  const gateKey = phaseId === 'brief' ? 'gate.brief' : phaseId === 'architecture' ? 'gate.stack' : `gate.${gate}`;
+  const serverSteps = phaseId === 'server';
+  const gateKey = phaseId === 'brief' ? 'gate.brief' : phaseId === 'architecture' ? 'gate.stack' : serverSteps ? 'gate.server' : `gate.${gate}`;
 
   return (
     <div className="action-card">
@@ -135,7 +136,7 @@ export function GateCard({ task, gate, runs }: Props) {
         </div>
       )}
       <div className="row">
-        <button type="button" className="btn primary" disabled={busy} onClick={() => void run(() => api.act(task.id, 'approve'))}>{t('gate.approve')}</button>
+        <button type="button" className="btn primary" disabled={busy} onClick={() => void run(() => api.act(task.id, 'approve'))}>{t(serverSteps ? 'gate.server.approve' : 'gate.approve')}</button>
         {earlier.length > 0 && (
           <>
             <select aria-label={t('gate.sendBackTo')} value={target} onChange={(event) => setTarget(event.target.value)} disabled={busy}>

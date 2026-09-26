@@ -51,7 +51,7 @@ export function IdeasWorkshop({ onCancel, onFounded }: { onCancel: () => void; o
       </fieldset>
       {saved && <p role="status" className="good">{t('ideas.saved')}</p>}
       {launching && <section className="idea-launch">
-        <h3>{t('ideas.route')}</h3><ol className="idea-route"><li>{t('ideas.frame')}</li><li>{t('ideas.architecture')}</li><li>{t('ideas.scaffold')}</li></ol>
+        <h3>{t('ideas.route')}</h3><ol className="idea-route"><li>{t('ideas.frame')}</li><li>{t('ideas.architecture')}</li><li>{t('ideas.scaffold')}</li><li>{t('ideas.deploy')}</li></ol>
         <p>{t('ideas.consequence')}</p>
         <fieldset disabled={busy}>
           <label className="field"><span>{t('found.folder')}</span><input value={repoPath} placeholder={t('found.folderPlaceholder')} onChange={(event) => setRepoPath(event.target.value)} /></label>
