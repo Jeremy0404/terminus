@@ -1,5 +1,5 @@
-import type { TaskSummaryDto } from '@terminus/contracts';
-import { finished } from './exploration';
+import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
+import { finished, finishedLine } from './exploration';
 import { interchangeIds } from './layout';
 
 const MIN_RUN = 3;
@@ -7,6 +7,20 @@ const MIN_RUN = 3;
 export interface Summarized {
   readonly tasks: readonly TaskSummaryDto[];
   readonly counts: ReadonlyMap<string, number>;
+}
+
+export interface CompactNetwork extends Summarized {
+  readonly epics: readonly EpicDto[];
+  readonly thin: ReadonlyMap<string, number>;
+}
+
+export function compactNetwork(epics: readonly EpicDto[], tasks: readonly TaskSummaryDto[]): CompactNetwork {
+  const thin = new Map(
+    epics.filter((epic) => finishedLine(epic, tasks)).map((epic) => [epic.id, tasks.filter((task) => task.epicId === epic.id && finished(task)).length]),
+  );
+  const interchanges = interchangeIds(tasks);
+  const kept = tasks.filter((task) => !thin.has(task.epicId) || interchanges.has(task.id));
+  return { epics, thin, ...summarizeFinished(kept) };
 }
 
 export function summarizeFinished(tasks: readonly TaskSummaryDto[], threshold = MIN_RUN): Summarized {

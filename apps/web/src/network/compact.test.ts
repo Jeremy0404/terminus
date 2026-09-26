@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
 import { task } from '../test/fixtures';
-import { summarizeFinished } from './compact';
+import { compactNetwork, summarizeFinished } from './compact';
 import { layoutNetwork, STEP } from './layout';
 
-const epic = (id: string, position: number): EpicDto => ({ id, appId: 'app-1', code: id.toUpperCase(), name: id, status: 'active', position, description: '', breakdown: { status: 'idle' } });
+const epic = (id: string, position: number, status: EpicDto['status'] = 'active'): EpicDto => ({ id, appId: 'app-1', code: id.toUpperCase(), name: id, status, position, description: '', breakdown: { status: 'idle' } });
 const DONE: TaskSummaryDto['status'] = { kind: 'done' };
 const TODO: TaskSummaryDto['status'] = { kind: 'todo' };
 const lineOf = (epicId: string, statuses: readonly TaskSummaryDto['status'][]): TaskSummaryDto[] =>
@@ -60,5 +60,28 @@ describe('summarizeFinished', () => {
     const summarized = layoutNetwork([epic('a', 1)], summarizeFinished(line).tasks);
 
     expect(full.width - summarized.width).toBe((10 - 1) * STEP);
+  });
+});
+
+describe('compactNetwork', () => {
+  const epics = [epic('shipped', 1, 'delivered'), epic('done', 2), epic('empty', 3), epic('open', 4)];
+  const tasks = [
+    ...lineOf('shipped', [DONE, TODO]),
+    ...lineOf('done', [DONE, DONE, DONE, DONE]),
+    ...lineOf('open', [DONE, DONE, DONE, TODO]),
+  ];
+
+  it('thins finished lines, with their count of finished stations', () => {
+    const { thin } = compactNetwork(epics, tasks);
+    expect([...thin]).toEqual([['shipped', 1], ['done', 4]]);
+  });
+
+  it('keeps only the interchange stations of a thin line, and summarizes the others', () => {
+    const waiting = task('open5', 'open', 'open 5', TODO, { dependsOn: ['done2'] });
+    const compact = compactNetwork(epics, [...tasks, waiting]);
+
+    expect(ids(compact.tasks)).toEqual(['done2', 'open3', 'open4', 'open5']);
+    expect(compact.counts.get('open3')).toBe(3);
+    expect(compact.epics).toEqual(epics);
   });
 });

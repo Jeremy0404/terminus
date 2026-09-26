@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
-import { interchangeIds, layoutNetwork, ROUNDEL_RADIUS, ROW, STEP, TOP, withoutDeliveredLines, type NetworkLayout, type Point } from './layout';
+import { interchangeIds, layoutNetwork, ROUNDEL_RADIUS, ROW, STEP, THIN_ROW, TOP, withoutDeliveredLines, type NetworkLayout, type Point } from './layout';
 
 const epic = (id: string, position: number, status: EpicDto['status'] = 'active'): EpicDto => ({ id, appId: 'app', code: id.toUpperCase(), name: id, status, position, description: '', breakdown: { status: 'idle' } });
 const task = (id: string, epicId: string, dependsOn: string[] = []): TaskSummaryDto => ({
@@ -215,6 +215,58 @@ describe('layoutNetwork', () => {
       expectOctolinearPaths(layoutNetwork([epic('a', 1), epic('b', 2), epic('c', 3)], [task('a1', 'a'), task('c1', 'c'), task('b1', 'b', ['a1']), task('b2', 'b', ['c1'])]));
       expectOctolinearPaths(layoutNetwork([epic('a', 1), epic('b', 2)], [task('a1', 'a'), task('b1', 'b', ['a1'])]));
     });
+  });
+});
+
+describe('thin rows', () => {
+  const sixLines = [1, 2, 3, 4, 5, 6].map((position) => epic(`l${position}`, position));
+  const sixTasks = sixLines.map((line) => task(`${line.id}-1`, line.id));
+  const allThin = new Set(sixLines.map((line) => line.id));
+
+  it('packs finished lines closer together', () => {
+    const full = layoutNetwork(sixLines, sixTasks);
+    const thin = layoutNetwork(sixLines, sixTasks, allThin);
+
+    expect(full.height - thin.height).toBe(5 * (ROW - THIN_ROW));
+  });
+
+  it('shortens the network by one pitch difference for a thin line between full ones, keeping epic order', () => {
+    const lines = [epic('c', 3), epic('a', 1), epic('e', 5), epic('b', 2), epic('d', 4)];
+    const tasks = lines.map((line) => task(`${line.id}1`, line.id));
+    const full = layoutNetwork(lines, tasks);
+    const thin = layoutNetwork(lines, tasks, new Set(['c']));
+
+    expect(full.height - thin.height).toBe(ROW - THIN_ROW);
+    expect(thin.lines.map((line) => line.epic.id)).toEqual(['a', 'b', 'c', 'd', 'e']);
+    const ys = thin.lines.map((line) => line.y);
+    expect(ys).toEqual([...ys].sort((a, b) => a - b));
+  });
+
+  it('keeps thin rows octolinear, fanned out from ordered lanes through one 45° segment', () => {
+    const lines = [...sixLines, epic('l7', 7)];
+    const tasks = [...sixTasks, task('l7-1', 'l7'), task('l7-2', 'l7', ['l2-1']), task('l4-2', 'l4', ['l7-1'])];
+    const layout = layoutNetwork(lines, tasks, new Set(['l1', 'l2', 'l5']));
+
+    expectOctolinearPaths(layout);
+    const lanes = layout.lines.map((line) => line.path[0]?.y ?? NaN);
+    expect(lanes).toEqual([...lanes].sort((a, b) => a - b));
+    for (const [index, line] of layout.lines.entries()) {
+      const [lane, corner] = line.path;
+      expect(lane?.y).toBeGreaterThanOrEqual(layout.origin.top);
+      expect(lane?.y).toBeLessThanOrEqual(layout.origin.bottom);
+      expect(corner?.y).toBe(line.y);
+      expect((corner?.x ?? 0) - (lane?.x ?? 0)).toBeCloseTo(Math.abs(line.y - (lane?.y ?? 0)));
+      expect(line.startX + ROUNDEL_RADIUS).toBeLessThanOrEqual(Math.min(...layout.lines.flatMap((other) => other.stations.map((station) => station.x))) - ROUNDEL_RADIUS);
+      expect(index === 0 || line.y > (layout.lines[index - 1]?.y ?? 0)).toBe(true);
+    }
+  });
+
+  it('keeps the interchange stations of a thin line on its row', () => {
+    const layout = layoutNetwork([epic('a', 1), epic('b', 2)], [task('a1', 'a'), task('b1', 'b', ['a1'])], new Set(['b']));
+    const b1 = layout.lines[1]?.stations[0];
+
+    expect(b1?.y).toBe(layout.lines[1]?.y);
+    expect(b1?.interchange).toBe(true);
   });
 });
 
