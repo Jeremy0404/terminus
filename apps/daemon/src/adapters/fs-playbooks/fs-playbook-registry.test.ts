@@ -52,6 +52,13 @@ describe('FsPlaybookRegistry', () => {
     expect(new FsPlaybookRegistry(root).lifecycle('scaffold').phases).toEqual([{ id: 'review', skill: 'review' }]);
   });
 
+  it('loads a phase that reports readiness and where to go back', () => {
+    const registry = new FsPlaybookRegistry(
+      playbooks({ task: 'id: task\nphases:\n  - id: plan\n    skill: plan\n  - id: check\n    skill: plan\n    output: readiness\n    retryFrom: plan\n' }),
+    );
+    expect(registry.lifecycle('task').phases[1]).toEqual({ id: 'check', skill: 'plan', output: 'readiness', retryFrom: 'plan' });
+  });
+
   it('gives a new version whenever the file content changes', () => {
     const first = new FsPlaybookRegistry(playbooks({ task: 'id: task\nphases:\n  - id: spec\n' })).lifecycle('task').version;
     rmSync(root, { recursive: true, force: true });
@@ -84,7 +91,7 @@ describe('FsPlaybookRegistry', () => {
   it('accepts the playbooks shipped in the repository', () => {
     root = mkdtempSync(join(tmpdir(), 'unused-'));
     const registry = new FsPlaybookRegistry(REPO_PLAYBOOKS);
-    expect(registry.lifecycles().map((lifecycle) => lifecycle.id).sort()).toEqual(['app', 'app-framing', 'app-scaffold', 'app-stack', 'epic', 'playbook-update', 'task']);
+    expect(registry.lifecycles().map((lifecycle) => lifecycle.id).sort()).toEqual(['app', 'app-deploy', 'app-framing', 'app-scaffold', 'app-stack', 'epic', 'playbook-update', 'task']);
     expect(registry.lifecycle('task').phases.map((phase) => phase.id)).toEqual([
       'spec',
       'grill',
@@ -96,6 +103,19 @@ describe('FsPlaybookRegistry', () => {
       'merge',
       'retro',
     ]);
+    expect(registry.lifecycle('app-deploy').phases.map((phase) => phase.id)).toEqual([
+      'fit',
+      'deploy-options',
+      'execute',
+      'verify',
+      'review',
+      'sync',
+      'merge',
+      'server',
+      'server-check',
+      'retro',
+    ]);
+    expect(registry.lifecycle('app-deploy').phases.find((phase) => phase.id === 'server-check')).toMatchObject({ output: 'readiness', retryFrom: 'server' });
     expect(registry.lifecycle('epic').phases.find((phase) => phase.id === 'station-draft')).toEqual({ id: 'station-draft', skill: 'station-draft', model: 'haiku', effort: 'low' });
   });
 });

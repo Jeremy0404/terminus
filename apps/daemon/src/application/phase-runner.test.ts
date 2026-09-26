@@ -12,7 +12,7 @@ import {
 import { FakeCodeHost, FakeTaskNotes, FakeWorkspace, FixedClock, RecordingBus, SequentialIds } from '../adapters/in-memory/fakes.js';
 import { ScriptedAgentRunner, type AgentScript } from '../adapters/in-memory/scripted-agent-runner.js';
 import { DEFAULT_FAILURE_POLICY } from '../domain/failure.js';
-import { createTask, type Task, type TaskStatus } from '../domain/task.js';
+import { approveGate, createTask, type Task, type TaskStatus } from '../domain/task.js';
 import { TASK_LIFECYCLE } from '../domain/test-fixtures.js';
 import type { AgentEvent } from './ports/agent-runner.js';
 import type { CheckProgress, CheckResult, CheckRunner } from './ports/check-runner.js';
@@ -72,6 +72,7 @@ let bus: RecordingBus;
 let checks: StubCheckRunner;
 let codeHost: FakeCodeHost;
 let memory: InMemoryMemoryRepository;
+let notes: FakeTaskNotes;
 
 beforeEach(() => {
   apps = new InMemoryAppRepository();
@@ -85,6 +86,7 @@ beforeEach(() => {
   checks = new StubCheckRunner();
   codeHost = new FakeCodeHost();
   memory = new InMemoryMemoryRepository();
+  notes = new FakeTaskNotes();
   apps.save({ id: 'app', name: 'app', repoPath: '/repo', verification: [{ name: 'test', command: 'pnpm test' }, { name: 'build', command: 'pnpm build' }], createdAt: '2026-09-24T09:00:00Z' });
   epics.save({ id: 'epic', appId: 'app', code: 'I', name: 'Interface', status: 'active', position: 1, description: '', breakdown: { status: 'idle' } });
 });
@@ -103,7 +105,7 @@ function runner(agent: ScriptedAgentRunner, budget = { maxTokens: 400_000, maxTu
     failurePolicy: DEFAULT_FAILURE_POLICY,
     checks,
     codeHost,
-    notes: new FakeTaskNotes(),
+    notes,
     instructions: { localOnly: (repoPath: string) => `instructions of ${repoPath}` },
     baseRef: 'main',
     systemPromptAppend: 'settings append',
@@ -401,6 +403,15 @@ describe('PhaseRunner', () => {
     expect(runs.listByTask('t1').at(-1)?.output).toEqual({ pullRequest: { number: 42, url: 'https://github.com/o/r/pull/42' } });
   });
 
+  it('adds the summary the station left in its notes to the pull request body', async () => {
+    givenTask(6, { kind: 'ready', mode: 'fresh' }, { title: 'Zoom to platform' });
+    notes.files.set('t1/pull-request.md', '\n## Deploy shape\n\nOne app container.\n\n');
+
+    await runner(new ScriptedAgentRunner()).run('t1');
+
+    expect(codeHost.published[0]?.body).toBe('Task: Zoom to platform\n\nPhases completed: 0 of 7.\n\n## Deploy shape\n\nOne app container.');
+  });
+
   it('keeps a conventional task title as the pull request title', async () => {
     givenTask(6, { kind: 'ready', mode: 'fresh' }, { title: 'fix: keep Esc working in the platform' });
     await runner(new ScriptedAgentRunner()).run('t1');
@@ -507,6 +518,93 @@ describe('PhaseRunner', () => {
       expect(task.status).toEqual({ kind: 'awaiting-decision', decisionId: card?.id });
       expect(task.phaseIndex).toBe(1);
       expect(workspace.checkpoints).toEqual(['1:spec']);
+    });
+  });
+
+  describe('readiness', () => {
+    const SERVER_LIFECYCLE = {
+      id: 'app-deploy',
+      version: '1',
+      phases: [
+        { id: 'server', skill: 'server-checklist', gate: 'plan-approval' as const },
+        { id: 'server-check', skill: 'server-check', output: 'readiness' as const, retryFrom: 'server' },
+        { id: 'retro', skill: 'retro', output: 'memory' as const, skippable: true },
+      ],
+    };
+    const atServerCheck = (): Task => givenTask(1, { kind: 'ready', mode: 'fresh' }, { lifecycle: SERVER_LIFECYCLE, autonomy: 'up-to-pr' });
+    const notReady = success({
+      summary: 'two gaps',
+      ready: false,
+      missing: [
+        { check: 'secrets', detail: 'SSH_KEY is not set' },
+        { check: 'dns', detail: 'app.example.com resolves to nothing' },
+      ],
+    });
+
+    it('gives the agent the readiness schema', async () => {
+      atServerCheck();
+      const agent = new ScriptedAgentRunner(script(success({ summary: 'ok', ready: true, missing: [] })));
+
+      await runner(agent).run('t1');
+
+      expect(agent.requests[0]?.outputSchema).toMatchObject({ required: ['summary', 'ready', 'missing'] });
+    });
+
+    it('checkpoints a ready answer and moves on', async () => {
+      atServerCheck();
+
+      const task = await runner(new ScriptedAgentRunner(script(success({ summary: 'ok', ready: true, missing: [] })))).run('t1');
+
+      expect(task.phaseIndex).toBe(2);
+      expect(task.status).toEqual({ kind: 'ready', mode: 'fresh' });
+      expect(workspace.checkpoints).toEqual(['1:server-check']);
+    });
+
+    it('sends a not-ready answer back to the retry phase with the missing items', async () => {
+      atServerCheck();
+      const agent = new ScriptedAgentRunner(script(notReady), script(success()));
+      const phases = runner(agent);
+
+      const task = await phases.run('t1');
+
+      expect(task.phaseIndex).toBe(0);
+      expect(task.status).toEqual({ kind: 'ready', mode: 'retry' });
+      expect(task.failuresInPhase[0]).toMatchObject({
+        kind: 'check-failed',
+        signature: 'readiness:dns,secrets',
+        message: '- secrets: SSH_KEY is not set\n- dns: app.example.com resolves to nothing',
+      });
+      expect(workspace.checkpoints).toEqual([]);
+      expect(runs.listByTask('t1')[0]).toMatchObject({ status: 'failed', output: { ready: false } });
+
+      await phases.run('t1');
+      expect(agent.requests[1]?.prompt).toContain('The previous attempt of this phase failed (check-failed): - secrets: SSH_KEY is not set');
+    });
+
+    it('blocks when the same items stay missing three times in a row', async () => {
+      atServerCheck();
+      const agent = new ScriptedAgentRunner(script(notReady), script(success()), script(notReady), script(success()), script(notReady));
+      const phases = runner(agent);
+
+      let task = await phases.run('t1');
+      for (let round = 0; round < 2; round += 1) {
+        task = await phases.run('t1');
+        tasks.save(approveGate(task));
+        task = await phases.run('t1');
+      }
+
+      expect(task.status).toMatchObject({ kind: 'blocked', failure: { signature: 'readiness:dns,secrets' } });
+      expect(task.checkFailures).toHaveLength(3);
+    });
+
+    it('counts an answer without a readiness as a crash', async () => {
+      atServerCheck();
+
+      const task = await runner(new ScriptedAgentRunner(script(success({ summary: 'forgot' })))).run('t1');
+
+      expect(task.phaseIndex).toBe(1);
+      expect(task.failuresInPhase[0]).toMatchObject({ kind: 'agent-crashed', signature: 'no-readiness' });
+      expect(workspace.checkpoints).toEqual([]);
     });
   });
 });

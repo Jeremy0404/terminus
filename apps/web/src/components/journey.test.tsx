@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { IdeasWorkshop } from './IdeasWorkshop';
 import { ProductJournal } from './memory/ProductJournal';
 import { DecisionDossier, previewLinks } from './platform/DecisionDossier';
 import { ProductionCard } from './ProductionCard';
-import { APP, NETWORK, detailOf } from '../test/fixtures';
+import { APP, NETWORK, detailOf, task } from '../test/fixtures';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -32,6 +32,8 @@ describe('product journey', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Carnet' }));
     expect(screen.getByRole('textbox', { name: 'À qui cela rend service ?' })).toHaveValue('Cyclistes');
     fireEvent.click(screen.getByRole('button', { name: 'Voir le parcours de création' }));
+    expect(within((await screen.findByText('Créer le socle et le vérifier')).closest('ol')!).getAllByRole('listitem')).toHaveLength(4);
+    expect(screen.queryByText(/trois premières/)).not.toBeInTheDocument();
     const launch = await screen.findByRole('button', { name: 'Créer le dépôt et démarrer le projet' });
     await waitFor(() => expect(launch).toBeEnabled());
     expect(onFounded).not.toHaveBeenCalled();
@@ -57,6 +59,15 @@ describe('product journey', () => {
     expect(screen.getByText('Conserver le clavier accessible')).toBeInTheDocument();
     expect(screen.getByText(/Cette étape sera approuvée/)).toBeInTheDocument();
     expect(previewLinks('{"before":"javascript:alert(1)","after":"https://example.com/preview"}')).toEqual({ after: 'https://example.com/preview' });
+  });
+
+  it('shows the server checklist and what confirming it triggers at the server phase', () => {
+    const server = task('p1', 'engine', 'Mettre en production', { kind: 'awaiting-gate', gate: 'plan-approval' }, { lifecycleId: 'app-deploy', phases: ['merge', 'server', 'server-check'], phasesInTrack: ['merge', 'server', 'server-check'], phaseIndex: 1 });
+    const detail = { ...detailOf(server), documents: [{ name: 'checklist.md', content: 'Enregistrement DNS A', truncated: false }] };
+    render(<DecisionDossier detail={detail} network={NETWORK} />);
+    expect(screen.getByText('Checklist serveur')).toBeInTheDocument();
+    expect(screen.getByText('Enregistrement DNS A')).toBeVisible();
+    expect(screen.getByText(/vérifiera DNS, HTTPS et secrets depuis l’extérieur/)).toBeInTheDocument();
   });
 
   it('never offers the production app from a published release alone', async () => {

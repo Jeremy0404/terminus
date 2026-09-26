@@ -91,7 +91,8 @@ local storage, so they are not shared between devices.
 Use **Nouvelle app** to keep an idea in the workshop before creating a GitHub repository. Drafts
 and the product journal are stored in the daemon database, so they are available from another
 device connected to the same Terminus. Save a draft before closing the browser. The journal's
-purpose, audience, exclusions and decisions accompany subsequent agent runs.
+purpose, audience, exclusions and decisions accompany subsequent agent runs. Creating the
+repository starts four Fondations stations: framing, stack, scaffold and "Mettre en production".
 
 The cockpit offers focused views for decisions, ongoing work, deliveries and the map. Map search
 also has a list view; an itinerary includes a chosen line and its dependencies. It does not select
@@ -100,7 +101,7 @@ successful publication is distinct from a verified deployment job. Enter the app
 product journal to open it after a confirmed deployment. Deployment confirmation currently
 recognizes a successful job named `deploy` in `.github/workflows/release.yml`.
 
-Station dossiers expose the available `spec.md` and `plan.md` from the station's notes folder
+Station dossiers expose the available `spec.md`, `plan.md` and `checklist.md` from the station's notes folder
 (`~/.terminus/tasks/<task>/`). Optional preview links can be supplied in `preview.json` in the
 same folder:
 
@@ -111,6 +112,33 @@ same folder:
 Only HTTP(S) links without embedded credentials are accepted. Previews open separately and are
 not generated automatically. Documents are displayed as text, with a notice when an excerpt is
 limited to 60,000 characters.
+
+## Production deployments
+
+"Mettre en production" starts once the scaffold is merged. For an app meant to stay on your
+machine, it offers to close itself. Otherwise it asks, as decision cards, only what the app's code
+does not already answer (the subdomain first), then opens a pull request that adds the `deploy/`
+folder (Compose file, `.env.example`, rollback, image pruning and, with a datastore, backup
+scripts), `release-please.yml`, `release.yml` (`build`, `sign`, `deploy`, `verify-deploy`) and
+`rollback.yml`. `deploy/README.md` lists the one-time server steps with the app's own values.
+
+The server's details never enter a repository. Write them once in
+`$TERMINUS_HOME/deploy-host.yaml` (default `~/.terminus/deploy-host.yaml`):
+
+```yaml
+domainSuffix: example.com
+publicIp: 203.0.113.10
+sshAlias: my-server
+proxyContainer: reverse-proxy
+registry: ghcr.io/my-github-user
+loopbackPorts: 3000-3999
+```
+
+After the merge, the station writes `checklist.md` with the exact server steps and waits for you
+to confirm them. Terminus then checks what is visible from outside: the subdomain resolves to
+`publicIp`, HTTPS answers with a valid certificate, and the repository has the `RELEASE_PLEASE_TOKEN`
+and `SSH_*` secrets (names only). Anything missing sends the station back to the checklist, marked.
+"Déployer vX" stays disabled while the station is open.
 
 ## Scripts
 

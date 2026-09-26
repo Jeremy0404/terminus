@@ -4,6 +4,7 @@ const FOUNDATION: readonly (readonly [string, string])[] = [
   ['app-framing', 'framing'],
   ['app-stack', 'stack-and-architecture'],
   ['app-scaffold', 'scaffold'],
+  ['app-deploy', 'production'],
 ];
 
 const settled = (task: TaskSummaryDto): boolean => task.status.kind === 'done' || task.status.kind === 'closed';

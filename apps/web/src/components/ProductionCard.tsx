@@ -71,10 +71,11 @@ export function ProductionCard({ appId, detailed = false, appUrl = '' }: { appId
         <div className="row">
           <a href={pending.url} target="_blank" rel="noreferrer">{t('production.pending', { version: pending.version ?? pending.title })}</a>
           {pending.version && !following && (
-            <button type="button" className="btn primary small" disabled={state.checks !== undefined && !canDeploy} onClick={() => setConfirming(pending.version)}>
+            <button type="button" className="btn primary small" disabled={state.serverChecklistPending === true || (state.checks !== undefined && !canDeploy)} onClick={() => setConfirming(pending.version)}>
               {t(state.deploysOnRelease ? 'production.deploy' : 'production.publish', { version: pending.version })}
             </button>
           )}
+          {state.serverChecklistPending && <span className="muted small">{t('production.serverChecklist')}</span>}
         </div>
       )}
       {pending?.version && confirming && confirming === pending.version && (

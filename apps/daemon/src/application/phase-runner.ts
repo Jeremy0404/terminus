@@ -12,6 +12,7 @@ import { BRIEF_OUTPUT_SCHEMA } from './brief-output.js';
 import { STACK_OUTPUT_SCHEMA } from './stack-output.js';
 import { MEMORY_OUTPUT_SCHEMA, readMemoryOutput } from './memory-output.js';
 import { buildPhasePrompt } from './phase-prompt.js';
+import { READINESS_OUTPUT_SCHEMA, readReadiness } from './readiness-output.js';
 import { REVIEW_OUTPUT_SCHEMA } from './review-output.js';
 import { readVerdict, VERDICT_OUTPUT_SCHEMA } from './verdict-output.js';
 import type { CheckProgress, CheckRunner } from './ports/check-runner.js';
@@ -107,7 +108,14 @@ export class PhaseRunner {
 
     const finishedOk = !observation.stopped && observation.finished?.outcome === 'success';
     let status: RunStatus = 'succeeded';
-    if (finishedOk) {
+    const unready = finishedOk && phase.output === 'readiness' ? this.unreadiness(observation.finished?.structuredOutput) : null;
+    if (unready) {
+      status = 'failed';
+      task =
+        unready.kind === 'agent-crashed'
+          ? failRun(task, unready, this.deps.failurePolicy)
+          : rejectByChecks(task, unready, phase.retryFrom ?? phaseAt(task.lifecycle, task.phaseIndex - 1).id, this.deps.failurePolicy);
+    } else if (finishedOk) {
       const proposed = phase.output === 'decisions' ? readProposedDecisions(observation.finished?.structuredOutput) : [];
       if (proposed.length > 0) {
         const saved = proposed.map((decision): Decision => ({
@@ -159,6 +167,14 @@ export class PhaseRunner {
     runs.save(run);
     if (task.status.kind === 'done') workspace.remove(app.repoPath, taskWorkspace);
     return this.save(task);
+  }
+
+  private unreadiness(output: unknown): Failure | null {
+    const readiness = readReadiness(output);
+    if (!readiness) return this.failure('agent-crashed', 'no-readiness', 'The agent did not say whether everything is ready');
+    if (readiness.ready) return null;
+    const checks = [...new Set(readiness.missing.map((item) => item.check))].sort().join(',');
+    return this.failure('check-failed', `readiness:${checks}`, readiness.missing.map((item) => `- ${item.check}: ${item.detail}`).join('\n'));
   }
 
   private openStations(task: Task, app: App): { id: string; line: string; title: string }[] {
@@ -308,7 +324,7 @@ export class PhaseRunner {
     try {
       const sequence = task.checkpoints.length + 1;
       const ref = this.deps.workspace.checkpoint(taskWorkspace, sequence, phase.id);
-      const pullRequest = this.deps.codeHost.publish(taskWorkspace, this.deps.baseRef, pullRequestTitle(task), pullRequestBody(task, runs.listByTask(task.id)));
+      const pullRequest = this.deps.codeHost.publish(taskWorkspace, this.deps.baseRef, pullRequestTitle(task), pullRequestBody(task, runs.listByTask(task.id), this.deps.notes.read(task.id, PULL_REQUEST_SUMMARY)));
       task = completePhase(task, { sequence, phaseIndex: task.phaseIndex, ref, sessionId: null, takenAt: clock.now() });
       runs.save({ ...run, status: 'succeeded', endedAt: clock.now(), output: { pullRequest } });
     } catch (error) {
@@ -391,6 +407,8 @@ export class PhaseRunner {
   }
 }
 
+const PULL_REQUEST_SUMMARY = 'pull-request.md';
+
 const OPEN_STATUSES: readonly TaskStatus['kind'][] = ['todo', 'ready', 'awaiting-decision', 'awaiting-gate', 'blocked', 'manual'];
 
 function outputSchemaFor(phase: PhaseDefinition): object | null {
@@ -400,6 +418,7 @@ function outputSchemaFor(phase: PhaseDefinition): object | null {
   if (phase.output === 'memory') return MEMORY_OUTPUT_SCHEMA;
   if (phase.output === 'brief') return BRIEF_OUTPUT_SCHEMA;
   if (phase.output === 'stack') return STACK_OUTPUT_SCHEMA;
+  if (phase.output === 'readiness') return READINESS_OUTPUT_SCHEMA;
   return null;
 }
 

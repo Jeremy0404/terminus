@@ -1,3 +1,5 @@
+import type { Task } from './task.js';
+
 export interface PendingRelease {
   readonly number: number;
   readonly version: string | null;
@@ -52,4 +54,10 @@ export function followRun(deployment: Deployment, run: DeployRun | null, now: st
   const state: DeploymentState = run.state === 'queued' ? 'running' : run.state;
   const finished = state === 'succeeded' || state === 'failed' || state === 'cancelled';
   return { ...deployment, state, runUrl: run.url, finishedAt: finished ? now : null };
+}
+
+export const DEPLOY_STATION_LIFECYCLE = 'app-deploy';
+
+export function serverChecklistPending(tasks: readonly Task[]): boolean {
+  return tasks.some((task) => task.lifecycle.id === DEPLOY_STATION_LIFECYCLE && task.status.kind !== 'done' && task.status.kind !== 'closed');
 }

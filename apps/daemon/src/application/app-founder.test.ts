@@ -31,7 +31,7 @@ describe('AppFounder', () => {
     expect(app).toMatchObject({ name: 'Carnet de Vélo', repoPath: '/home/me/dev/projects/carnet-de-velo', verification: [] });
     const [line] = epics.listByApp(app.id);
     expect(line).toMatchObject({ code: 'F', name: 'Fondations', description: 'Log my rides and see progress.' });
-    const [framing, stack, scaffold] = tasks.listByEpic(line?.id ?? '');
+    const [framing, stack, scaffold, production] = tasks.listByEpic(line?.id ?? '');
     expect(framing).toMatchObject({ title: 'Cadrer l’idée', description: 'Log my rides and see progress.' });
     expect(framing?.lifecycle.id).toBe('app-framing');
     expect(framing?.lifecycle.phases.map((phase) => phase.id)).toEqual(['grill', 'brief']);
@@ -39,6 +39,9 @@ describe('AppFounder', () => {
     expect(stack?.lifecycle.phases.map((phase) => phase.id)).toEqual(['options', 'architecture']);
     expect(scaffold).toMatchObject({ title: 'Poser le socle', dependsOn: [stack?.id] });
     expect(scaffold?.lifecycle.phases.map((phase) => phase.id)).toEqual(['execute', 'verify', 'review', 'sync', 'merge', 'retro']);
+    expect(production).toMatchObject({ title: 'Mettre en production', dependsOn: [scaffold?.id], autonomy: 'up-to-pr' });
+    expect(production?.lifecycle.id).toBe('app-deploy');
+    expect(production?.lifecycle.phases.map((phase) => phase.id)).toEqual(['fit', 'deploy-options', 'execute', 'verify', 'review', 'sync', 'merge', 'server', 'server-check', 'retro']);
   });
 
   it('uses the folder given, and refuses a name with nothing usable', () => {

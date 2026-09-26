@@ -1,0 +1,186 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+# Builds the production image from the root Dockerfile, pushes it to GHCR,
+# signs it keylessly with cosign, then deploys it: the deploy job verifies the
+# signature and runs deploy/rollback.sh on the host over SSH, and
+# verify-deploy checks that the running container is that exact digest.
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      repo: ${{ steps.image.outputs.repo }}
+      version: ${{ steps.image.outputs.version }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Resolve image ref
+        id: image
+        run: |
+          echo "repo=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.image.outputs.repo }}:${{ steps.image.outputs.version }}
+            ${{ steps.image.outputs.repo }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  sign:
+    name: Sign image
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Sign the published image (keyless)
+        run: cosign sign --yes "${{ needs.build.outputs.repo }}@${{ needs.build.outputs.digest }}"
+
+  deploy:
+    name: Deploy to production
+    needs: [build, sign]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Verify the image was signed by this workflow
+        run: |
+          cosign verify \
+            --certificate-identity-regexp "^https://github\.com/${{ github.repository }}/\.github/workflows/release\.yml@refs/tags/v.*$" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "${{ needs.build.outputs.repo }}@${{ needs.build.outputs.digest }}"
+
+      # >>> migrate
+      - name: Run pending database migrations
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
+        env:
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: RELEASE_VERSION
+          script: |
+            set -euo pipefail
+            cd ~/{{SLUG}}
+            ./deploy/migrate.sh "$RELEASE_VERSION"
+
+      # <<< migrate
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
+        env:
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: RELEASE_VERSION
+          script: |
+            set -euo pipefail
+            cd ~/{{SLUG}}
+            ./deploy/rollback.sh "$RELEASE_VERSION"
+
+      - name: Prune old release images
+        continue-on-error: true
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -euo pipefail
+            cd ~/{{SLUG}}
+            ./deploy/prune-images.sh
+
+  verify-deploy:
+    name: Verify running digest
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Confirm the running container is the verified, signed digest
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
+        env:
+          IMAGE_DIGEST: ${{ needs.build.outputs.digest }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: IMAGE_DIGEST
+          script: |
+            set -euo pipefail
+            cd ~/{{SLUG}}
+            running_container="$(docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env ps -q app)"
+            running_image="$(docker inspect --format '{{.Image}}' "$running_container")"
+            repo_digest="$(docker inspect --format '{{join .RepoDigests "\n"}}' "$running_image" | head -1)"
+            echo "Running image: ${repo_digest}"
+            case "$repo_digest" in
+              *"$IMAGE_DIGEST") echo "The running image is the verified, signed release." ;;
+              *)
+                echo "The running image does not match the verified digest ${IMAGE_DIGEST}." >&2
+                exit 1
+                ;;
+            esac

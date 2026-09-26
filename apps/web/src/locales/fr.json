@@ -82,7 +82,11 @@
     "brief": "Brief produit",
     "options": "Options de stack",
     "architecture": "Architecture",
-    "research": "Recherche"
+    "research": "Recherche",
+    "fit": "Pertinence",
+    "deploy-options": "Options de déploiement",
+    "server": "Étapes serveur",
+    "server-check": "Contrôle serveur"
   },
   "status": {
     "todo": "À faire",
@@ -113,7 +117,11 @@
     "brief": "Brief",
     "options": "Options",
     "architecture": "Archi",
-    "research": "Recherche"
+    "research": "Recherche",
+    "fit": "Pertin.",
+    "deploy-options": "Options",
+    "server": "Serveur",
+    "server-check": "Contrôle"
   },
   "decision": {
     "eyebrow": "Grill · question {{position}} sur {{total}}",
@@ -198,6 +206,11 @@
       "eyebrow": "Stack à valider",
       "title": "Relis la stack et les décisions : validées, elles guident chaque agent de l’app",
       "checks": "Vérifications de l’app : {{commands}}"
+    },
+    "server": {
+      "eyebrow": "Checklist serveur",
+      "title": "Les étapes serveur sont-elles faites ?",
+      "approve": "J’ai fait les étapes serveur"
     }
   },
   "run": {
@@ -448,6 +461,14 @@
       "app-scaffold.review": "Socle : review",
       "app-scaffold.sync": "Socle : conflits",
       "app-scaffold.retro": "Socle : rétrospective",
+      "app-deploy.fit": "Production : pertinence",
+      "app-deploy.deploy-options": "Production : options",
+      "app-deploy.execute": "Production : pipeline",
+      "app-deploy.review": "Production : review",
+      "app-deploy.sync": "Production : conflits",
+      "app-deploy.server": "Production : checklist serveur",
+      "app-deploy.server-check": "Production : contrôle serveur",
+      "app-deploy.retro": "Production : rétrospective",
       "playbook-update.research": "Rituel : recherche",
       "playbook-update.execute": "Rituel : édition",
       "playbook-update.review": "Rituel : review",
@@ -546,6 +567,7 @@
       "cancelled": "v{{version}} annulée"
     },
     "deploy": "Déployer v{{version}}",
+    "serverChecklist": "Checklist serveur à confirmer dans la station « Mettre en production »",
     "confirmTitle": "Déployer v{{version}} en production ?",
     "confirmDeploy": "Terminus merge la pull request de release ; le tag qui en sort lance release.yml, qui construit, signe et déploie l’image sur le serveur.",
     "confirmPublishOnly": "Terminus merge la pull request de release : la version est publiée, mais release.yml ne déploie pas encore sur le serveur.",
@@ -618,7 +640,8 @@
     "frame": "Cadrer l’idée et valider le besoin",
     "architecture": "Choisir une architecture adaptée",
     "scaffold": "Créer le socle et le vérifier",
-    "consequence": "Le bouton ci-dessous crée le dépôt GitHub et les trois premières stations. Tu valideras ensuite le cadrage et l’architecture dans Terminus.",
+    "deploy": "Préparer la mise en production",
+    "consequence": "Le bouton ci-dessous crée le dépôt GitHub et quatre stations, jusqu’à la mise en production. Tu valideras ensuite le cadrage, l’architecture et les étapes serveur dans Terminus.",
     "launch": "Créer le dépôt et démarrer le projet"
   },
   "explorer": {
@@ -652,6 +675,7 @@
     "noDocuments": "Aucun document disponible pour cette station. Un document absent ne constitue pas une validation.",
     "spec": "Spécification",
     "plan": "Plan de réalisation",
+    "checklist": "Checklist serveur",
     "truncated": "Aperçu limité aux 60 000 premiers caractères.",
     "before": "Ouvrir l’aperçu avant",
     "after": "Ouvrir l’aperçu après",
@@ -663,7 +687,8 @@
       "brief": "Le cadrage sera conservé comme référence et le parcours pourra avancer.",
       "architecture": "Les choix d’architecture seront conservés avant la création du socle.",
       "plan": "Le plan sera approuvé et sa réalisation pourra démarrer.",
-      "approve": "Cette étape sera approuvée et le parcours passera à la suite prévue."
+      "approve": "Cette étape sera approuvée et le parcours passera à la suite prévue.",
+      "server": "Terminus vérifiera DNS, HTTPS et secrets depuis l’extérieur avant de clore la station."
     }
   },
   "delivery": {
