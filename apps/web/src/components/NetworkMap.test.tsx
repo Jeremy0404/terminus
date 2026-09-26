@@ -175,6 +175,13 @@ describe('NetworkMap scale and scroll', () => {
   });
 });
 
+function drag(target: Element, by: number, pointerType = 'mouse') {
+  fireEvent.pointerDown(target, { pointerType, button: 0, clientX: 500, clientY: 200 });
+  fireEvent.pointerMove(window, { pointerType, clientX: 500 - by, clientY: 200 });
+  fireEvent.pointerUp(window, { pointerType, clientX: 500 - by, clientY: 200 });
+  fireEvent.click(target);
+}
+
 describe('NetworkMap drag to pan', () => {
   const network = networkOf([line('a', 1)], stations('a', 30));
   const place = { app: APP.id, line: 'a', task: null };
@@ -184,13 +191,6 @@ describe('NetworkMap drag to pan', () => {
     const onBackground = vi.fn();
     const view = render(<NetworkMap network={network} place={place} onLine={vi.fn()} onStation={onStation} onBackground={onBackground} />);
     return { ...view, box: drawn(view.container).box, onStation, onBackground };
-  }
-
-  function drag(target: Element, by: number, pointerType = 'mouse') {
-    fireEvent.pointerDown(target, { pointerType, button: 0, clientX: 500, clientY: 200 });
-    fireEvent.pointerMove(window, { pointerType, clientX: 500 - by, clientY: 200 });
-    fireEvent.pointerUp(window, { pointerType, clientX: 500 - by, clientY: 200 });
-    fireEvent.click(target);
   }
 
   it('pans the map when dragging from a station, without opening it', () => {
@@ -223,6 +223,49 @@ describe('NetworkMap drag to pan', () => {
   });
 });
 
+describe('NetworkMap fitted network', () => {
+  const network = networkOf([line('a', 1), line('b', 2)], [...stations('a', 30), ...stations('b', 30)]);
+
+  function renderWithSpies() {
+    const handlers = { onLine: vi.fn(), onStation: vi.fn(), onBackground: vi.fn() };
+    const view = render(<NetworkMap network={network} place={NETWORK_PLACE} {...handlers} />);
+    return { ...view, ...handlers, box: drawn(view.container).box };
+  }
+
+  it('does not pan when dragging from a station, and still opens it', () => {
+    const { box, onStation } = renderWithSpies();
+    drag(screen.getByRole('button', { name: /^a 1,/ }), 40);
+
+    expect([box.scrollLeft, box.scrollTop]).toEqual([0, 0]);
+    expect(onStation).toHaveBeenCalledWith('a', 'a1');
+  });
+
+  it('does not pan when dragging across the background, and still reads the click', () => {
+    const { box, container, onBackground } = renderWithSpies();
+    drag(container.querySelector('.map-background') as Element, 40);
+
+    expect([box.scrollLeft, box.scrollTop]).toEqual([0, 0]);
+    expect(onBackground).toHaveBeenCalledOnce();
+  });
+
+  it('never pins a roundel, even when the box is scrolled', async () => {
+    const { box, container } = renderWithSpies();
+    box.scrollLeft += 400;
+    fireEvent.scroll(box);
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(container.querySelector('.pinned-roundel')).not.toBeInTheDocument();
+  });
+
+  it('marks the viewport as fitted at the network level only', () => {
+    const view = renderWithSpies();
+    expect(view.box).toHaveClass('fitted');
+
+    view.rerender(<NetworkMap network={network} place={{ app: APP.id, line: 'a', task: null }} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+    expect(drawn(view.container).box).not.toHaveClass('fitted');
+  });
+});
+
 describe('NetworkMap pinned roundels', () => {
   const network = networkOf([line('a', 1), line('b', 2)], [...stations('a', 30), ...stations('b', 30)]);
 
@@ -234,7 +277,7 @@ describe('NetworkMap pinned roundels', () => {
 
   it('pins the roundel of a line scrolled past its start, and it opens the line', async () => {
     const onLine = vi.fn();
-    const { container } = render(<NetworkMap network={network} place={NETWORK_PLACE} onLine={onLine} onStation={vi.fn()} onBackground={vi.fn()} />);
+    const { container } = render(<NetworkMap network={network} place={{ app: APP.id, line: 'a', task: null }} onLine={onLine} onStation={vi.fn()} onBackground={vi.fn()} />);
     expect(screen.getAllByRole('button', { name: 'Ligne a' })).toHaveLength(1);
 
     scrollRight(container);

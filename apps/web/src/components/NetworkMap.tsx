@@ -146,16 +146,16 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground, co
       ) : (
         <div
           ref={setBox}
-          className={`map-viewport ${pan.dragging ? 'dragging' : ''}`}
+          className={`map-viewport ${fitted ? 'fitted' : ''} ${pan.dragging ? 'dragging' : ''}`}
           style={{ height: mapHeight(layout, frame.width) }}
-          onPointerDown={pan.onPointerDown}
-          onClickCapture={pan.onClickCapture}
-          onScroll={followScroll}
+          onPointerDown={fitted ? undefined : pan.onPointerDown}
+          onClickCapture={fitted ? undefined : pan.onClickCapture}
+          onScroll={fitted ? undefined : followScroll}
         >
           <svg ref={svg} className="network-map" preserveAspectRatio="xMinYMin meet" role="img" aria-label={t('map.label', { app: network.app.name })}>
             <rect className="map-background" x={-5000} y={-5000} width={10000} height={10000} onClick={onBackground} />
             <MapDrawing layout={layout} appName={network.app.name} tasks={network.tasks} level={level} openLine={place.line} selectedTask={place.task} onLine={onLine} onStation={onStation} onBackground={onBackground} />
-            {view && <PinnedRoundels layout={layout} view={view} level={level} openLine={place.line} onLine={onLine} />}
+            {view && !fitted && <PinnedRoundels layout={layout} view={view} level={level} openLine={place.line} onLine={onLine} />}
           </svg>
         </div>
       )}
