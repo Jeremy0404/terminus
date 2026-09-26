@@ -71,6 +71,8 @@ describe('NetworkMap delivered lines', () => {
 });
 
 const FRAME_WIDTH = 970;
+const FRAME_HEIGHT = 485;
+const FIT_TOLERANCE = 1e-6;
 const line = (id: string, position: number): EpicDto => ({ id, appId: APP.id, code: id.toUpperCase(), name: id, status: 'active', position, description: '', breakdown: { status: 'idle' } });
 const stations = (epicId: string, count: number, done = 0): TaskSummaryDto[] =>
   Array.from({ length: count }, (_, index) => task(`${epicId}${index + 1}`, epicId, `${epicId} ${index + 1}`, index < done ? { kind: 'done' } : { kind: 'todo' }));
@@ -90,6 +92,7 @@ function drawn(container: HTMLElement) {
   return {
     box,
     scale,
+    pixelWidth,
     pixelHeight,
     viewBoxHeight: height,
     showsX: (unitX: number): boolean => {
@@ -103,13 +106,24 @@ function drawn(container: HTMLElement) {
 const stationX = (index: number): number => layoutNetwork([line('a', 1)], stations('a', index + 1)).lines[0]?.stations[index]?.x ?? NaN;
 
 describe('NetworkMap scale and scroll', () => {
-  it('draws twenty lines at the same scale as one, taller than the box', () => {
-    const one = drawn(renderMap(manyLines(1)).container);
-    const oneRatio = one.pixelHeight / one.viewBoxHeight;
+  it('fits twenty lines in the box at the network level', () => {
     const twenty = drawn(renderMap(manyLines(20)).container);
 
-    expect(twenty.pixelHeight / twenty.viewBoxHeight).toBeCloseTo(oneRatio);
-    expect(twenty.pixelHeight).toBeGreaterThan(FRAME_WIDTH / 2);
+    expect(twenty.pixelWidth).toBeLessThanOrEqual(FRAME_WIDTH + FIT_TOLERANCE);
+    expect(twenty.pixelHeight).toBeLessThanOrEqual(FRAME_HEIGHT + FIT_TOLERANCE);
+  });
+
+  it('fits the network again when lines are added', () => {
+    const view = renderMap(manyLines(1));
+    view.rerender(<NetworkMap network={manyLines(20)} place={NETWORK_PLACE} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+    const map = drawn(view.container);
+
+    expect(map.pixelWidth).toBeLessThanOrEqual(FRAME_WIDTH + FIT_TOLERANCE);
+    expect(map.pixelHeight).toBeLessThanOrEqual(FRAME_HEIGHT + FIT_TOLERANCE);
+  });
+
+  it('keeps a one-line network frame at half the box width', () => {
+    expect(drawn(renderMap(manyLines(1)).container).box.style.height).toBe('485px');
   });
 
   it('opens a long line on its first unfinished station', () => {

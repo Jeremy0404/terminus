@@ -58,7 +58,9 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground, co
   const canvas = useRef<Canvas | null>(null);
   const shown = useRef<Shown | null>(null);
   const animation = useRef<number | null>(null);
+  const fitted = place.line === null;
   const layoutNow = useRef<NetworkLayout>(layout);
+  const fittedNow = useRef(fitted);
   const [view, setView] = useState<ViewBox | null>(null);
   const scrollFrame = useRef<number | null>(null);
   const level = levelOf(place);
@@ -70,14 +72,16 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground, co
 
   useLayoutEffect(() => {
     const resized = layoutNow.current.width !== layout.width || layoutNow.current.height !== layout.height;
+    const levelChanged = fittedNow.current !== fitted;
     layoutNow.current = layout;
+    fittedNow.current = fitted;
     const element = svg.current;
-    if (!resized || !box || !element || !canvas.current || animation.current !== null || shown.current?.box !== box) return;
-    const current = viewOf(canvas.current, { left: box.scrollLeft, top: box.scrollTop }, frame);
+    if (!resized || levelChanged || !box || !element || !canvas.current || animation.current !== null || shown.current?.box !== box) return;
+    const current = fitted ? networkView(layout, frame) : viewOf(canvas.current, { left: box.scrollLeft, top: box.scrollTop }, frame);
     canvas.current = canvasFor(current, layout, frame);
     paint(element, box, canvas.current);
     setView(current);
-  }, [layout, box, frame]);
+  }, [layout, fitted, box, frame]);
 
   useLayoutEffect(() => {
     const element = svg.current;

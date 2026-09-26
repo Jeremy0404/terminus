@@ -21,16 +21,20 @@ const LINE_START_MARGIN = LEFT + 10;
 const LINE_END_MARGIN = 80;
 const LANDING_LEAD = 2 * STEP;
 
-export function networkScale(frameWidth: number): number {
+export function networkScale(layout: NetworkLayout, frame: Frame): number {
+  return Math.min(frame.width / layout.width, frame.height / layout.height);
+}
+
+export function lineScale(frameWidth: number): number {
   return Math.max(frameWidth / MIN_WIDTH, MIN_SCALE);
 }
 
 export function mapHeight(layout: NetworkLayout, frameWidth: number): number {
-  return Math.max(layout.height * networkScale(frameWidth), frameWidth / 2);
+  return Math.max((layout.height * frameWidth) / layout.width, frameWidth / 2);
 }
 
 export function networkView(layout: NetworkLayout, frame: Frame): ViewBox {
-  const scale = networkScale(frame.width);
+  const scale = networkScale(layout, frame);
   const width = frame.width / scale;
   const height = frame.height / scale;
   const centred = (content: number, visible: number): number => (content < visible ? (content - visible) / 2 : 0);
@@ -42,7 +46,7 @@ export function lineView(layout: NetworkLayout, epicId: string, frame: Frame): V
   if (!line) return networkView(layout, frame);
   const start = line.startX - LINE_START_MARGIN;
   const end = line.endX + LINE_END_MARGIN;
-  const width = Math.min(Math.max(end - start, MIN_LINE_VIEW), networkView(layout, frame)[2]);
+  const width = Math.min(Math.max(end - start, MIN_LINE_VIEW), frame.width / lineScale(frame.width));
   const height = (width * frame.height) / frame.width;
   const landing = line.stations.find((station) => station.task.status.kind !== 'done');
   const fits = !landing || landing.x + STEP <= start + width;
