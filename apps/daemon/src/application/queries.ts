@@ -1,4 +1,3 @@
-import type { TaskNotes } from './ports/task-notes.js';
 import type { App } from '../domain/app.js';
 import type { Decision } from '../domain/decision.js';
 import type { Epic } from '../domain/epic.js';
@@ -11,7 +10,11 @@ import type { Task } from '../domain/task.js';
 import type { AppRepository, DecisionRepository, EpicRepository, RunRepository, TaskRepository } from './ports/repositories.js';
 import type { MemoryRepository } from './ports/memory-repository.js';
 import type { QuotaStore } from './ports/quota-store.js';
+import type { TaskNotes } from './ports/task-notes.js';
 import type { TranscriptStore } from './ports/transcript-store.js';
+
+const TASK_DOCUMENTS = ['spec.md', 'plan.md', 'preview.json'];
+const MAX_DOCUMENT_CHARS = 60_000;
 
 export interface Network {
   readonly app: App;
@@ -77,9 +80,9 @@ export class Queries {
     const siblings = epic ? this.deps.tasks.listByApp(epic.appId) : [task];
     return {
       task,
-      documents: ['spec.md', 'plan.md', 'preview.json'].flatMap((name) => {
+      documents: TASK_DOCUMENTS.flatMap((name) => {
         const content = this.deps.notes.read(taskId, name);
-        return content?.trim() ? [{ name, content: content.slice(0, 60000), truncated: content.length > 60000 }] : [];
+        return content?.trim() ? [{ name, content: content.slice(0, MAX_DOCUMENT_CHARS), truncated: content.length > MAX_DOCUMENT_CHARS }] : [];
       }),
       actions: suggestedActions(task, siblings),
       runs: this.deps.runs.listByTask(taskId),

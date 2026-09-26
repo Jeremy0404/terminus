@@ -1,5 +1,3 @@
-import { ProductJournalBody, IdeaBody, LaunchIdeaBody } from '@terminus/contracts';
-import type { Ideas } from '../../application/ideas.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { serveStatic } from '@hono/node-server/serve-static';
@@ -20,6 +18,9 @@ import {
   DeployBody,
   FoundAppBody,
   HealthCheckBody,
+  IdeaBody,
+  LaunchIdeaBody,
+  ProductJournalBody,
   RepoPathBody,
   CreateEpicBody,
   CreateTaskBody,
@@ -33,6 +34,7 @@ import {
 } from '@terminus/contracts';
 import type { Adoption } from '../../application/adoption.js';
 import type { AppFounder } from '../../application/app-founder.js';
+import type { Ideas } from '../../application/ideas.js';
 import type { AgentSettings } from '../../application/agent-settings.js';
 import type { PlaybookRitual } from '../../application/playbook-ritual.js';
 import type { Releases } from '../../application/releases.js';

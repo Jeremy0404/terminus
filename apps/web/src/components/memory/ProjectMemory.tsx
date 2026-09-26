@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AppDto, MemoryDto } from '@terminus/contracts';
-import { ProductJournal } from './ProductJournal';
 import { api } from '../../api/client';
 import { useServerEvents } from '../../api/events';
 import { useAction } from '../platform/useAction';
+import { ProductJournal } from './ProductJournal';
 
 export function ProjectMemory({ app, onClose }: { app: AppDto; onClose: () => void }) {
   const { t } = useTranslation();

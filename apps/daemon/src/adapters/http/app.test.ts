@@ -447,13 +447,16 @@ describe('idea workshop and product direction', () => {
   });
 });
 
-it('exposes only fixed task documents, with an explicit truncation indicator', async () => {
-  start();
-  const { taskId } = await givenTask();
-  taskNotes.files.set(`${taskId}/spec.md`, 'x'.repeat(60010));
-  taskNotes.files.set(`${taskId}/plan.md`, 'A readable plan');
-  taskNotes.files.set(`${taskId}/private.txt`, 'Not a task document');
-  const detail = (await call<TaskDetailDto>('GET', `/api/tasks/${taskId}`)).json;
-  expect(detail.documents?.map((doc) => doc.name)).toEqual(['spec.md', 'plan.md']);
-  expect(detail.documents?.[0]).toMatchObject({ truncated: true, content: 'x'.repeat(60000) });
+describe('task documents', () => {
+  beforeEach(() => start());
+
+  it('exposes only fixed task documents, with an explicit truncation indicator', async () => {
+    const { taskId } = await givenTask();
+    taskNotes.files.set(`${taskId}/spec.md`, 'x'.repeat(60010));
+    taskNotes.files.set(`${taskId}/plan.md`, 'A readable plan');
+    taskNotes.files.set(`${taskId}/private.txt`, 'Not a task document');
+    const detail = (await call<TaskDetailDto>('GET', `/api/tasks/${taskId}`)).json;
+    expect(detail.documents?.map((doc) => doc.name)).toEqual(['spec.md', 'plan.md']);
+    expect(detail.documents?.[0]).toMatchObject({ truncated: true, content: 'x'.repeat(60000) });
+  });
 });

@@ -14,8 +14,6 @@
     "label": "Plan du réseau de {{app}}",
     "line": "Ligne {{name}}",
     "origin": "{{app}}",
-    "planned": "En projet",
-    "progress": "{{done}}/{{total}} mergées",
     "hideDelivered": "Replier les lignes terminées",
     "allDelivered": "Toutes les lignes de cette vue sont terminées ou clôturées.",
     "remaining_one": "{{count}} station restante",
@@ -30,13 +28,11 @@
   "summary": {
     "eyebrow": "Réseau · {{app}}",
     "lines": "lignes",
-    "merged": "stations mergées",
     "running_one": "agent en route",
     "running_other": "agents en route"
   },
   "line": {
-    "eyebrow": "Épique",
-    "progress": "{{done}} sur {{total}} stations mergées"
+    "eyebrow": "Épique"
   },
   "inbox": {
     "title": "À toi de jouer",
@@ -509,17 +505,11 @@
   },
   "found": {
     "open": "Nouvelle app",
-    "eyebrow": "Nouvelle app",
-    "title": "Partir d’une idée",
-    "name": "Nom",
-    "idea": "L’idée",
-    "ideaPlaceholder": "Le problème, pour qui, ce que la première version doit faire…",
     "folder": "Dossier (facultatif)",
     "folderPlaceholder": "Par défaut : dossier des projets / nom",
     "visibility": "Dépôt GitHub",
     "private": "Privé",
-    "public": "Public",
-    "submit": "Créer l’app et son dépôt"
+    "public": "Public"
   },
   "appPhase": {
     "idea": "Idée",
