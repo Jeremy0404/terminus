@@ -224,9 +224,6 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .check { display: flex; gap: 8px; align-items: center; font-size: 14px; }
 
 .adoption-stage { max-width: 760px; margin: 24px auto 0; }
-.new-app { display: grid; gap: 12px; }
-.new-app .field { display: grid; gap: 4px; }
-.new-app input, .new-app select { font: inherit; padding: 8px 10px; border: 1.5px solid var(--rule); border-radius: 10px; background: var(--surface); color: var(--ink); }
 .app-phase { font-family: var(--display); font-weight: 800; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--signal); border: 1px solid var(--signal); border-radius: 999px; padding: 2px 9px; }
 .brief-preview { white-space: pre-wrap; background: var(--surface-2); border-radius: 12px; padding: 12px 14px; margin: 8px 0 12px; max-height: 50vh; overflow: auto; font-size: 14px; }
 .adoption-line li { font-size: 11px; }

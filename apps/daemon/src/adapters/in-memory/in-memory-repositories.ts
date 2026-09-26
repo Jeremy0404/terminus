@@ -1,5 +1,3 @@
-import type { IdeaRepository } from '../../application/ports/idea-repository.js';
-import type { IdeaDraft } from '../../domain/idea.js';
 import type {
   AppRepository,
   DecisionRepository,
@@ -9,6 +7,7 @@ import type {
 } from '../../application/ports/repositories.js';
 import type { AgentDefaultsStore } from '../../application/ports/agent-defaults-store.js';
 import type { DeploymentRepository } from '../../application/ports/deployment-repository.js';
+import type { IdeaRepository } from '../../application/ports/idea-repository.js';
 import type { MemoryRepository } from '../../application/ports/memory-repository.js';
 import type { QuotaStore } from '../../application/ports/quota-store.js';
 import type { TranscriptStore } from '../../application/ports/transcript-store.js';
@@ -16,6 +15,7 @@ import type { AgentDefaults } from '../../domain/agent-choice.js';
 import type { App } from '../../domain/app.js';
 import type { Decision } from '../../domain/decision.js';
 import type { Epic } from '../../domain/epic.js';
+import type { IdeaDraft } from '../../domain/idea.js';
 import type { Lesson, MemoryProposal, Term } from '../../domain/memory.js';
 import type { Quota } from '../../domain/quota.js';
 import type { Deployment } from '../../domain/release.js';

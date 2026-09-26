@@ -15,12 +15,12 @@ describe('FsTaskNotes', () => {
     expect(existsSync(directory)).toBe(true);
     expect(() => new FsTaskNotes(root).directoryFor('../escape')).toThrow(/Unsafe task id/);
   });
-});
 
-it('reads optional preview metadata without accepting directory traversal', () => {
-  root = mkdtempSync(join(tmpdir(), 'terminus-notes-'));
-  const notes = new FsTaskNotes(root);
-  writeFileSync(join(notes.directoryFor('task-1'), 'preview.json'), '{"after":"https://example.com"}');
-  expect(notes.read('task-1', 'preview.json')).toContain('https://example.com');
-  expect(() => notes.read('task-1', '../preview.json')).toThrow(/Unsafe note name/);
+  it('reads optional preview metadata without accepting directory traversal', () => {
+    root = mkdtempSync(join(tmpdir(), 'terminus-notes-'));
+    const notes = new FsTaskNotes(root);
+    writeFileSync(join(notes.directoryFor('task-1'), 'preview.json'), '{"after":"https://example.com"}');
+    expect(notes.read('task-1', 'preview.json')).toContain('https://example.com');
+    expect(() => notes.read('task-1', '../preview.json')).toThrow(/Unsafe note name/);
+  });
 });

@@ -1,10 +1,10 @@
-import { stationSymbol } from '../../network/exploration';
 import { memo } from 'react';
-import { progressOf } from '../../network/progress';
 import { useTranslation } from 'react-i18next';
 import type { TaskSummaryDto } from '@terminus/contracts';
+import { stationSymbol } from '../../network/exploration';
 import { ROUNDEL_RADIUS, type NetworkLayout, type Point } from '../../network/layout';
 import { lineColor } from '../../network/line-colors';
+import { progressOf } from '../../network/progress';
 import { isActive, statusKey, toneOf } from '../../network/tone';
 import type { Level } from '../../state/location';
 
