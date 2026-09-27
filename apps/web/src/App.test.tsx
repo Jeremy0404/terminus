@@ -1,26 +1,34 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import type { NetworkDto } from '@terminus/contracts';
 import { App } from './App';
-import { APP, detailOf, mockApi, NETWORK } from './test/fixtures';
+import { APP, detailOf, mockApi, NETWORK, task } from './test/fixtures';
+import { saveJourney, snapshot } from './state/journey';
 
-beforeEach(() => {
-  window.history.replaceState(null, '', '/');
-  window.localStorage.clear();
+function serve(network: NetworkDto, extra: Record<string, unknown> = {}): void {
   vi.stubGlobal(
     'fetch',
     vi.fn(
       mockApi({
         '/apps': [APP],
-        '/apps/app-1/network': NETWORK,
-        ...Object.fromEntries(NETWORK.tasks.map((task) => [`/tasks/${task.id}`, detailOf(task)])),
+        '/apps/app-1/network': network,
+        ...Object.fromEntries(network.tasks.map((item) => [`/tasks/${item.id}`, detailOf(item)])),
+        ...extra,
       }),
     ),
   );
+}
+
+beforeEach(() => {
+  window.history.replaceState(null, '', '/');
+  window.localStorage.clear();
+  serve(NETWORK);
 });
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the cockpit', () => {
   it('opens on the network of the app, with every line and the full inbox', async () => {
+    serve({ ...NETWORK, tasks: [...NETWORK.tasks, task('m3', 'engine', 'Journal', { kind: 'todo' })] });
     render(<App />);
 
     expect(await screen.findByRole('img', { name: 'Plan du réseau de terminus' })).toBeInTheDocument();
@@ -28,9 +36,17 @@ describe('the cockpit', () => {
     expect(screen.getByRole('button', { name: 'Spike CLI, Intégrée au projet' })).toBeInTheDocument();
     const inbox = screen.getByRole('region', { name: 'À toi de jouer' });
     expect(within(inbox).getByText('tout le réseau')).toBeInTheDocument();
-    expect(within(inbox).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      expect.stringContaining('Rendu SVG'),
-      expect.stringContaining('Zoom'),
+    expect(within(inbox).getAllByRole('heading').map((heading) => heading.textContent)).toEqual([
+      'Décisions attendues 1',
+      'À débloquer 1',
+      'Stations en cours 1',
+      'Prêts à démarrer 1',
+    ]);
+    expect(within(inbox).getAllByRole('listitem').map((item) => item.querySelector('.inbox-task')?.textContent)).toEqual([
+      'Rendu SVG',
+      'Zoom',
+      'Adaptateur CLI',
+      'Journal',
     ]);
   });
 
@@ -43,36 +59,41 @@ describe('the cockpit', () => {
     expect(within(screen.getByRole('region', { name: 'À toi de jouer' })).getByText('Rien ne t’attend ici.')).toBeInTheDocument();
   });
 
-  it('keeps the map alone on the network, but shows the line card when a line is opened from the map view', async () => {
+  it('opening a line from the home map shows its line card and a line-scoped list', async () => {
     render(<App />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Carte' }));
-    expect(screen.queryByRole('region', { name: 'À toi de jouer' })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Ligne Moteur' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ligne Moteur' }));
 
     expect(screen.getByRole('heading', { name: 'Moteur' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'À toi de jouer' })).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'À toi de jouer' })).getByText('ligne M')).toBeInTheDocument();
   });
 
-  it('keeps the chosen view in the address across stations, a reload and the back button', async () => {
-    const first = render(<App />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Livraisons' }));
-    expect(window.location.search).toBe('?app=app-1&view=deliveries');
-
-    fireEvent.click(screen.getByRole('button', { name: /Rendu SVG/ }));
-    expect(window.location.search).toBe('?app=app-1&line=ui&task=i1&view=deliveries');
-    fireEvent.keyDown(window, { key: 'Escape' });
-    fireEvent.keyDown(window, { key: 'Escape' });
-    expect(window.location.search).toBe('?app=app-1&view=deliveries');
-
-    first.unmount();
+  it('has no tabs: one home screen with the map and the list', async () => {
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'Le quai des livraisons' })).toBeInTheDocument();
 
-    window.history.replaceState(null, '', '/?app=app-1&view=map');
-    fireEvent(window, new PopStateEvent('popstate'));
-    expect(screen.queryByRole('heading', { name: 'Le quai des livraisons' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Carte' })).toHaveAttribute('aria-current', 'page');
+    expect(await screen.findByRole('img', { name: 'Plan du réseau de terminus' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'À toi de jouer' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Navigation du cockpit' })).not.toBeInTheDocument();
+    for (const name of ['Carte', 'Vue d’ensemble', 'À décider', 'En cours', 'Livraisons']) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+  });
+
+  it('ignores an old tab in the address and drops it on the next move', async () => {
+    window.history.replaceState(null, '', '/?app=app-1&view=deliveries');
+    render(<App />);
+
+    expect(await screen.findByRole('img', { name: 'Plan du réseau de terminus' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'À toi de jouer' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ligne Moteur' }));
+    expect(window.location.search).toBe('?app=app-1&line=engine');
+  });
+
+  it('opens a phone on the same map and list', async () => {
+    vi.stubGlobal('matchMedia', vi.fn((query: string) => ({ matches: query === '(max-width: 640px)', media: query, addEventListener: () => {}, removeEventListener: () => {} })));
+    render(<App />);
+
+    expect(await screen.findByRole('img', { name: 'Plan du réseau de terminus' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'À toi de jouer' })).toBeInTheDocument();
   });
 
   it('jumps from an inbox item straight to its platform, and Escape goes back up', async () => {
@@ -116,5 +137,61 @@ describe('the cockpit', () => {
     expect(screen.queryByRole('navigation', { name: 'Où je suis' })).toHaveTextContent('Moteur');
     expect(screen.getByRole('button', { name: 'Ligne Moteur' })).toBeInTheDocument();
     expect(window.location.search).toBe('?app=app-1&line=engine');
+  });
+
+  it('offers to resume the last station opened, and goes there', async () => {
+    saveJourney('app-1', snapshot(NETWORK, 'i1'));
+    render(<App />);
+
+    const inbox = await screen.findByRole('region', { name: 'À toi de jouer' });
+    fireEvent.click(within(inbox).getByRole('button', { name: 'Reprendre là où j’en étais : Rendu SVG' }));
+    expect(window.location.search).toBe('?app=app-1&line=ui&task=i1');
+  });
+
+  it('no longer offers to resume a station that is done or closed', async () => {
+    saveJourney('app-1', snapshot(NETWORK, 'i1'));
+    for (const status of [{ kind: 'done' as const }, { kind: 'closed' as const, reason: 'abandoned' as const, evidence: '' }]) {
+      serve({ ...NETWORK, tasks: NETWORK.tasks.map((item) => (item.id === 'i1' ? { ...item, status } : item)) });
+      const view = render(<App />);
+      await screen.findByRole('region', { name: 'À toi de jouer' });
+      expect(screen.queryByRole('button', { name: /Reprendre/ })).not.toBeInTheDocument();
+      view.unmount();
+    }
+  });
+
+  it('remembers the station just opened as the one to resume', async () => {
+    render(<App />);
+    const inbox = await screen.findByRole('region', { name: 'À toi de jouer' });
+    fireEvent.click(within(inbox).getByRole('button', { name: /Zoom/ }));
+    await screen.findByRole('region', { name: 'Quai de Zoom' });
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(within(screen.getByRole('region', { name: 'À toi de jouer' })).getByRole('button', { name: 'Reprendre là où j’en étais : Zoom' })).toBeInTheDocument();
+  });
+
+  it('no longer counts what changed since the last visit', async () => {
+    saveJourney('app-1', snapshot({ ...NETWORK, tasks: NETWORK.tasks.filter((item) => item.id !== 'i2') }, null));
+    serve({ ...NETWORK, tasks: NETWORK.tasks.map((item) => (item.id === 'm2' ? { ...item, status: { kind: 'done' as const } } : item)) });
+    render(<App />);
+
+    await screen.findByRole('region', { name: 'À toi de jouer' });
+    expect(screen.queryByText('Depuis ta dernière visite')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^1 réalisée|nouvelle station|nouvelle intervention/)).not.toBeInTheDocument();
+  });
+
+  it('opens the delivery details in place on the home screen', async () => {
+    serve(NETWORK, { '/apps/app-1/release': { deploysOnRelease: true, pending: { number: 87, version: '1.0.0', title: 'chore(main): release 1.0.0', url: 'u', notes: '' }, latest: null, lastRun: null, deployments: [] } });
+    render(<App />);
+
+    const card = await screen.findByRole('region', { name: 'Production' });
+    fireEvent.click(within(card).getByRole('button', { name: 'Détails' }));
+    expect(within(card).getByText('En production')).toBeInTheDocument();
+    expect(within(card).getByText('Prêt à livrer')).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Actualiser les livraisons' })).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Renseigner l’adresse et le cap du produit' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Plan du réseau de terminus' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'À toi de jouer' })).toBeInTheDocument();
+    expect(window.location.search).toBe('');
   });
 });

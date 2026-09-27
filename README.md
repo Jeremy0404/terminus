@@ -79,14 +79,19 @@ Other modes:
 
 ## Using the cockpit
 
+Opening an app lands on the home screen: the whole network map, fitted to the window, beside one
+list of what is waiting for you. The list starts with "Reprendre là où j'en étais" while the last
+station you opened is unfinished, then decisions, blockers, stations an agent is working on, and
+stations ready to start. On a phone the list comes first and the map sits below it. Clicking a line
+on the map opens that line.
+
 Opening a station gives it most of the screen; the map folds into a panel beside it, and the
 agent settings and the other actions (skip a phase, switch track, close without merge) open on
 demand. Progress counts every station by outcome: integrated through Terminus, already done
 elsewhere, in progress, to do, and each closure reason. Neither a merge nor a published release
-counts as production. The action board groups decisions, blockers and stations ready to start,
-says how many stations each one unblocks, and keeps the requests of other lines visible while you
-work in one. "Depuis ta dernière visite" and "Reprendre là où j'en étais" come from the browser's
-local storage, so they are not shared between devices.
+counts as production. Each entry of the action list says how many stations it unblocks, and on a
+line the list keeps the requests of other lines visible while you work in one. "Reprendre là où j'en étais"
+comes from the browser's local storage, so it is not shared between devices.
 
 Use **Nouvelle app** to keep an idea in the workshop before creating a GitHub repository. Drafts
 and the product journal are stored in the daemon database, so they are available from another
@@ -94,11 +99,11 @@ device connected to the same Terminus. Save a draft before closing the browser. 
 purpose, audience, exclusions and decisions accompany subsequent agent runs. Creating the
 repository starts four Fondations stations: framing, stack, scaffold and "Mettre en production".
 
-The cockpit offers focused views for decisions, ongoing work, deliveries and the map. Map search
-also has a list view; an itinerary includes a chosen line and its dependencies. It does not select
-the contents of a release. The delivery view uses the release pull request and its checks; a
-successful publication is distinct from a verified deployment job. Enter the app URL in the
-product journal to open it after a confirmed deployment. Deployment confirmation currently
+Map search also has a list view; an itinerary includes a chosen line and its dependencies. It does
+not select the contents of a release. Deliveries sit on the home screen's production card; its
+"Détails" button expands it with the production version, the release candidate and its notes. They
+use the release pull request and its checks; a successful publication is distinct from a verified
+deployment job. Enter the app URL in the product journal to open it after a confirmed deployment. Deployment confirmation currently
 recognizes a successful job named `deploy` in `.github/workflows/release.yml`.
 
 Station dossiers expose the available `spec.md`, `plan.md` and `checklist.md` from the station's notes folder

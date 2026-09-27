@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReleaseStateDto } from '@terminus/contracts';
 import { ProductionCard } from './ProductionCard';
 
@@ -74,6 +74,21 @@ describe('ProductionCard', () => {
   it('stays hidden for an app without a release workflow', async () => {
     serve(null);
     const { container } = render(<ProductionCard appId="app-1" />);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('shows what it is given at the end of a loaded card', async () => {
+    serve({ deploysOnRelease: true, pending: null, latest: null, lastRun: null, deployments: [] });
+    render(<ProductionCard appId="app-1"><button type="button">Plus</button></ProductionCard>);
+
+    const card = await screen.findByRole('region', { name: 'Production' });
+    expect(within(card).getByRole('button', { name: 'Plus' })).toBeInTheDocument();
+  });
+
+  it('hides what it is given along with the card when there is no release state', async () => {
+    serve(null);
+    const { container } = render(<ProductionCard appId="app-1"><button type="button">Plus</button></ProductionCard>);
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(container).toBeEmptyDOMElement();
   });

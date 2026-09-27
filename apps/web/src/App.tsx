@@ -2,26 +2,23 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type { NetworkDto } from '@terminus/contracts';
 import { useTranslation } from 'react-i18next';
 import { ServerEventsProvider } from './api/events';
-import { ActiveDepartures } from './components/ActiveDepartures';
 import { ActivityBar, Toasts } from './components/ActivityFeedback';
 import { AdoptionScreen } from './components/AdoptionScreen';
 import { EmptyState } from './components/EmptyState';
 import { FoundingScreen } from './components/FoundingScreen';
-import { JourneyFrame } from './components/JourneyFrame';
 import { PanelScreen } from './components/PanelScreen';
 import { PlatformScreen } from './components/PlatformScreen';
-import { DeliveryCenter } from './components/DeliveryCenter';
 import { appPhaseOf } from './network/app-phase';
 import { AppSelector } from './components/AppSelector';
-import { Inbox } from './components/Inbox';
-import { JourneyRecap } from './components/JourneyRecap';
 import { LineCard } from './components/LineCard';
 import { MapStage, Rail } from './components/MapStage';
+import { Trip } from './components/Trip';
 import { NetworkRail } from './components/NetworkRail';
 import { QuotaGauge } from './components/QuotaGauge';
 import { AgentSettings } from './components/settings/AgentSettings';
 import { ProjectMemory } from './components/memory/ProjectMemory';
-import { up, usePlace, type View } from './state/location';
+import { up, usePlace } from './state/location';
+import { useResume } from './state/journey';
 import { screenOf, type Panel } from './state/screen';
 import { useInboxNotifications } from './state/notifications';
 import { useApps, useNetwork, useQuota, useStaleSkills } from './state/resources';
@@ -55,9 +52,7 @@ export function App() {
 function Cockpit() {
   const { t } = useTranslation();
   const apps = useApps();
-  const [place, go, chosenView] = usePlace();
-  const [defaultView] = useState<View>(() => window.matchMedia?.('(max-width: 640px)').matches ? 'decisions' : 'overview');
-  const view = chosenView ?? defaultView;
+  const [place, go] = usePlace();
   const [adopting, setAdopting] = useState(false);
   const [founding, setFounding] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -67,6 +62,7 @@ function Cockpit() {
   const staleSkills = useStaleSkills();
   const describe = useCallback((title: string, reason: string) => ({ title: t(`notify.${reason}`), body: title }), [t]);
   const notifications = useInboxNotifications(network.data, describe);
+  const resume = useResume(network.data, place.task);
 
   useEffect(() => {
     if (appId) rememberApp(appId);
@@ -90,15 +86,16 @@ function Cockpit() {
     go({ app: id, line: null, task: null });
   };
   const current = apps.data?.find((app) => app.id === appId) ?? null;
-  const screen = screenOf({ founding, adopting, panel, current, network: network.data, place, view });
+  const screen = screenOf({ founding, adopting, panel, current, network: network.data, place });
 
   const here = { ...place, app: appId };
   const closePanel = (): void => setPanel(null);
   const openMemory = (): void => setPanel('memory');
   const journey = (loaded: NetworkDto, content: ReactNode): ReactNode => (
-    <JourneyFrame network={loaded} place={here} view={view} go={go}>
+    <>
+      <Trip network={loaded} place={here} go={go} />
       {content}
-    </JourneyFrame>
+    </>
   );
 
   const screenContent = (): ReactNode => {
@@ -143,12 +140,6 @@ function Cockpit() {
         );
       case 'empty':
         return <EmptyState noApps={apps.data?.length === 0} onFound={() => setFounding(true)} onAdopt={() => setAdopting(true)} />;
-      case 'deliveries':
-        return journey(screen.network, <DeliveryCenter network={screen.network} onOpen={openStation} onMemory={openMemory} />);
-      case 'decisions':
-        return journey(screen.network, <main className="pocket-content"><Inbox network={screen.network} lineId={null} onOpen={openStation} onMemory={openMemory} /></main>);
-      case 'active':
-        return journey(screen.network, <ActiveDepartures network={screen.network} onOpen={openStation} />);
       case 'network':
         return journey(screen.network, (
           <MapStage
@@ -157,11 +148,7 @@ function Cockpit() {
             appId={appId}
             go={go}
             onStation={openStation}
-            rail={screen.mapOnly ? null : (
-              <Rail network={screen.network} lineId={null} onOpen={openStation} onMemory={openMemory}>
-                <NetworkRail network={screen.network} onLine={openLine} onStation={openStation} onMemory={openMemory} />
-              </Rail>
-            )}
+            rail={<NetworkRail network={screen.network} resume={resume} onLine={openLine} onStation={openStation} onMemory={openMemory} />}
           />
         ));
       case 'line':
@@ -208,7 +195,6 @@ function Cockpit() {
         )}
         {apps.error && <span className="offline" role="status">{t('app.daemon.offline')}</span>}
       </header>
-      {network.data && <JourneyRecap key={network.data.app.id} network={network.data} taskId={place.task} hidden={founding || adopting || panel !== null} onOpen={openStation} />}
       {screenContent()}
       <Toasts />
     </div>
