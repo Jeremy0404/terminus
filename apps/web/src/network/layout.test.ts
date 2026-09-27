@@ -37,7 +37,8 @@ function expectOctolinearPaths(layout: NetworkLayout): void {
       expect(dx).toBeGreaterThanOrEqual(0);
       expect(dx === 0 || dy === 0 || Math.abs(dx - dy) < 1e-9).toBe(true);
     }
-    expect(line.path.at(-1)).toEqual({ x: line.endX, y: line.y });
+    expect(line.path.at(-1)).toEqual(line.end);
+    expect(line.end.y).toBe(line.y);
     for (const station of line.stations) expect(onPath(line.path, station)).toBe(true);
   }
 }
@@ -127,8 +128,8 @@ describe('layoutNetwork', () => {
   it('gives an empty epic a short stub line', () => {
     const [line] = layoutNetwork([epic('a', 1)], []).lines;
     expect(line?.stations).toEqual([]);
-    expect(line?.endX).toBeGreaterThan(line?.startX ?? 0);
-    expect(line?.path.at(-1)).toEqual({ x: line?.endX, y: line?.y });
+    expect(line?.end.x).toBeGreaterThan(line?.startX ?? 0);
+    expect(line?.path.at(-1)).toEqual(line?.end);
   });
 
   it('sizes the drawing to its content, never below a readable minimum', () => {
@@ -267,6 +268,167 @@ describe('thin rows', () => {
 
     expect(b1?.y).toBe(layout.lines[1]?.y);
     expect(b1?.interchange).toBe(true);
+  });
+});
+
+describe('wrapped line', () => {
+  const tasksOf = (epicId: string, count: number): TaskSummaryDto[] => Array.from({ length: count }, (_, index) => task(`${epicId}${index + 1}`, epicId));
+  const lineOf = (layout: NetworkLayout, epicId: string) => layout.lines.find((line) => line.epic.id === epicId);
+  const rowsOf = (layout: NetworkLayout, epicId: string): number[] => [...new Set(lineOf(layout, epicId)?.stations.map((station) => station.y))];
+  const along = (path: readonly Point[], point: Point): number => {
+    let travelled = 0;
+    for (const [index, to] of path.slice(1).entries()) {
+      const from = path[index] ?? to;
+      if (onPath([from, to], point)) return travelled + Math.hypot(point.x - from.x, point.y - from.y);
+      travelled += Math.hypot(to.x - from.x, to.y - from.y);
+    }
+    return NaN;
+  };
+  const expectOctolinear = (path: readonly Point[]): void => {
+    for (const [index, to] of path.slice(1).entries()) {
+      const from = path[index] ?? to;
+      const dx = Math.abs(to.x - from.x);
+      const dy = Math.abs(to.y - from.y);
+      expect(dx === 0 || dy === 0 || Math.abs(dx - dy) < 1e-9).toBe(true);
+    }
+  };
+  const distanceToSegment = (point: Point, from: Point, to: Point): number => {
+    const length = (to.x - from.x) ** 2 + (to.y - from.y) ** 2;
+    const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - from.x) * (to.x - from.x) + (point.y - from.y) * (to.y - from.y)) / length));
+    return Math.hypot(point.x - from.x - t * (to.x - from.x), point.y - from.y - t * (to.y - from.y));
+  };
+  const crosses = (a: Point, b: Point, c: Point, d: Point): boolean => {
+    const side = (p: Point, q: Point, r: Point): number => Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
+    return side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0;
+  };
+  const segmentDistance = (a: Point, b: Point, c: Point, d: Point): number =>
+    crosses(a, b, c, d) ? 0 : Math.min(distanceToSegment(a, c, d), distanceToSegment(b, c, d), distanceToSegment(c, a, b), distanceToSegment(d, a, b));
+
+  it('keeps a line that fits on one straight row, re-spaced from its roundel', () => {
+    const epics = [epic('a', 1), epic('b', 2), epic('c', 3)];
+    const tasks = [...tasksOf('a', 1), ...tasksOf('b', 4), ...tasksOf('c', 1)];
+    const network = layoutNetwork(epics, tasks);
+    const layout = layoutNetwork(epics, tasks, new Set(), { epicId: 'b', columns: 4 });
+    const line = lineOf(layout, 'b');
+    const xs = line?.stations.map((station) => station.x) ?? [];
+    const startX = line?.startX ?? NaN;
+
+    expect(rowsOf(layout, 'b')).toEqual([line?.y]);
+    expect(xs).toEqual([startX + 60, startX + 60 + STEP, startX + 60 + 2 * STEP, startX + 60 + 3 * STEP]);
+    expect(xs[0]).toBeLessThan(lineOf(network, 'b')?.stations[0]?.x ?? NaN);
+  });
+
+  it('wraps a longer line onto the fewest rows, one row apart, spread evenly', () => {
+    const layout = layoutNetwork([epic('a', 1)], tasksOf('a', 13), new Set(), { epicId: 'a', columns: 4 });
+    const line = lineOf(layout, 'a');
+    const rows = rowsOf(layout, 'a');
+
+    expect(rows).toEqual([TOP, TOP + ROW, TOP + 2 * ROW, TOP + 3 * ROW]);
+    expect(rows.map((y) => line?.stations.filter((station) => station.y === y).length)).toEqual([4, 3, 3, 3]);
+  });
+
+  it('snakes from row to row along one octolinear path that ends past the last station', () => {
+    const layout = layoutNetwork([epic('a', 1)], tasksOf('a', 13), new Set(), { epicId: 'a', columns: 4 });
+    const line = lineOf(layout, 'a');
+    const stations = line?.stations ?? [];
+    const path = line?.path ?? [];
+
+    for (const [index, station] of stations.entries()) {
+      const previous = stations[index - 1];
+      if (!previous) continue;
+      if (previous.y === station.y) expect(station.x - previous.x).toBe(((station.y - TOP) / ROW) % 2 === 0 ? STEP : -STEP);
+      else expect([station.x, station.y - previous.y]).toEqual([previous.x, ROW]);
+      expect(along(path, station)).toBeGreaterThan(along(path, previous));
+    }
+    expectOctolinear(path);
+    const last = stations.at(-1);
+    expect(path.at(-1)).toEqual(line?.end);
+    expect(line?.end).toEqual({ x: (last?.x ?? NaN) - STEP / 2, y: last?.y });
+  });
+
+  it('moves the lines below down by the added rows and fans every line out from the recentred origin', () => {
+    const epics = [epic('a', 1), epic('b', 2), epic('c', 3)];
+    const tasks = [...tasksOf('a', 2), ...tasksOf('b', 9), ...tasksOf('c', 2)];
+    const network = layoutNetwork(epics, tasks);
+    const layout = layoutNetwork(epics, tasks, new Set(), { epicId: 'b', columns: 4 });
+
+    expect(lineOf(layout, 'a')?.y).toBe(lineOf(network, 'a')?.y);
+    expect(lineOf(layout, 'b')?.y).toBe(lineOf(network, 'b')?.y);
+    expect(lineOf(layout, 'c')?.y).toBe((lineOf(network, 'c')?.y ?? NaN) + 2 * ROW);
+    expect(layout.origin.y).toBe((TOP + (lineOf(layout, 'c')?.y ?? NaN)) / 2);
+    expect(layout.height).toBe(network.height + 2 * ROW);
+    for (const line of layout.lines) {
+      const [lane, corner] = line.path;
+      expect(lane?.x).toBe(layout.origin.x);
+      expect(lane?.y).toBeGreaterThanOrEqual(layout.origin.top);
+      expect(lane?.y).toBeLessThanOrEqual(layout.origin.bottom);
+      expect(corner?.y).toBe(line.y);
+      expect((corner?.x ?? 0) - (lane?.x ?? 0)).toBe(Math.abs(line.y - (lane?.y ?? 0)));
+    }
+  });
+
+  it('keeps the other lines on the network grid, shifted as one', () => {
+    const epics = [epic('a', 1), epic('b', 2), epic('c', 3)];
+    const tasks = [...tasksOf('a', 3), ...tasksOf('b', 9), ...tasksOf('c', 2)];
+    const network = layoutNetwork(epics, tasks);
+    const layout = layoutNetwork(epics, tasks, new Set(), { epicId: 'b', columns: 4 });
+    const others = (from: NetworkLayout) => from.lines.filter((line) => line.epic.id !== 'b').flatMap((line) => line.stations.map((station) => station.x));
+    const shift = (others(layout)[0] ?? NaN) - (others(network)[0] ?? NaN);
+
+    expect(others(layout)).toEqual(others(network).map((x) => x + shift));
+  });
+
+  it('keeps the wrapped rows clear of the fans of the lines below', () => {
+    const epics = [epic('a', 1), epic('b', 2), epic('c', 3), epic('d', 4)];
+    const layout = layoutNetwork(epics, [...tasksOf('a', 2), ...tasksOf('b', 2), ...tasksOf('c', 12), ...tasksOf('d', 2)], new Set(), { epicId: 'c', columns: 4 });
+    const line = lineOf(layout, 'c');
+    const afterRoundel = [{ x: line?.startX ?? NaN, y: line?.y ?? NaN }, ...(line?.path.slice(2) ?? [])];
+    const [lane, corner] = lineOf(layout, 'd')?.path ?? [];
+
+    expect(rowsOf(layout, 'c')).toHaveLength(3);
+    for (const [index, to] of afterRoundel.slice(1).entries()) {
+      const from = afterRoundel[index] ?? to;
+      expect(segmentDistance(from, to, lane ?? from, corner ?? from)).toBeGreaterThanOrEqual(20);
+    }
+  });
+
+  it('keeps the roundel at the end of its fan when no fan comes near', () => {
+    const layout = layoutNetwork([epic('a', 1), epic('b', 2), epic('c', 3)], [...tasksOf('a', 12), ...tasksOf('b', 2), ...tasksOf('c', 2)], new Set(), { epicId: 'a', columns: 4 });
+    const line = lineOf(layout, 'a');
+
+    expect(line?.startX).toBe(line?.path[1]?.x);
+  });
+
+  it('starts a transfer from the re-spaced station on its wrapped row', () => {
+    const layout = layoutNetwork([epic('a', 1), epic('b', 2)], [...tasksOf('a', 9), task('b1', 'b', ['a7'])], new Set(), { epicId: 'a', columns: 4 });
+    const a7 = lineOf(layout, 'a')?.stations[6];
+
+    expect(a7?.y).toBeGreaterThan(lineOf(layout, 'a')?.y ?? NaN);
+    expect(layout.transfers[0]?.from).toEqual({ x: a7?.x, y: a7?.y });
+  });
+
+  it('bends an interchange on a right-to-left row toward the line it waits on', () => {
+    const tasks = [...tasksOf('a', 5), task('a6', 'a', ['b1']), ...tasksOf('a', 12).slice(6), task('b1', 'b')];
+    const layout = layoutNetwork([epic('a', 1), epic('b', 2)], tasks, new Set(), { epicId: 'a', columns: 4 });
+    const line = lineOf(layout, 'a');
+    const a6 = line?.stations[5];
+    const neighbours = [line?.stations[4], line?.stations[6]];
+
+    expect(neighbours.map((station) => station?.y)).toEqual([TOP + ROW, TOP + ROW]);
+    expect(a6?.y).toBe(TOP + ROW + 30);
+    expect((neighbours[0]?.x ?? NaN) - (a6?.x ?? NaN)).toBe(STEP);
+    expect(onPath(line?.path ?? [], a6 ?? { x: NaN, y: NaN })).toBe(true);
+    expectOctolinear(line?.path ?? []);
+  });
+
+  it('gives an empty opened line a one-row stub from its roundel', () => {
+    const layout = layoutNetwork([epic('a', 1), epic('b', 2)], tasksOf('b', 3), new Set(), { epicId: 'a', columns: 4 });
+    const line = lineOf(layout, 'a');
+
+    expect(line?.end.y).toBe(line?.y);
+    expect(line?.end.x).toBeGreaterThan(line?.startX ?? NaN);
+    expect(line?.path.at(-1)).toEqual(line?.end);
+    expect(lineOf(layout, 'b')?.y).toBe(TOP + ROW);
   });
 });
 

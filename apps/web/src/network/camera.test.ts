@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
-import { canvasFor, lineScale, lineView, mapHeight, MIN_SCALE, networkScale, networkView, pinnedLines, reveal, viewOf, type Frame, type ViewBox } from './camera';
-import { layoutNetwork, LEFT, MIN_WIDTH, ROUNDEL_RADIUS, STEP } from './layout';
+import { canvasFor, fittedCanvas, fittedLineHeight, fittedLineView, lineScale, lineView, mapHeight, MIN_LINE_VIEW, MIN_SCALE, networkScale, networkView, pinnedLines, reveal, viewOf, wrapColumns, WRAP_SCALE, type Frame, type ViewBox } from './camera';
+import { layoutNetwork, LEFT, MIN_WIDTH, ROUNDEL_RADIUS, STEP, type NetworkLayout } from './layout';
 
 const epic = (id: string, position: number): EpicDto => ({ id, appId: 'app', code: id.toUpperCase(), name: id, status: 'active', position, description: '', breakdown: { status: 'idle' } });
 const task = (id: string, epicId: string, status: TaskSummaryDto['status'] = { kind: 'todo' }): TaskSummaryDto => ({
@@ -176,5 +176,102 @@ describe('pinned lines', () => {
     expect(roundelEdge(1)).toBeLessThan(roundelEdge(0));
     expect(pinned((roundelEdge(1) + roundelEdge(0)) / 2)).toEqual(['b']);
     expect(pinned(roundelEdge(0) + 1)).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('fitted line view', () => {
+  const wrapped = (count: number, frameWidth: number, done = 0, others: EpicDto[] = []) =>
+    layoutNetwork([epic('a', 1), ...others], [...longLine(count, done), ...oneTaskPerEpic(others)], new Set(), { epicId: 'a', columns: wrapColumns(frameWidth) });
+  const scaleOf = (view: ViewBox, frame: Frame): number => frame.width / view[2];
+  const stationsOf = (layout: NetworkLayout) => layout.lines.find((line) => line.epic.id === 'a')?.stations ?? [];
+
+  it('fits as many stations on one row as stay readable, and no more', () => {
+    for (const width of [970, 390]) {
+      const frame: Frame = { width, height: 2000 };
+      const columns = wrapColumns(width);
+      const oneRow = (count: number) => layoutNetwork([epic('a', 1)], longLine(count), new Set(), { epicId: 'a', columns: 100 });
+
+      expect(scaleOf(fittedLineView(oneRow(columns), 'a', frame), frame)).toBeGreaterThanOrEqual(WRAP_SCALE);
+      expect(scaleOf(fittedLineView(oneRow(columns + 1), 'a', frame), frame)).toBeLessThan(WRAP_SCALE);
+    }
+    expect(wrapColumns(10)).toBe(1);
+  });
+
+  it('draws a long wrapped line whole in the frame, readable and without scroll', () => {
+    const layout = wrapped(30, FRAME.width);
+    const view = fittedLineView(layout, 'a', FRAME);
+    const canvas = fittedCanvas(view, FRAME);
+    const line = layout.lines[0];
+
+    expect(canvas.width).toBeLessThanOrEqual(FRAME.width + FIT_TOLERANCE);
+    expect(canvas.height).toBeLessThanOrEqual(FRAME.height + FIT_TOLERANCE);
+    expect([canvas.scrollLeft, canvas.scrollTop]).toEqual([0, 0]);
+    for (const station of stationsOf(layout)) expect(contains(view, station)).toBe(true);
+    expect(contains(view, { x: (line?.startX ?? NaN) - ROUNDEL_RADIUS, y: line?.y ?? NaN })).toBe(true);
+    expect(line && contains(view, line.end)).toBe(true);
+    expect(scaleOf(view, FRAME)).toBeGreaterThanOrEqual(WRAP_SCALE);
+  });
+
+  it('shows the whole line even when its first unfinished station is far along', () => {
+    const layout = wrapped(30, FRAME.width, 20);
+    const view = fittedLineView(layout, 'a', FRAME);
+    const [first, last] = [stationsOf(layout)[0], stationsOf(layout).at(-1)];
+
+    expect(first && contains(view, first)).toBe(true);
+    expect(last && contains(view, last)).toBe(true);
+  });
+
+  it('does not zoom a short line in tighter than before, and keeps its roundel and name', () => {
+    const layout = wrapped(2, FRAME.width, 0, [epic('b', 2)]);
+    const view = fittedLineView(layout, 'a', FRAME);
+    const line = layout.lines[0];
+    const [first, last] = [stationsOf(layout)[0], stationsOf(layout).at(-1)];
+
+    expect(view[2]).toBeGreaterThanOrEqual(MIN_LINE_VIEW);
+    expect(view[0] + view[2] / 2).toBeCloseTo(((first?.x ?? NaN) + (last?.x ?? NaN)) / 2, 0);
+    expect(contains(view, { x: (line?.startX ?? NaN) - ROUNDEL_RADIUS, y: line?.y ?? NaN })).toBe(true);
+    expect(contains(view, { x: (line?.startX ?? NaN) + ROUNDEL_RADIUS + 8, y: (line?.y ?? NaN) - 30 })).toBe(true);
+  });
+
+  it('draws a short line at the readable scale on a narrow frame, and a wrapped one as long as the box is tall enough', () => {
+    const narrow: Frame = { width: 390, height: 195 };
+    expect(scaleOf(fittedLineView(wrapped(2, 390), 'a', narrow), narrow)).toBeCloseTo(WRAP_SCALE);
+
+    const twelve = wrapped(12, 390);
+    const tall: Frame = { width: 390, height: fittedLineHeight(twelve, 'a') };
+    expect(new Set(stationsOf(twelve).map((station) => station.y)).size).toBe(3);
+    expect(scaleOf(fittedLineView(twelve, 'a', tall), tall)).toBeGreaterThanOrEqual(WRAP_SCALE);
+  });
+
+  it('shrinks below the readable scale once the box cannot grow any more', () => {
+    const layout = wrapped(12, 390);
+    const short: Frame = { width: 390, height: fittedLineHeight(layout, 'a') - 100 };
+    const view = fittedLineView(layout, 'a', short);
+
+    for (const station of stationsOf(layout)) expect(contains(view, station)).toBe(true);
+    expect(scaleOf(view, short)).toBeLessThan(WRAP_SCALE);
+  });
+
+  it('asks for a taller box only when the rows need it', () => {
+    const network = layoutNetwork([epic('a', 1)], longLine(12));
+
+    expect(fittedLineHeight(wrapped(12, 390), 'a')).toBeGreaterThan(mapHeight(network, 390));
+    expect(fittedLineHeight(wrapped(12, 970), 'a')).toBeLessThan(mapHeight(network, 970));
+    expect(fittedLineHeight(network, 'missing')).toBe(0);
+  });
+
+  it('paints the fitted network exactly as before', () => {
+    for (const count of [1, 20]) {
+      const list = epics(count);
+      const layout = layoutNetwork(list, oneTaskPerEpic(list));
+      const view = networkView(layout, FRAME);
+      const before = canvasFor(view, layout, FRAME);
+      const after = fittedCanvas(view, FRAME);
+
+      after.viewBox.forEach((value, index) => expect(value).toBeCloseTo(before.viewBox[index] ?? NaN));
+      expect([after.width, after.height, after.scrollLeft, after.scrollTop].map((value) => Math.round(value * 1e6))).toEqual(
+        [before.width, before.height, before.scrollLeft, before.scrollTop].map((value) => Math.round(value * 1e6)),
+      );
+    }
   });
 });
