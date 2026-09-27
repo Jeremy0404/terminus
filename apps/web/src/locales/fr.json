@@ -48,6 +48,7 @@
     "group": {
       "decision": "Décisions attendues",
       "blocked": "À débloquer",
+      "underway": "Stations en cours",
       "available": "Prêts à démarrer"
     },
     "elsewhere": "Sur les autres lignes · {{count}}",
@@ -56,6 +57,7 @@
     "why": {
       "decision": "Ton choix permet de poursuivre le parcours.",
       "blocked": "Une intervention est nécessaire pour reprendre.",
+      "underway": "Un agent s’en occupe. Rien à faire pour l’instant.",
       "available": "Dépendances satisfaites. Ouvre la station pour choisir de démarrer."
     }
   },
@@ -598,17 +600,7 @@
     "productionHint": "La réalisation ne confirme pas la mise en production."
   },
   "journey": {
-    "title": "Depuis ta dernière visite",
-    "resume": "Reprendre là où j’en étais : {{title}}",
-    "dismiss": "J’ai vu",
-    "completed_one": "{{count}} réalisée",
-    "completed_other": "{{count}} réalisées",
-    "closed_one": "{{count}} clôturée sans réalisation",
-    "closed_other": "{{count}} clôturées sans réalisation",
-    "added_one": "{{count}} nouvelle station",
-    "added_other": "{{count}} nouvelles stations",
-    "attention_one": "{{count}} nouvelle intervention",
-    "attention_other": "{{count}} nouvelles interventions"
+    "resume": "Reprendre là où j’en étais : {{title}}"
   },
   "journal": {
     "title": "Carnet produit",
@@ -689,8 +681,6 @@
     }
   },
   "delivery": {
-    "title": "Le quai des livraisons",
-    "hint": "Du travail intégré à la version réellement déployée : chaque étape a sa preuve.",
     "production": "En production",
     "live": "Déploiement réussi : v{{version}}",
     "unconfirmed": "Aucun déploiement réussi confirmé par le dernier état disponible.",
@@ -698,11 +688,10 @@
     "ready": "Prêt à livrer",
     "candidate": "Une version candidate est préparée. Relis son contenu et ses contrôles avant de la publier.",
     "noCandidate": "Aucune version candidate en attente.",
-    "remaining": "Encore nécessaire dans le projet",
-    "scope": "Ces stations restent ouvertes dans le projet. Elles ne sont pas nécessairement toutes requises pour la version candidate ci-dessus.",
-    "clear": "Toutes les stations sont terminées ou clôturées. La publication et le déploiement se vérifient séparément.",
     "configure": "Renseigner l’adresse et le cap du produit",
     "refresh": "Actualiser les livraisons",
+    "details": "Détails",
+    "hideDetails": "Masquer les détails",
     "unconfigured": "Le suivi des releases n’est pas disponible pour ce dépôt.",
     "loadError": "Impossible de charger les livraisons. Réessaie pour obtenir leur état.",
     "stale": "L’actualisation a échoué. L’état affiché peut être ancien.",
@@ -713,14 +702,5 @@
       "failure": "Contrôles en échec — livraison bloquée",
       "unavailable": "Contrôles non disponibles — actualise avant de livrer"
     }
-  },
-  "pocket": {
-    "label": "Navigation du cockpit",
-    "overview": "Vue d’ensemble",
-    "decisions": "À décider",
-    "active": "En cours",
-    "deliveries": "Livraisons",
-    "map": "Carte",
-    "empty": "Aucun travail en cours pour le moment."
   }
 }

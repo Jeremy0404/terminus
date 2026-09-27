@@ -41,17 +41,6 @@ describe('the cockpit screens', () => {
     expect(screen.getByRole('searchbox', { name: 'Rechercher une station' })).toHaveValue('CLI');
   });
 
-  it('keeps the map explorer search when switching to the map tab and back', async () => {
-    render(<App />);
-    fireEvent.change(await screen.findByRole('searchbox', { name: 'Rechercher une station' }), { target: { value: 'CLI' } });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Carte' }));
-    expect(screen.getByRole('searchbox', { name: 'Rechercher une station' })).toHaveValue('CLI');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Vue d’ensemble' }));
-    expect(screen.getByRole('searchbox', { name: 'Rechercher une station' })).toHaveValue('CLI');
-  });
-
   it('offers to found an app when there is none, and comes back when founding is cancelled', async () => {
     stubApi([]);
     render(<App />);

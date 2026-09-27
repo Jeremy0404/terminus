@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReleaseStateDto } from '@terminus/contracts';
 import { api } from '../api/client';
@@ -7,7 +7,7 @@ import { useAction } from './platform/useAction';
 const FOLLOW_MS = 10_000;
 const ACTIVE = new Set(['requested', 'running']);
 
-export function ProductionCard({ appId, detailed = false, appUrl = '' }: { appId: string; detailed?: boolean; appUrl?: string }) {
+export function ProductionCard({ appId, detailed = false, appUrl = '', children }: { appId: string; detailed?: boolean; appUrl?: string; children?: ReactNode }) {
   const { t, i18n } = useTranslation();
   const [state, setState] = useState<ReleaseStateDto | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -114,6 +114,7 @@ export function ProductionCard({ appId, detailed = false, appUrl = '' }: { appId
           ))}
         </ul>
       )}
+      {children}
     </section>
   );
 }

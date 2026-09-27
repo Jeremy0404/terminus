@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { NetworkDto, TaskSummaryDto } from '@terminus/contracts';
 import { outcomeOf } from '../network/progress';
 
@@ -40,18 +41,18 @@ export function saveJourney(appId: string, journey: Journey): void {
   }
 }
 
-export function changesSince(network: NetworkDto, previous: Journey | null): { completed: number; closed: number; added: number; attention: number } {
-  const changes = { completed: 0, closed: 0, added: 0, attention: 0 };
-  if (!previous) return changes;
-  for (const task of network.tasks) {
-    const before = previous.tasks[task.id]?.split(':')[0];
-    const after = outcomeOf(task.status);
-    if (before === undefined) changes.added += 1;
-    if (['awaiting-decision', 'awaiting-gate', 'blocked', 'manual'].includes(task.status.kind) && previous.tasks[task.id] !== stateOf(task)) changes.attention += 1;
-    if (before === after) continue;
-    if (after === 'integrated' || after === 'existing') {
-      if (before !== 'integrated' && before !== 'existing') changes.completed += 1;
-    } else if (task.status.kind === 'closed') changes.closed += 1;
-  }
-  return changes;
+const FINISHED: readonly string[] = ['done', 'closed'];
+
+export function resumable(network: NetworkDto, lastTask: string | null): TaskSummaryDto | null {
+  const task = network.tasks.find((candidate) => candidate.id === lastTask);
+  return task && !FINISHED.includes(task.status.kind) ? task : null;
+}
+
+export function useResume(network: NetworkDto | null, taskId: string | null): TaskSummaryDto | null {
+  useEffect(() => {
+    if (!network) return;
+    const lastTask = taskId ?? readJourney(network.app.id)?.lastTask ?? null;
+    saveJourney(network.app.id, snapshot(network, lastTask));
+  }, [network, taskId]);
+  return network ? resumable(network, readJourney(network.app.id)?.lastTask ?? null) : null;
 }

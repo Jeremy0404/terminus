@@ -42,12 +42,12 @@ export function Rail({ network, lineId, onOpen, onMemory, children }: RailProps)
 }
 
 interface MapStageProps extends ExplorerProps {
-  readonly rail?: ReactNode;
+  readonly rail: ReactNode;
 }
 
 export function MapStage({ rail, ...explorer }: MapStageProps) {
   return (
-    <div className={rail ? 'stage' : 'stage stage-map-only'}>
+    <div className="stage">
       <section className="map-box">
         <PlaceExplorer {...explorer} />
       </section>
