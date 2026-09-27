@@ -5,18 +5,10 @@ export function finishedLine(epic: EpicDto, tasks: readonly TaskSummaryDto[]): b
   const stations = tasks.filter((task) => task.epicId === epic.id);
   return epic.status === 'delivered' || (stations.length > 0 && stations.every(finished));
 }
-export function routeTo(tasks: readonly TaskSummaryDto[], epicId: string): ReadonlySet<string> {
-  const byId = new Map(tasks.map((task) => [task.id, task]));
-  const ids = new Set<string>();
-  const visit = (id: string): void => { if (ids.has(id)) return; ids.add(id); byId.get(id)?.dependsOn.forEach(visit); };
-  tasks.filter((task) => task.epicId === epicId).forEach((task) => visit(task.id));
-  return ids;
-}
-export function explore(network: NetworkDto, mode: 'all' | 'remaining' | 'route', epicId: string, query: string): NetworkDto {
-  const route = mode === 'route' ? routeTo(network.tasks, epicId) : null;
+export function explore(network: NetworkDto, query: string): NetworkDto {
   const term = query.trim().toLocaleLowerCase();
-  const tasks = network.tasks.filter((task) => (mode !== 'remaining' || !finished(task)) && (!route || route.has(task.id)) && (!term || `${task.title} ${task.description}`.toLocaleLowerCase().includes(term)));
-  const epics = network.epics.filter((epic) => tasks.some((task) => task.epicId === epic.id) || (mode === 'all' && !term));
+  const tasks = network.tasks.filter((task) => !term || `${task.title} ${task.description}`.toLocaleLowerCase().includes(term));
+  const epics = network.epics.filter((epic) => !term || tasks.some((task) => task.epicId === epic.id));
   return { ...network, tasks, epics };
 }
 export function stationSymbol(task: TaskSummaryDto): string {
