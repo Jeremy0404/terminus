@@ -649,17 +649,12 @@
   "explorer": {
     "search": "Rechercher une station",
     "searchHint": "Nom ou description…",
-    "all": "Tout",
-    "remaining": "Reste à faire",
-    "route": "Itinéraire",
-    "target": "Ligne à préparer pour la prochaine livraison",
-    "routeHint": "Les stations de cette ligne et leurs dépendances, y compris celles déjà terminées. Ce périmètre ne définit pas le contenu d’une release.",
     "list": "Vue liste",
     "map": "Vue carte",
     "recenter": "Recentrer",
     "count_one": "{{count}} station sélectionnée",
     "count_other": "{{count}} stations sélectionnées",
-    "empty": "Aucune station dans cette vue. Modifie les filtres pour élargir la recherche.",
+    "empty": "Aucune station dans cette vue. Modifie ta recherche pour l’élargir.",
     "legend": "Lire les symboles du réseau",
     "symbols": "○ À faire · ▶ En cours · ? À décider · ! Intervention nécessaire · ✓ Intégrée ou déjà existante · × Clôturée. Les correspondances relient les dépendances."
   },

@@ -371,7 +371,7 @@ describe('NetworkMap finished lines', () => {
     expect(onLine).toHaveBeenCalledWith('x');
   });
 
-  it('shows every station, unfolded, while searching or following a route', () => {
+  it('shows every station, unfolded, while searching', () => {
     const network = networkOf([...finishedLines.epics, line('z', 3)], [...finishedLines.tasks, ...stations('z', 12, 10)]);
     const { container } = render(<NetworkMap collapseFinished={false} network={network} place={NETWORK_PLACE} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
 
