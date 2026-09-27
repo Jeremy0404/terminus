@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { App } from './App';
 import { APP, detailOf, mockApi, NETWORK } from './test/fixtures';
 
@@ -72,7 +72,9 @@ describe('the cockpit screens', () => {
     render(<App />);
     await screen.findByRole('button', { name: 'Ligne Moteur' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Carnet produit' }));
+    fireEvent.click(within(screen.getByRole('banner')).getByRole('button', { name: 'terminus' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Carnet produit' }));
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'terminus' })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Où je suis' })).toHaveTextContent('Carnet produit');
 

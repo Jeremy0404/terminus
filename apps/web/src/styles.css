@@ -62,10 +62,14 @@ button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-all
 .app-selector > button { display: flex; gap: 10px; align-items: center; background: transparent; border: 0; padding: 4px 8px; border-radius: 10px; }
 .app-selector > button:hover { background: var(--surface-2); }
 .app-selector b { font-family: var(--display); font-weight: 900; font-size: 20px; }
-.app-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; min-width: 280px; background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; box-shadow: var(--shadow); padding: 6px; display: grid; gap: 2px; }
+.app-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; min-width: min(280px, calc(100vw - 32px)); max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; box-shadow: var(--shadow); padding: 6px; display: grid; gap: 2px; }
 .app-menu button { display: grid; text-align: left; background: transparent; border: 0; border-radius: 10px; padding: 9px 10px; }
 .app-menu button:hover, .app-menu button[aria-current='true'] { background: var(--surface-2); }
 .app-menu small { color: var(--ink-3); font-size: 12px; }
+.app-menu .menu-entry { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-weight: 700; }
+.app-menu hr { width: 100%; margin: 4px 0; border: 0; border-top: 1px solid var(--rule); }
+.app-menu-apps { display: grid; gap: 2px; max-height: min(320px, 45vh); overflow: auto; }
+.attention-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--signal); flex: none; }
 .empty-state { padding: 40px 0; color: var(--ink-2); }
 
 .trip { display: flex; align-items: center; flex-wrap: wrap; padding-block: 14px 12px; min-height: 58px; }

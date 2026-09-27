@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type { NetworkDto } from '@terminus/contracts';
 import { App } from './App';
 import { APP, detailOf, mockApi, NETWORK, task } from './test/fixtures';
@@ -17,6 +17,11 @@ function serve(network: NetworkDto, extra: Record<string, unknown> = {}): void {
       }),
     ),
   );
+}
+
+function chooseInAppMenu(entry: string): void {
+  fireEvent.click(within(screen.getByRole('banner')).getByRole('button', { name: 'terminus' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: entry }));
 }
 
 beforeEach(() => {
@@ -78,6 +83,40 @@ describe('the cockpit', () => {
     }
   });
 
+  it('keeps one app menu in the top bar, named after the app, with nothing else to press', async () => {
+    vi.stubGlobal('Notification', { permission: 'default', requestPermission: vi.fn() });
+    render(<App />);
+    await screen.findByRole('img', { name: 'Plan du réseau de terminus' });
+
+    const [trigger, ...others] = within(screen.getByRole('banner')).getAllByRole('button');
+    expect(others).toEqual([]);
+    expect(trigger).toHaveAccessibleName('terminus');
+    expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+    for (const name of ['Réglages', 'Carnet produit', 'Activer les notifications']) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+  });
+
+  it('asks for notifications from the app menu, and stops offering once they are decided', async () => {
+    const requestPermission = vi.fn(async () => 'granted' as const);
+    vi.stubGlobal('Notification', { permission: 'default', requestPermission });
+    const view = render(<App />);
+    await screen.findByRole('img', { name: 'Plan du réseau de terminus' });
+
+    chooseInAppMenu('Activer les notifications');
+    expect(requestPermission).toHaveBeenCalledOnce();
+    await act(async () => {});
+    fireEvent.click(within(screen.getByRole('banner')).getByRole('button', { name: 'terminus' }));
+    expect(within(screen.getByRole('menu')).queryByRole('menuitem', { name: 'Activer les notifications' })).not.toBeInTheDocument();
+    view.unmount();
+
+    vi.stubGlobal('Notification', { permission: 'denied', requestPermission });
+    render(<App />);
+    await screen.findByRole('img', { name: 'Plan du réseau de terminus' });
+    fireEvent.click(within(screen.getByRole('banner')).getByRole('button', { name: 'terminus' }));
+    expect(within(screen.getByRole('menu')).queryByRole('menuitem', { name: 'Activer les notifications' })).not.toBeInTheDocument();
+  });
+
   it('ignores an old tab in the address and drops it on the next move', async () => {
     window.history.replaceState(null, '', '/?app=app-1&view=deliveries');
     render(<App />);
@@ -125,18 +164,36 @@ describe('the cockpit', () => {
     render(<App />);
     await screen.findByRole('button', { name: 'Ligne Moteur' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    chooseInAppMenu('Réglages');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     const trip = screen.getByRole('navigation', { name: 'Où je suis' });
     expect(trip).toHaveTextContent('Réglages');
     fireEvent.click(within(trip).getByRole('button', { name: /Moteur/ }));
     expect(await screen.findByRole('button', { name: 'Ligne Moteur' })).toBeInTheDocument();
     expect(window.location.search).toBe('?app=app-1&line=engine');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    chooseInAppMenu('Réglages');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByRole('navigation', { name: 'Où je suis' })).toHaveTextContent('Moteur');
     expect(screen.getByRole('button', { name: 'Ligne Moteur' })).toBeInTheDocument();
     expect(window.location.search).toBe('?app=app-1&line=engine');
+  });
+
+  it('closes the app menu on Escape without leaving the place, and only the next Escape goes up', async () => {
+    window.history.replaceState(null, '', '/?app=app-1&line=engine');
+    render(<App />);
+    await screen.findByRole('button', { name: 'Ligne Moteur' });
+
+    fireEvent.click(within(screen.getByRole('banner')).getByRole('button', { name: 'terminus' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(window.location.search).toBe('?app=app-1&line=engine');
+    expect(screen.getByRole('heading', { name: 'Moteur' })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(window.location.search).toBe('?app=app-1');
   });
 
   it('offers to resume the last station opened, and goes there', async () => {
