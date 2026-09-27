@@ -1,5 +1,6 @@
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
 import { finishedLine } from './exploration';
+import { serpentine } from './serpentine';
 
 export const STEP = 80;
 export const ROW = 130;
@@ -17,6 +18,9 @@ const RIGHT_MARGIN = 140;
 const BOTTOM_MARGIN = 70;
 export const MIN_WIDTH = 1000;
 const MIN_HEIGHT = 380;
+export const TURN = STEP;
+const TURN_CORNER = 20;
+const FAN_CLEARANCE = STEP / 2;
 
 export type LabelSide = 'below' | 'above';
 
@@ -37,7 +41,7 @@ export interface LinePosition {
   readonly epic: EpicDto;
   readonly y: number;
   readonly startX: number;
-  readonly endX: number;
+  readonly end: Point;
   readonly path: readonly Point[];
   readonly stations: readonly StationPosition[];
 }
@@ -56,6 +60,11 @@ export interface OriginPosition {
   readonly bottom: number;
 }
 
+export interface Wrap {
+  readonly epicId: string;
+  readonly columns: number;
+}
+
 export interface NetworkLayout {
   readonly origin: OriginPosition;
   readonly lines: readonly LinePosition[];
@@ -64,12 +73,19 @@ export interface NetworkLayout {
   readonly height: number;
 }
 
-export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSummaryDto[], thin: ReadonlySet<string> = new Set()): NetworkLayout {
+export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSummaryDto[], thin: ReadonlySet<string> = new Set(), wrap?: Wrap): NetworkLayout {
   const orderedEpics = [...epics].sort((a, b) => a.position - b.position);
   const ranks = rankTasks(tasks);
   const middle = Math.max(orderedEpics.length - 1, 0) / 2;
-  const rowYs = rowPositions(orderedEpics.map((epic) => (thin.has(epic.id) ? THIN_ROW : ROW)));
-  const lastRow = rowYs.at(-1) ?? TOP;
+  const slots = wrap ? serpentine(tasks.filter((task) => task.epicId === wrap.epicId).length, wrap.columns) : [];
+  const rowCounts = orderedEpics.map((epic) => (epic.id === wrap?.epicId ? (slots.at(-1)?.row ?? 0) + 1 : 1));
+  const allRows = rowPositions(orderedEpics.flatMap((epic, index) => Array.from({ length: rowCounts[index] ?? 1 }, () => (thin.has(epic.id) ? THIN_ROW : ROW))));
+  const epicRows = rowCounts.map((count, index) => {
+    const first = rowCounts.slice(0, index).reduce((sum, previous) => sum + previous, 0);
+    return allRows.slice(first, first + count);
+  });
+  const rowYs = epicRows.map((rows) => rows[0] ?? TOP);
+  const lastRow = allRows.at(-1) ?? TOP;
   const originY = (TOP + lastRow) / 2;
   const origin: OriginPosition = { x: ORIGIN_X, y: originY, top: originY - middle * LANE, bottom: originY + middle * LANE };
   const laneOf = (index: number): number => originY + (index - middle) * LANE;
@@ -87,7 +103,46 @@ export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSum
     return waitedOn.length === 0 ? 0 : Math.sign(Math.min(...waitedOn) - index) * INTERCHANGE_BEND;
   };
 
+  const wrappedLine = (epic: EpicDto, index: number): LinePosition => {
+    const rowsOfLine = epicRows[index] ?? [TOP];
+    const y = rowsOfLine[0] ?? TOP;
+    const lastY = rowsOfLine.at(-1) ?? y;
+    const fan = fanOf(index);
+    const nextLane = index + 1 < orderedEpics.length ? laneOf(index + 1) : lastY;
+    const clearOfNextFan = nextLane < lastY ? ORIGIN_X + (lastY - nextLane) + FAN_CLEARANCE + TURN - FIRST_STATION_GAP : 0;
+    const startX = Math.max(ORIGIN_X + Math.max(fan, ROW_START_MIN_RUN), clearOfNextFan);
+    const columnX = (column: number): number => startX + FIRST_STATION_GAP + column * STEP;
+    const stations = tasks
+      .filter((task) => task.epicId === epic.id)
+      .map((task, position): StationPosition => {
+        const slot = slots[position] ?? { row: 0, column: position };
+        return {
+          task,
+          x: columnX(slot.column),
+          y: (rowsOfLine[slot.row] ?? y) + bendOf(task, index),
+          labelSide: position % 2 === 0 ? 'below' : 'above',
+          interchange: interchanges.has(task.id),
+        };
+      });
+    const directionOf = (row: number): number => (row % 2 === 0 ? 1 : -1);
+    const end: Point = { x: (stations.at(-1)?.x ?? columnX(0)) + (directionOf(rowsOfLine.length - 1) * STEP) / 2, y: lastY };
+    const path: Point[] = [{ x: ORIGIN_X, y: laneOf(index) }];
+    let rowStart: Point = { x: ORIGIN_X + fan, y };
+    for (const [row, rowY] of rowsOfLine.entries()) {
+      const direction = directionOf(row);
+      const onRow = stations.filter((_, position) => slots[position]?.row === row);
+      const turnX = (onRow.at(-1)?.x ?? columnX(0)) + direction * TURN;
+      const nextY = rowsOfLine[row + 1];
+      path.push(...trackToward(direction, rowStart, [...onRow, nextY === undefined ? end : { x: turnX - direction * TURN_CORNER, y: rowY }]));
+      if (nextY === undefined) continue;
+      path.push({ x: turnX, y: rowY + TURN_CORNER }, { x: turnX, y: nextY - TURN_CORNER });
+      rowStart = { x: turnX - direction * TURN_CORNER, y: nextY };
+    }
+    return { epic, y, startX, end, path, stations };
+  };
+
   const lines = orderedEpics.map((epic, index): LinePosition => {
+    if (epic.id === wrap?.epicId) return wrappedLine(epic, index);
     const y = rows.get(epic.id) ?? TOP;
     const lane: Point = { x: ORIGIN_X, y: laneOf(index) };
     const fan = fanOf(index);
@@ -102,9 +157,9 @@ export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSum
       }));
     const xs = stations.map((station) => station.x);
     const startX = ORIGIN_X + Math.max(fan, ROW_START_MIN_RUN);
-    const endX = xs.length > 0 ? Math.max(...xs) + STEP / 2 : firstX + STEP / 2;
-    const path = [lane, ...trackPath({ x: ORIGIN_X + fan, y }, [...stations, { x: endX, y }])];
-    return { epic, y, startX, endX, path, stations };
+    const end: Point = { x: xs.length > 0 ? Math.max(...xs) + STEP / 2 : firstX + STEP / 2, y };
+    const path = [lane, ...trackPath({ x: ORIGIN_X + fan, y }, [...stations, end])];
+    return { epic, y, startX, end, path, stations };
   });
 
   const drawn = new Map(lines.flatMap((line) => line.stations.map((station): [string, Point] => [station.task.id, { x: station.x, y: station.y }])));
@@ -115,7 +170,7 @@ export function layoutNetwork(epics: readonly EpicDto[], tasks: readonly TaskSum
     ),
   );
 
-  const maxX = Math.max(firstX + STEP, ...lines.map((line) => line.endX));
+  const maxX = Math.max(firstX + STEP, ...lines.flatMap((line) => line.path.map((point) => point.x)));
   return {
     origin,
     lines,
@@ -169,6 +224,11 @@ function trackPath(rowStart: Point, stops: readonly Point[]): Point[] {
     previous = stop;
   }
   return points;
+}
+
+function trackToward(direction: number, rowStart: Point, stops: readonly Point[]): Point[] {
+  const mirror = (point: Point): Point => ({ x: direction * point.x, y: point.y });
+  return trackPath(mirror(rowStart), stops.map(mirror)).map(mirror);
 }
 
 function rankTasks(tasks: readonly TaskSummaryDto[]): Map<string, number> {

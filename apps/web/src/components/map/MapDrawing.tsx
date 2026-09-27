@@ -67,7 +67,7 @@ export const MapDrawing = memo(function MapDrawing({ layout, counts, thin, appNa
               onKeyDown={(event) => event.key === 'Enter' && onLine(line.epic.id)}>
               <path d={pathData(line.path)} className="line-hit-area" />
               <path d={pathData(line.path)} className={`line-track ${planned ? 'planned' : ''}`} />
-              <line x1={line.endX} y1={line.y - 13} x2={line.endX} y2={line.y + 13} className="line-terminus" />
+              <line x1={line.end.x} y1={line.end.y - 13} x2={line.end.x} y2={line.end.y + 13} className="line-terminus" />
               <LineRoundel x={line.startX} y={line.y} code={line.epic.code} />
               <text x={line.startX + ROUNDEL_RADIUS + LINE_LABEL_GAP} y={line.y - LINE_NAME_RISE} className="line-name">
                 {line.epic.name}
