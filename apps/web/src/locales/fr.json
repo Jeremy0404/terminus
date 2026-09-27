@@ -6,6 +6,10 @@
       "offline": "Démon injoignable"
     }
   },
+  "appMenu": {
+    "attention": "Quelque chose t’attend",
+    "apps": "Apps"
+  },
   "apps": {
     "none": "Aucune app",
     "empty": "Aucune app pour l’instant."

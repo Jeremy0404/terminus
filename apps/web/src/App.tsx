@@ -9,7 +9,7 @@ import { FoundingScreen } from './components/FoundingScreen';
 import { PanelScreen } from './components/PanelScreen';
 import { PlatformScreen } from './components/PlatformScreen';
 import { appPhaseOf } from './network/app-phase';
-import { AppSelector } from './components/AppSelector';
+import { AppMenu } from './components/AppMenu';
 import { LineCard } from './components/LineCard';
 import { MapStage, Rail } from './components/MapStage';
 import { Trip } from './components/Trip';
@@ -176,23 +176,22 @@ function Cockpit() {
       <ActivityBar />
       <header className="top-bar">
         <span className="roundel" aria-hidden="true" />
-        <AppSelector apps={apps.data ?? []} current={current} onSelect={(id) => go({ app: id, line: null, task: null })} onAdopt={() => setAdopting(true)} onFound={() => setFounding(true)} />
+        <AppMenu
+          apps={apps.data ?? []}
+          current={current}
+          onSelect={(id) => go({ app: id, line: null, task: null })}
+          onAdopt={() => setAdopting(true)}
+          onFound={() => setFounding(true)}
+          memoryProposals={network.data?.memoryProposals ?? 0}
+          staleSkills={staleSkills}
+          canNotify={notifications.permission === 'default'}
+          onMemory={openMemory}
+          onSettings={() => setPanel('settings')}
+          onNotify={notifications.ask}
+        />
         {network.data && appPhaseOf(network.data) && <span className="app-phase">{t(`appPhase.${appPhaseOf(network.data)}`)}</span>}
         <span className="spacer" />
         <QuotaGauge quota={quota} />
-        {current && (
-          <button type="button" className="btn small" aria-pressed={panel === 'memory'} onClick={() => setPanel(panel === 'memory' ? null : 'memory')}>
-            {t('memory.open')}
-            {(network.data?.memoryProposals ?? 0) > 0 && <span className="badge" aria-label={t('memory.pending', { count: network.data?.memoryProposals })}>{network.data?.memoryProposals}</span>}
-          </button>
-        )}
-        <button type="button" className="btn small" aria-pressed={panel === 'settings'} onClick={() => setPanel(panel === 'settings' ? null : 'settings')}>
-          {t('settings.open')}
-          {staleSkills > 0 && <span className="badge" aria-label={t('ritual.pending', { count: staleSkills })}>{staleSkills}</span>}
-        </button>
-        {notifications.permission === 'default' && (
-          <button type="button" className="btn small" onClick={notifications.ask}>{t('notify.enable')}</button>
-        )}
         {apps.error && <span className="offline" role="status">{t('app.daemon.offline')}</span>}
       </header>
       {screenContent()}
