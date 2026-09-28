@@ -136,6 +136,21 @@ describe('GitWorkspace', () => {
       expect(workspaces.isBehindBase(workspace, 'main')).toBe(false);
     });
 
+    it('tells whether the branch work already landed in the base, even squashed and followed by other commits', () => {
+      const workspace = workspaces.prepare(repo, 'app', 't1', 'main');
+      writeFileSync(join(workspace.path, 'feature.ts'), 'feature\n');
+      workspaces.checkpoint(workspace, 1, 'execute');
+      expect(workspaces.isContainedInBase(workspace, 'main')).toBe(false);
+
+      commitOnMain('feature.ts', 'feature\n');
+      commitOnMain('later.ts', 'later\n');
+      expect(workspaces.isContainedInBase(workspace, 'main')).toBe(true);
+
+      writeFileSync(join(workspace.path, 'more.ts'), 'more\n');
+      workspaces.checkpoint(workspace, 2, 'execute');
+      expect(workspaces.isContainedInBase(workspace, 'main')).toBe(false);
+    });
+
     it('starts new worktrees from the up-to-date remote base, not a stale local main', () => {
       const remote = join(root, 'remote.git');
       execFileSync('git', ['clone', '--quiet', '--bare', repo, remote]);

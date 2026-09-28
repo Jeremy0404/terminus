@@ -198,6 +198,7 @@
         "pending": "CI en cours",
         "success": "CI au vert",
         "failure": "CI en échec",
+        "merged": "Déjà mergée sur GitHub",
         "error": "État CI indisponible"
       }
     },

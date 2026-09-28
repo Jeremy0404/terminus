@@ -13,11 +13,12 @@ const CHECKS_CLASS: Record<ChecksDisplayState, string> = {
   none: 'muted',
   pending: '',
   failure: 'bad',
+  merged: 'good',
   loading: 'wait',
   error: 'warn',
 };
 
-const CHECKS_MERGEABLE: ReadonlySet<ChecksDisplayState> = new Set<ChecksDisplayState>(['success', 'none']);
+const CHECKS_MERGEABLE: ReadonlySet<ChecksDisplayState> = new Set<ChecksDisplayState>(['success', 'none', 'merged']);
 
 interface Props {
   readonly task: TaskSummaryDto;

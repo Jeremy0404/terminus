@@ -16,7 +16,8 @@ import { READINESS_OUTPUT_SCHEMA, readReadiness } from './readiness-output.js';
 import { REVIEW_OUTPUT_SCHEMA } from './review-output.js';
 import { readVerdict, VERDICT_OUTPUT_SCHEMA } from './verdict-output.js';
 import type { CheckProgress, CheckRunner } from './ports/check-runner.js';
-import type { CodeHost } from './ports/code-host.js';
+import type { CodeHost, PullRequest } from './ports/code-host.js';
+import { publishedPullRequest } from './published-pull-request.js';
 import { pullRequestBody, pullRequestTitle } from './pull-request-text.js';
 import type { AgentDefaultsStore } from './ports/agent-defaults-store.js';
 import type { AgentEvent, AgentRunner } from './ports/agent-runner.js';
@@ -95,7 +96,7 @@ export class PhaseRunner {
     const executor = phase.executor ?? 'agent';
     if (executor === 'checks') return this.runChecks(ready, app, phase, taskWorkspace);
     if (executor === 'sync') return this.runSync(ready, app, phase, taskWorkspace);
-    if (executor === 'code-host') return this.publish(ready, phase, taskWorkspace);
+    if (executor === 'code-host') return this.publish(ready, app, phase, taskWorkspace);
     const previousRun = runs.listByTask(ready.id).filter((run) => run.phaseIndex === ready.phaseIndex).at(-1);
     const resume = ready.status.mode === 'resume' && previousRun !== undefined;
     const sessionId = resume ? previousRun.sessionId : ids.uuid();
@@ -315,7 +316,7 @@ export class PhaseRunner {
     return this.save(task);
   }
 
-  private publish(ready: Task, phase: PhaseDefinition, taskWorkspace: TaskWorkspace): Task {
+  private publish(ready: Task, app: App, phase: PhaseDefinition, taskWorkspace: TaskWorkspace): Task {
     const { runs, clock, ids } = this.deps;
     const runId = ids.next('run');
     let task = this.save(startRun(ready, runId));
@@ -324,7 +325,9 @@ export class PhaseRunner {
     try {
       const sequence = task.checkpoints.length + 1;
       const ref = this.deps.workspace.checkpoint(taskWorkspace, sequence, phase.id);
-      const pullRequest = this.deps.codeHost.publish(taskWorkspace, this.deps.baseRef, pullRequestTitle(task), pullRequestBody(task, runs.listByTask(task.id), this.deps.notes.read(task.id, PULL_REQUEST_SUMMARY)));
+      const pullRequest =
+        this.landedPullRequest(task, app, taskWorkspace) ??
+        this.deps.codeHost.publish(taskWorkspace, this.deps.baseRef, pullRequestTitle(task), pullRequestBody(task, runs.listByTask(task.id), this.deps.notes.read(task.id, PULL_REQUEST_SUMMARY)));
       task = completePhase(task, { sequence, phaseIndex: task.phaseIndex, ref, sessionId: null, takenAt: clock.now() });
       runs.save({ ...run, status: 'succeeded', endedAt: clock.now(), output: { pullRequest } });
     } catch (error) {
@@ -332,6 +335,12 @@ export class PhaseRunner {
       runs.save({ ...run, status: 'failed', endedAt: clock.now() });
     }
     return this.save(task);
+  }
+
+  private landedPullRequest(task: Task, app: App, taskWorkspace: TaskWorkspace): PullRequest | null {
+    const published = publishedPullRequest(this.deps.runs.listByTask(task.id));
+    if (!published || !this.deps.codeHost.isMerged(app.repoPath, published.number)) return null;
+    return this.deps.workspace.isContainedInBase(taskWorkspace, this.deps.baseRef) ? published : null;
   }
 
   private reportCheckProgress(runId: string, taskId: string, progress: CheckProgress): void {
