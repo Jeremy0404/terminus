@@ -211,6 +211,28 @@ describe('TaskActions', () => {
       expect(codeHost.merged).toEqual([]);
     });
 
+    it('finishes a pull request already merged on GitHub instead of sending it back to sync', () => {
+      const withSync = { ...TASK_LIFECYCLE, phases: [...TASK_LIFECYCLE.phases.slice(0, 6), { id: 'sync', executor: 'sync' as const }, ...TASK_LIFECYCLE.phases.slice(6)] };
+      givenTask('t1', { kind: 'awaiting-gate', gate: 'merge' }, { phaseIndex: 7, lifecycle: withSync });
+      runs.save({ id: 'publish', taskId: 't1', phaseIndex: 7, sessionId: 'code-host', status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null, output: { pullRequest: { number: 42, url: 'u' } } });
+      codeHost.merged.push(42);
+      codeHost.checksState = 'failure';
+      workspace.behind = true;
+
+      expect(actions.merge('t1').status).toEqual({ kind: 'done' });
+      expect(codeHost.merged).toEqual([42]);
+      expect(exported).toEqual(['merged:t1']);
+      expect(workspace.removed).toEqual(['t1']);
+    });
+
+    it('reports a pull request already merged on GitHub at the merge gate', () => {
+      atMergeGate();
+      codeHost.checksState = 'pending';
+      expect(actions.checks('t1')).toBe('pending');
+      codeHost.merged.push(42);
+      expect(actions.checks('t1')).toBe('merged');
+    });
+
     it('explains a merge GitHub refuses instead of failing with an internal error', () => {
       atMergeGate();
       codeHost.merge = () => {

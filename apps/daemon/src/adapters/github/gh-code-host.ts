@@ -31,6 +31,11 @@ export class GhCodeHost implements CodeHost {
     return states.every((state) => PASSED_STATES.has(state)) ? 'success' : 'pending';
   }
 
+  isMerged(repoPath: string, pullRequest: number): boolean {
+    const { state } = JSON.parse(run(this.gh, repoPath, ['pr', 'view', String(pullRequest), '--json', 'state'])) as { state: string };
+    return state === 'MERGED';
+  }
+
   merge(repoPath: string, pullRequest: number): void {
     run(this.gh, repoPath, ['pr', 'merge', String(pullRequest), '--squash']);
   }

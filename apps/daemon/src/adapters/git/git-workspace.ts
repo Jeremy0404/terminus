@@ -56,6 +56,12 @@ export class GitWorkspace implements Workspace {
     return !isAncestor(workspace.path, upToDateBase(workspace.path, baseRef), 'HEAD');
   }
 
+  isContainedInBase(workspace: TaskWorkspace, baseRef: string): boolean {
+    const base = upToDateBase(workspace.path, baseRef);
+    const mergedTree = tryGit(workspace.path, ['merge-tree', '--write-tree', base, 'HEAD']);
+    return mergedTree !== null && mergedTree.trim() === git(workspace.path, ['rev-parse', `${base}^{tree}`]).trim();
+  }
+
   checkpoint(workspace: TaskWorkspace, sequence: number, label: string): string {
     const ref = `refs/terminus/checkpoints/${safe(workspace.taskId)}/${sequence}`;
     git(workspace.path, ['add', '--all']);

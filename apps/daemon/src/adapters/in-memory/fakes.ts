@@ -37,6 +37,7 @@ export class FakeWorkspace implements Workspace {
   readonly checkpoints: string[] = [];
   syncResults: SyncResult[] = [];
   behind = false;
+  containedInBase = false;
 
   syncWithBase(): SyncResult {
     return this.syncResults.shift() ?? { state: 'up-to-date', base: 'origin/main', conflicts: [] };
@@ -44,6 +45,10 @@ export class FakeWorkspace implements Workspace {
 
   isBehindBase(): boolean {
     return this.behind;
+  }
+
+  isContainedInBase(): boolean {
+    return this.containedInBase;
   }
 
   readonly removed: string[] = [];
@@ -89,6 +94,10 @@ export class FakeCodeHost implements CodeHost {
 
   checks(): ChecksState {
     return this.checksState;
+  }
+
+  isMerged(_repoPath: string, pullRequest: number): boolean {
+    return this.merged.includes(pullRequest);
   }
 
   merge(_repoPath: string, pullRequest: number): void {

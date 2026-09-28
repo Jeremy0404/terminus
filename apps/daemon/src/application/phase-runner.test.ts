@@ -428,6 +428,35 @@ describe('PhaseRunner', () => {
     expect(task.failuresInPhase[0]).toMatchObject({ kind: 'publish-failed', message: 'remote rejected' });
   });
 
+  describe('when the pull request was already merged on GitHub', () => {
+    const alreadyPublished = (): void => {
+      givenTask(6);
+      runs.save({ id: 'publish', taskId: 't1', phaseIndex: 6, sessionId: 'code-host', status: 'succeeded', startedAt: 'a', endedAt: 'b', usage: null, output: { pullRequest: { number: 72, url: 'u72' } } });
+      codeHost.merged.push(72);
+    };
+
+    it('does not push a branch whose work already landed in the base and waits at the merge gate', async () => {
+      alreadyPublished();
+      workspace.containedInBase = true;
+      codeHost.failPublish = Object.assign(new Error('Command failed'), { stderr: '! [rejected] (stale info)' });
+
+      const task = await runner(new ScriptedAgentRunner()).run('t1');
+
+      expect(task.status).toEqual({ kind: 'awaiting-gate', gate: 'merge' });
+      expect(codeHost.published).toEqual([]);
+      expect(runs.listByTask('t1').at(-1)?.output).toEqual({ pullRequest: { number: 72, url: 'u72' } });
+    });
+
+    it('publishes again when the branch holds work the base does not have yet', async () => {
+      alreadyPublished();
+      workspace.containedInBase = false;
+
+      await runner(new ScriptedAgentRunner()).run('t1');
+
+      expect(codeHost.published).toHaveLength(1);
+    });
+  });
+
   describe('sync phase', () => {
     const WITH_SYNC = {
       ...GRILL_LIFECYCLE,

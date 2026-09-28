@@ -181,6 +181,15 @@ describe('ActionPanel', () => {
     expect(screen.getByRole('button', { name: 'Merger' })).toBeDisabled();
   });
 
+  it('enables Merger and says so when the pull request was already merged on GitHub', async () => {
+    reply = () => Response.json({ state: 'merged' });
+    render(<ActionPanel detail={atMerge()} live={[]} />);
+
+    expect(await screen.findByText('Déjà mergée sur GitHub')).toBeInTheDocument();
+    expect(screen.getByText('Déjà mergée sur GitHub').className).toBe('tag good');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Merger' })).not.toBeDisabled());
+  });
+
   it('disables Merger and shows an error state distinct from failing when the checks fetch fails', async () => {
     reply = () => Response.json({ error: 'gh: command not found' }, { status: 500 });
     render(<ActionPanel detail={atMerge()} live={[]} />);

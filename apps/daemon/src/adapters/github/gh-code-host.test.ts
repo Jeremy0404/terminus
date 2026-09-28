@@ -90,6 +90,15 @@ describe('GhCodeHost', () => {
     expect(fakeGh({ 'pr checks': { stdout, exit } }).checks(repo, 3)).toBe(expected);
   });
 
+  it.each([
+    ['MERGED', true],
+    ['OPEN', false],
+    ['CLOSED', false],
+  ])('reads a pull request in state %s as merged: %s', (state, merged) => {
+    expect(fakeGh({ 'pr view': { stdout: JSON.stringify({ state }) } }).isMerged(repo, 72)).toBe(merged);
+    expect(ghCalls()).toEqual([['pr', 'view', '72', '--json', 'state']]);
+  });
+
   it('closes a pull request with a comment and deletes its branch', () => {
     fakeGh({}).close(repo, 27, 'Closed from Terminus (obsolete).');
     expect(ghCalls()).toEqual([['pr', 'close', '27', '--comment', 'Closed from Terminus (obsolete).', '--delete-branch']]);

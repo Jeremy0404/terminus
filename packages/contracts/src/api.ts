@@ -253,7 +253,7 @@ export interface TakeOverDto {
   readonly command: string;
 }
 
-export type ChecksStateDto = 'none' | 'pending' | 'success' | 'failure';
+export type ChecksStateDto = 'none' | 'pending' | 'success' | 'failure' | 'merged';
 
 export interface ChecksResponseDto {
   readonly state: ChecksStateDto;

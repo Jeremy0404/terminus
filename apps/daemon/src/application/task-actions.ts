@@ -23,6 +23,7 @@ import type { Clock, IdGenerator, RunEventBus } from './ports/system.js';
 import { phaseAt, type Track } from '../domain/lifecycle.js';
 import type { ChecksState, CodeHost, PullRequest } from './ports/code-host.js';
 import type { Workspace } from './ports/workspace.js';
+import { publishedPullRequest } from './published-pull-request.js';
 import { readBrief } from './brief-output.js';
 import { readStack } from './stack-output.js';
 import type { ExportHooks } from './vault-export.js';
@@ -143,15 +144,10 @@ export class TaskActions {
     if (task.status.kind !== 'awaiting-gate' || task.status.gate !== 'merge') throw new DomainError(`Task ${taskId} is not waiting at the merge gate`);
     const pullRequest = this.pullRequestOf(task);
     const app = this.appOf(task);
-    const syncPhase = task.lifecycle.phases.find((phase) => phase.executor === 'sync');
-    if (syncPhase && this.deps.workspace.isBehindBase(this.workspaceOf(task), this.deps.baseRef)) return this.save(sendBack(task, syncPhase.id));
-    const checks = this.deps.codeHost.checks(app.repoPath, pullRequest.number);
-    if (checks === 'pending' || checks === 'failure') throw new DomainError(`CI on pull request #${pullRequest.number} is ${checks}`);
-    try {
-      this.deps.codeHost.merge(app.repoPath, pullRequest.number);
-    } catch (error) {
-      const stderr = (error as { stderr?: unknown }).stderr;
-      throw new DomainError(`GitHub refused to merge pull request #${pullRequest.number}: ${typeof stderr === 'string' && stderr.trim() ? stderr.trim() : String(error)}`);
+    if (!this.deps.codeHost.isMerged(app.repoPath, pullRequest.number)) {
+      const syncPhase = task.lifecycle.phases.find((phase) => phase.executor === 'sync');
+      if (syncPhase && this.deps.workspace.isBehindBase(this.workspaceOf(task), this.deps.baseRef)) return this.save(sendBack(task, syncPhase.id));
+      this.mergeOnHost(app.repoPath, pullRequest.number);
     }
     const merged = this.save(approveGate(task));
     this.deps.exporter.taskMerged(app, task);
@@ -159,10 +155,22 @@ export class TaskActions {
     return merged;
   }
 
-  checks(taskId: string): ChecksState {
+  private mergeOnHost(repoPath: string, pullRequest: number): void {
+    const checks = this.deps.codeHost.checks(repoPath, pullRequest);
+    if (checks === 'pending' || checks === 'failure') throw new DomainError(`CI on pull request #${pullRequest} is ${checks}`);
+    try {
+      this.deps.codeHost.merge(repoPath, pullRequest);
+    } catch (error) {
+      const stderr = (error as { stderr?: unknown }).stderr;
+      throw new DomainError(`GitHub refused to merge pull request #${pullRequest}: ${typeof stderr === 'string' && stderr.trim() ? stderr.trim() : String(error)}`);
+    }
+  }
+
+  checks(taskId: string): ChecksState | 'merged' {
     const task = this.load(taskId);
     const pullRequest = this.pullRequestOf(task);
     const app = this.appOf(task);
+    if (this.deps.codeHost.isMerged(app.repoPath, pullRequest.number)) return 'merged';
     return this.deps.codeHost.checks(app.repoPath, pullRequest.number);
   }
 
@@ -203,7 +211,7 @@ export class TaskActions {
     } catch (error) {
       warnings.push(`The worktree could not be removed: ${String(error)}`);
     }
-    const pullRequest = this.publishedPullRequest(task);
+    const pullRequest = publishedPullRequest(this.deps.runs.listByTask(task.id));
     if (pullRequest) {
       try {
         this.deps.codeHost.close(app.repoPath, pullRequest.number, `Closed from Terminus (${reason})${evidence ? `: ${evidence}` : '.'}`);
@@ -266,18 +274,9 @@ export class TaskActions {
   }
 
   private pullRequestOf(task: Task): PullRequest {
-    const published = this.publishedPullRequest(task);
+    const published = publishedPullRequest(this.deps.runs.listByTask(task.id));
     if (!published) throw new DomainError(`Task ${task.id} has no pull request`);
     return published;
-  }
-
-  private publishedPullRequest(task: Task): PullRequest | null {
-    const output = this.deps.runs
-      .listByTask(task.id)
-      .map((run) => run.output)
-      .reverse()
-      .find((candidate): candidate is { pullRequest: PullRequest } => typeof candidate === 'object' && candidate !== null && 'pullRequest' in candidate);
-    return output?.pullRequest ?? null;
   }
 
   private load(taskId: string): Task {
