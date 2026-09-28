@@ -96,11 +96,15 @@ export function fittedCanvas(view: ViewBox, frame: Frame): Canvas {
   return { viewBox: view, width: frame.width, height: frame.height, scrollLeft: 0, scrollTop: 0 };
 }
 
-export function reveal(view: ViewBox, point: { readonly x: number; readonly y: number }, margin: number): ViewBox {
-  const [x, y, width, height] = view;
-  const shift = (from: number, size: number, at: number): number =>
-    at < from + margin ? at - margin : at > from + size - margin ? at + margin - size : from;
-  return [shift(x, width, point.x), shift(y, height, point.y), width, height];
+export function stationView(layout: NetworkLayout, epicId: string, taskId: string, frame: Frame): ViewBox {
+  const view = lineView(layout, epicId, frame);
+  const line = layout.lines.find((candidate) => candidate.epic.id === epicId);
+  const station = line?.stations.find((candidate) => candidate.task.id === taskId);
+  if (!line || !station) return view;
+  const [, y, width, height] = view;
+  const start = line.startX - LINE_START_MARGIN;
+  const end = line.end.x + LINE_END_MARGIN;
+  return [Math.max(start, Math.min(station.x - width / 2, end - width)), y, width, height];
 }
 
 export function canvasFor(view: ViewBox, layout: NetworkLayout, frame: Frame): Canvas {

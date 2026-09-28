@@ -8,6 +8,7 @@ import { AgentPicker } from './platform/AgentPicker';
 import { ObsoleteFlag } from './platform/ObsoleteFlag';
 import { TaskDeviations } from './platform/TaskDeviations';
 import { RunHistory } from './platform/RunHistory';
+import { LineBadge } from './LineBadge';
 import { StatusPill } from './StatusPill';
 
 interface Props {
@@ -28,12 +29,12 @@ export function Platform({ network, taskId, onClose }: Props) {
   return (
     <section className="card platform" style={{ ['--lc' as string]: lineColor(epic.position) }} aria-label={t('platform.label', { title: task.title })}>
       <div className="platform-head">
-        <div>
-          <span className="eyebrow">{t('platform.eyebrow', { line: epic.name })}</span>
-          <h2>{task.title}</h2>
-          {task.description && <p className="platform-brief">{task.description}</p>}
-        </div>
-        <button type="button" className="btn small" onClick={onClose} aria-label={t('platform.close')}>✕</button>
+        <button type="button" className="btn small platform-back" onClick={onClose} aria-label={t('platform.close', { line: epic.name })} title={t('trip.hintEscape')} autoFocus>
+          <LineBadge epic={epic} /> {epic.name}
+        </button>
+        <span className="eyebrow">{t('platform.eyebrow')}</span>
+        <h2>{task.title}</h2>
+        {task.description && <p className="platform-brief">{task.description}</p>}
       </div>
       <div className="row">
         <StatusPill status={task.status} />

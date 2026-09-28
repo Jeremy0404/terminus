@@ -145,12 +145,82 @@ describe('the cockpit', () => {
     expect(within(platform).getByText(/Dessiner les lignes en SVG\.\s+Une couleur par ligne\./)).toBeInTheDocument();
     expect(window.location.search).toBe('?app=app-1&line=ui&task=i1');
     expect(within(screen.getByRole('main')).getByRole('region', { name: 'Quai de Rendu SVG' })).toBeInTheDocument();
-    expect(screen.getByText('Afficher la carte de repérage').closest('details')).not.toHaveAttribute('open');
+    expect(screen.queryByRole('navigation', { name: 'Où je suis' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^Revenir à la ligne/ })).toHaveLength(1);
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(window.location.search).toBe('?app=app-1&line=ui');
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(window.location.search).toBe('?app=app-1');
+  });
+
+  it('heads a station with its one way back to the line, focused', async () => {
+    render(<App />);
+    const inbox = await screen.findByRole('region', { name: 'À toi de jouer' });
+    fireEvent.click(within(inbox).getByRole('button', { name: /Rendu SVG/ }));
+
+    const platform = await screen.findByRole('region', { name: 'Quai de Rendu SVG' });
+    const back = within(platform).getByRole('button', { name: 'Revenir à la ligne Interface' });
+    expect(back).toHaveFocus();
+    expect(within(back).getByText('I')).toHaveClass('line-badge');
+    expect(back).toHaveTextContent('Interface');
+    expect(back).toHaveAttribute('title', 'Échap remonte d’un niveau');
+    expect(screen.queryByRole('button', { name: 'Remonter à la ligne' })).not.toBeInTheDocument();
+    expect(screen.queryByText('✕')).not.toBeInTheDocument();
+    expect(platform.querySelector('.eyebrow')).toHaveTextContent(/^Quai$/);
+
+    fireEvent.click(back);
+    expect(window.location.search).toBe('?app=app-1&line=ui');
+  });
+
+  it('lays a station under a band of its line map, a plain backdrop without tools, the list after it', async () => {
+    window.history.replaceState(null, '', '/?app=app-1&line=ui&task=i1');
+    render(<App />);
+    await screen.findByRole('region', { name: 'Quai de Rendu SVG' });
+
+    const map = screen.getByRole('img', { name: 'Plan du réseau de terminus' });
+    expect(map.closest('.map-box')).toHaveAttribute('inert');
+    expect(within(map).getByRole('button', { name: /^Rendu SVG,/ }).querySelector('.station-selected')).toBeInTheDocument();
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Vue liste' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Lire les symboles du réseau')).not.toBeInTheDocument();
+
+    const inbox = screen.getByRole('region', { name: 'À toi de jouer' });
+    expect(screen.getByRole('main').compareDocumentPosition(inbox) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('opens a station from a line over the same map, and goes back to it with the search kept', async () => {
+    window.history.replaceState(null, '', '/?app=app-1&line=ui');
+    render(<App />);
+    await screen.findByRole('img', { name: 'Plan du réseau de terminus' });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher une station' }), { target: { value: 'zoom' } });
+    await screen.findByText('1 station sélectionnée');
+    const map = screen.getByRole('img', { name: 'Plan du réseau de terminus' });
+
+    fireEvent.click(within(screen.getByRole('region', { name: 'À toi de jouer' })).getByRole('button', { name: /Rendu SVG/ }));
+    await screen.findByRole('region', { name: 'Quai de Rendu SVG' });
+    expect(screen.getByRole('img', { name: 'Plan du réseau de terminus' })).toBe(map);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Revenir à la ligne Interface' }));
+    expect(window.location.search).toBe('?app=app-1&line=ui');
+    expect(screen.getByRole('img', { name: 'Plan du réseau de terminus' })).toBe(map);
+    expect(screen.getByRole('searchbox', { name: 'Rechercher une station' })).toHaveValue('zoom');
+  });
+
+  it('keeps the station in the trip of the settings opened over it, and goes back to it', async () => {
+    window.history.replaceState(null, '', '/?app=app-1&line=ui&task=i1');
+    render(<App />);
+    await screen.findByRole('region', { name: 'Quai de Rendu SVG' });
+
+    chooseInAppMenu('Réglages');
+    const trip = screen.getByRole('navigation', { name: 'Où je suis' });
+    expect(trip).toHaveTextContent('Interface');
+    expect(trip).toHaveTextContent('Rendu SVG');
+    expect(trip).toHaveTextContent('Réglages');
+
+    fireEvent.click(within(trip).getByRole('button', { name: 'Rendu SVG' }));
+    expect(await screen.findByRole('region', { name: 'Quai de Rendu SVG' })).toBeInTheDocument();
+    expect(window.location.search).toBe('?app=app-1&line=ui&task=i1');
   });
 
   it('says so when the daemon cannot be reached', async () => {

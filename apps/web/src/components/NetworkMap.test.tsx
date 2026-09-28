@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EpicDto, NetworkDto, TaskSummaryDto } from '@terminus/contracts';
-import { canvasFor, fittedCanvas, fittedLineView, lineView, mapHeight, reveal, wrapColumns, WRAP_SCALE } from '../network/camera';
+import { canvasFor, fittedCanvas, fittedLineView, mapHeight, stationView, wrapColumns, WRAP_SCALE } from '../network/camera';
 import { summarizeFinished } from '../network/compact';
-import { layoutNetwork, STEP } from '../network/layout';
+import { layoutNetwork } from '../network/layout';
 import { APP, NETWORK, task } from '../test/fixtures';
 import type { Place } from '../state/location';
 import { NetworkMap } from './NetworkMap';
@@ -41,6 +41,16 @@ describe('NetworkMap delivered lines', () => {
     fireEvent.click(hideToggle() as HTMLElement);
     expect(hideToggle()).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: 'Ligne Moteur' })).toBeInTheDocument();
+  });
+
+  it("offers no toggle on a station's map, even with a delivered line", () => {
+    const network = withDelivered(NETWORK, 'engine');
+    const first = renderMap(network, { app: 'app-1', line: 'ui', task: null });
+    expect(hideToggle()).toBeInTheDocument();
+    first.unmount();
+
+    renderMap(network, { app: 'app-1', line: 'ui', task: 'i1' });
+    expect(hideToggle()).not.toBeInTheDocument();
   });
 
   it('remembers the choice across a reload', () => {
@@ -97,6 +107,7 @@ function drawn(container: HTMLElement, frame = { width: FRAME_WIDTH, height: FRA
     pixelWidth,
     pixelHeight,
     viewBoxHeight: height,
+    onScreenX: (unitX: number): number => (unitX - x) * scale - box.scrollLeft,
     showsX: (unitX: number): boolean => {
       const px = (unitX - x) * scale;
       return px >= box.scrollLeft && px <= box.scrollLeft + frame.width;
@@ -133,12 +144,17 @@ describe('NetworkMap scale and scroll', () => {
     expect(drawn(renderMap(manyLines(1)).container).box.style.height).toBe('485px');
   });
 
-  it("opens a station's map on the line's first unfinished station", () => {
+  it('opens a station of a long line at the horizontal centre of the frame', () => {
     const network = networkOf([line('a', 1)], stations('a', 30, 20));
-    const map = drawn(renderMap(network, { app: APP.id, line: 'a', task: 'a22' }).container);
+    const map = drawn(renderMap(network, { app: APP.id, line: 'a', task: 'a15' }).container);
 
     expect(map.box.scrollLeft).toBeGreaterThan(0);
-    expect(map.showsX(stationX(20))).toBe(true);
+    expect(map.onScreenX(stationX(14))).toBeCloseTo(FRAME_WIDTH / 2);
+  });
+
+  it("draws a station's map as a band", () => {
+    const network = networkOf([line('a', 1)], stations('a', 30));
+    expect(drawn(renderMap(network, { app: APP.id, line: 'a', task: 'a1' }).container).box.style.height).toBe('150px');
   });
 
   it("opens a station's map on the line start when its first station is unfinished", () => {
@@ -149,12 +165,12 @@ describe('NetworkMap scale and scroll', () => {
     expect(map.showsX(stationX(0))).toBe(true);
   });
 
-  it('brings a station selected from outside the map into view', () => {
+  it('centres another station selected on the same line', () => {
     const network = networkOf([line('a', 1)], stations('a', 30));
     const view = renderMap(network, { app: APP.id, line: 'a', task: 'a1' });
-    view.rerender(<NetworkMap network={network} place={{ app: APP.id, line: 'a', task: 'a30' }} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+    view.rerender(<NetworkMap network={network} place={{ app: APP.id, line: 'a', task: 'a16' }} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
 
-    expect(drawn(view.container).showsX(stationX(29))).toBe(true);
+    expect(drawn(view.container).onScreenX(stationX(15))).toBeCloseTo(FRAME_WIDTH / 2);
   });
 
   it('keeps the scroll of the user when a status changes', () => {
@@ -576,8 +592,7 @@ describe('NetworkMap level switch', () => {
   it('still zooms from one station to another', () => {
     const view = renderMap(network, { app: APP.id, line: 'a', task: 'a1' });
     const { svg } = switchTo(view, { app: APP.id, line: 'b', task: 'b1' });
-    const b1 = complete.lines[1]?.stations[0] ?? { x: NaN, y: NaN };
-    const target = canvasFor(reveal(lineView(complete, 'b', FRAME), b1, STEP), complete, FRAME).viewBox;
+    const target = canvasFor(stationView(complete, 'b', 'b1', FRAME), complete, FRAME).viewBox;
     const shown = () => (svg.getAttribute('viewBox') ?? '').split(' ').map(Number);
 
     expect(shown()).not.toEqual([...target]);
@@ -620,6 +635,26 @@ describe('NetworkMap origin and interchanges', () => {
     const handlers = renderNetwork();
     fireEvent.click(screen.getByRole('button', { name: 'Ligne Moteur' }));
     expect(handlers.onLine).toHaveBeenCalledWith('engine');
+  });
+
+  it('lets go of the focus of a line clicked with the mouse', () => {
+    const handlers = renderNetwork();
+    const engine = screen.getByRole('button', { name: 'Ligne Moteur' });
+    engine.focus();
+    fireEvent.click(engine, { detail: 1 });
+
+    expect(handlers.onLine).toHaveBeenCalledWith('engine');
+    expect(engine).not.toHaveFocus();
+  });
+
+  it('keeps the focus of a line opened with Enter', () => {
+    const handlers = renderNetwork();
+    const engine = screen.getByRole('button', { name: 'Ligne Moteur' });
+    engine.focus();
+    fireEvent.keyDown(engine, { key: 'Enter' });
+
+    expect(handlers.onLine).toHaveBeenCalledWith('engine');
+    expect(engine).toHaveFocus();
   });
 
   it('links the two stations of a cross-line dependency with one capsule', () => {

@@ -67,12 +67,10 @@
   },
   "platform": {
     "label": "Quai de {{title}}",
-    "eyebrow": "Quai · {{line}}",
-    "close": "Remonter à la ligne",
+    "eyebrow": "Quai",
+    "close": "Revenir à la ligne {{line}}",
     "options": "Parcours et autres actions",
     "agent": "Réglages de l’agent",
-    "map": "Afficher la carte de repérage",
-    "mapHint": "Tu peux changer de ligne ou de station depuis la carte.",
     "loading": "Chargement de la station…",
     "loadError": "Impossible de charger les actions de cette station.",
     "retry": "Réessayer"
@@ -648,7 +646,6 @@
     "searchHint": "Nom ou description…",
     "list": "Vue liste",
     "map": "Vue carte",
-    "recenter": "Recentrer",
     "count_one": "{{count}} station sélectionnée",
     "count_other": "{{count}} stations sélectionnées",
     "empty": "Aucune station dans cette vue. Modifie ta recherche pour l’élargir.",
