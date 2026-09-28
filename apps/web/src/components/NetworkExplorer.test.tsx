@@ -79,24 +79,46 @@ describe('NetworkExplorer toolbar', () => {
     expect(screen.queryByText('Recentrer')).not.toBeInTheDocument();
   });
 
-  it('recenters the platform mini-map by remounting it', () => {
-    renderExplorer(PLATFORM_PLACE);
-    const previous = screen.getByRole('img');
+  it('shows only the drawing at the platform level', () => {
+    const { container } = renderExplorer(PLATFORM_PLACE);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Recentrer' }));
-
-    expect(screen.getByRole('img')).not.toBe(previous);
-    expectNoRemovedControls();
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Vue liste' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(container.querySelector('details.map-legend')).not.toBeInTheDocument();
+    expect(screen.queryByText('Recentrer')).not.toBeInTheDocument();
+    expect(screen.getByRole('img')).toBeInTheDocument();
   });
 
-  it('offers no recentring on the platform list view', () => {
-    renderExplorer(PLATFORM_PLACE);
-
+  it('draws the map instead of the list while a station is open, and brings the list back after', () => {
+    const view = renderExplorer(LINE_PLACE);
     fireEvent.click(screen.getByRole('button', { name: 'Vue liste' }));
-    expect(screen.queryByRole('button', { name: 'Recentrer' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Vue carte' }));
-    expect(screen.getByRole('button', { name: 'Recentrer' })).toBeInTheDocument();
+    view.rerender(<NetworkExplorer network={NETWORK} place={PLATFORM_PLACE} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+    expect(screen.getByRole('img')).toBeInTheDocument();
+    expect(view.container.querySelector('ul.station-list')).not.toBeInTheDocument();
+
+    view.rerender(<NetworkExplorer network={NETWORK} place={LINE_PLACE} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(view.container.querySelector('ul.station-list')).toBeInTheDocument();
+  });
+
+  it('keeps the search across an open station, drawing the whole network meanwhile', () => {
+    vi.useFakeTimers();
+    const view = renderExplorer(LINE_PLACE);
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher une station' }), { target: { value: 'zoom' } });
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByText('1 station sélectionnée')).toBeInTheDocument();
+    const map = screen.getByRole('img');
+
+    view.rerender(<NetworkExplorer network={NETWORK} place={PLATFORM_PLACE} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+    expect(screen.getByRole('img')).toBe(map);
+    expect(screen.getByRole('button', { name: /^Rendu SVG,/ }).querySelector('.station-selected')).toBeInTheDocument();
+
+    view.rerender(<NetworkExplorer network={NETWORK} place={LINE_PLACE} onLine={vi.fn()} onStation={vi.fn()} onBackground={vi.fn()} />);
+    expect(screen.getByRole('searchbox', { name: 'Rechercher une station' })).toHaveValue('zoom');
+    expect(screen.getByText('1 station sélectionnée')).toBeInTheDocument();
+    expect(screen.getByRole('img')).toBe(map);
   });
 
   it('switches between the map and the station list', () => {

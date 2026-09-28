@@ -85,9 +85,10 @@ station you opened is unfinished, then decisions, blockers, stations an agent is
 stations ready to start. On a phone the list comes first and the map sits below it. Clicking a line
 on the map opens that line.
 
-Opening a station gives it most of the screen; the map folds into a panel beside it, and the
-agent settings and the other actions (skip a phase, switch track, close without merge) open on
-demand. Progress counts every station by outcome: integrated through Terminus, already done
+Opening a station lays it over its line's map: a band at the top shows the line with the station
+highlighted, and the action list stays beside it (after it on a phone). "← line" at the head of the
+station, or Échap, goes back to the line. The agent settings and the other actions (skip a phase,
+switch track, close without merge) open on demand. Progress counts every station by outcome: integrated through Terminus, already done
 elsewhere, in progress, to do, and each closure reason. Neither a merge nor a published release
 counts as production. Each entry of the action list says how many stations it unblocks, and on a
 line the list keeps the requests of other lines visible while you work in one. "Reprendre là où j'en étais"

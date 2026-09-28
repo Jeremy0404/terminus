@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EpicDto, TaskSummaryDto } from '@terminus/contracts';
-import { canvasFor, fittedCanvas, fittedLineHeight, fittedLineView, lineScale, lineView, mapHeight, MIN_LINE_VIEW, MIN_SCALE, networkScale, networkView, pinnedLines, reveal, viewOf, wrapColumns, WRAP_SCALE, type Frame, type ViewBox } from './camera';
+import { canvasFor, fittedCanvas, fittedLineHeight, fittedLineView, lineScale, lineView, mapHeight, MIN_LINE_VIEW, MIN_SCALE, networkScale, networkView, pinnedLines, stationView, viewOf, wrapColumns, WRAP_SCALE, type Frame, type ViewBox } from './camera';
 import { layoutNetwork, LEFT, MIN_WIDTH, ROUNDEL_RADIUS, STEP, type NetworkLayout } from './layout';
 
 const epic = (id: string, position: number): EpicDto => ({ id, appId: 'app', code: id.toUpperCase(), name: id, status: 'active', position, description: '', breakdown: { status: 'idle' } });
@@ -136,19 +136,34 @@ describe('line view', () => {
   });
 });
 
-describe('reveal', () => {
-  const view: ViewBox = [0, 0, 1000, 500];
+describe('station view', () => {
+  const layout = layoutNetwork([epic('a', 1), epic('b', 2)], [...longLine(30), task('b1', 'b')]);
+  const line = layout.lines[0];
+  const station = (index: number) => line?.stations[index];
 
-  it('leaves the view alone when the point is already well inside', () => {
-    expect(reveal(view, { x: 500, y: 250 }, 80)).toEqual(view);
+  it('centres a station in the middle of a long line, at the line view scale and height', () => {
+    const middle = station(14);
+    const view = stationView(layout, 'a', 'a15', FRAME);
+    const [, y, width, height] = lineView(layout, 'a', FRAME);
+
+    expect(view[0] + view[2] / 2).toBe(middle?.x);
+    expect([view[1], view[2], view[3]]).toEqual([y, width, height]);
   });
 
-  it('moves the view just enough to bring a point on the right into view', () => {
-    expect(reveal(view, { x: 1500, y: 250 }, 80)).toEqual([580, 0, 1000, 500]);
+  it('keeps the line start at the left edge for a station near the start', () => {
+    expect(stationView(layout, 'a', 'a2', FRAME)[0]).toBe((line?.startX ?? 0) - LEFT - 10);
   });
 
-  it('moves the view just enough to bring a point on the left into view', () => {
-    expect(reveal([1000, 0, 1000, 500], { x: 900, y: 250 }, 80)).toEqual([820, 0, 1000, 500]);
+  it('keeps the line end in view for a station near the end', () => {
+    const view = stationView(layout, 'a', 'a29', FRAME);
+    const nearEnd = station(28);
+
+    expect(view[0] + view[2]).toBe((line?.end.x ?? 0) + 80);
+    expect(nearEnd && contains(view, nearEnd)).toBe(true);
+  });
+
+  it('falls back to the line view when the station is not on that line', () => {
+    expect(stationView(layout, 'a', 'b1', FRAME)).toEqual(lineView(layout, 'a', FRAME));
   });
 });
 

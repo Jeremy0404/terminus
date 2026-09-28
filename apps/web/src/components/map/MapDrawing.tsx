@@ -63,7 +63,10 @@ export const MapDrawing = memo(function MapDrawing({ layout, counts, thin, appNa
         const meta = thinCount !== undefined ? t('map.summarized', { count: thinCount }) : planned ? t('map.planned') : line.stations.length === 0 ? t('map.empty') : t('map.remaining', { count: remaining });
         return (
           <g key={line.epic.id} className={`line ${thinCount !== undefined ? 'thin' : ''} ${dimmed(line.epic.id) ? 'dim' : ''}`} style={{ color }}>
-            <g className="line-hit" role="button" tabIndex={0} aria-label={t('map.line', { name: line.epic.name })} onClick={() => onLine(line.epic.id)}
+            <g className="line-hit" role="button" tabIndex={0} aria-label={t('map.line', { name: line.epic.name })} onClick={(event) => {
+              if (event.detail > 0) event.currentTarget.blur();
+              onLine(line.epic.id);
+            }}
               onKeyDown={(event) => event.key === 'Enter' && onLine(line.epic.id)}>
               <path d={pathData(line.path)} className="line-hit-area" />
               <path d={pathData(line.path)} className={`line-track ${planned ? 'planned' : ''}`} />

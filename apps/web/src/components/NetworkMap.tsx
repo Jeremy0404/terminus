@@ -1,9 +1,9 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { NetworkDto } from '@terminus/contracts';
-import { canvasFor, fittedCanvas, fittedLineHeight, fittedLineView, lineView, mapHeight, networkView, reveal, viewOf, wrapColumns, type Canvas, type Frame, type ViewBox } from '../network/camera';
+import { canvasFor, fittedCanvas, fittedLineHeight, fittedLineView, mapHeight, networkView, stationView, viewOf, wrapColumns, type Canvas, type Frame, type ViewBox } from '../network/camera';
 import { compactNetwork } from '../network/compact';
-import { layoutNetwork, STEP, withoutDeliveredLines, type NetworkLayout } from '../network/layout';
+import { layoutNetwork, withoutDeliveredLines, type NetworkLayout } from '../network/layout';
 import { levelOf, type Level, type Place } from '../state/location';
 import { useHideDelivered } from '../state/preferences';
 import { MapDrawing } from './map/MapDrawing';
@@ -12,6 +12,7 @@ import { useDragPan } from './map/useDragPan';
 import { useFrame } from './map/useFrame';
 
 const ZOOM_MS = 520;
+export const STATION_BAND_HEIGHT = 150;
 const FADE_MS = 200;
 const FADE_IN: Keyframe[] = [{ opacity: 0 }, { opacity: 1 }];
 const NO_COUNTS: ReadonlyMap<string, number> = new Map();
@@ -52,7 +53,8 @@ function paint(svg: SVGSVGElement, box: HTMLDivElement, canvas: Canvas): void {
 export function NetworkMap({ network, place, onLine, onStation, onBackground, collapseFinished = true }: Props) {
   const { t } = useTranslation();
   const [hideDelivered, setHideDelivered] = useHideDelivered();
-  const anyDelivered = collapseFinished && withoutDeliveredLines(network.epics, network.tasks, null).epics.length < network.epics.length;
+  const level = levelOf(place);
+  const anyDelivered = level !== 'platform' && collapseFinished && withoutDeliveredLines(network.epics, network.tasks, null).epics.length < network.epics.length;
   const overview = useMemo(() => {
     const visible = collapseFinished && hideDelivered ? withoutDeliveredLines(network.epics, network.tasks, null) : network;
     const shown = collapseFinished ? compactNetwork(visible.epics, visible.tasks) : { ...visible, counts: NO_COUNTS, thin: NO_COUNTS };
@@ -60,7 +62,6 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground, co
   }, [network, hideDelivered, collapseFinished]);
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const frame = useFrame(box);
-  const level = levelOf(place);
   const fitted = level !== 'platform';
   const columns = level === 'line' ? wrapColumns(frame.width) : null;
   const full = useMemo(() => {
@@ -110,13 +111,7 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground, co
     const from = previous?.box === box && canvas.current ? viewOf(canvas.current, { left: box.scrollLeft, top: box.scrollTop }, frame) : null;
     const resized = previous?.frame !== frame;
     const target = layoutNow.current;
-    const base = fitted
-      ? fittedView(target)
-      : !from || resized || previous?.app !== appId || previous?.line !== place.line
-        ? (place.line ? lineView(target, place.line, frame) : networkView(target, frame))
-        : from;
-    const selected = target.lines.flatMap((line) => line.stations).find((station) => station.task.id === place.task);
-    const to = selected ? reveal(base, selected, STEP) : base;
+    const to = fitted ? fittedView(target) : place.line && place.task ? stationView(target, place.line, place.task, frame) : networkView(target, frame);
     const show = (view: ViewBox): void => {
       canvas.current = fitted ? fittedCanvas(view, frame) : canvasFor(view, layoutNow.current, frame);
       paint(element, box, canvas.current);
@@ -161,7 +156,7 @@ export function NetworkMap({ network, place, onLine, onStation, onBackground, co
 
   const allHidden = layout.lines.length === 0 && network.epics.length > 0;
   const networkHeight = mapHeight(overview.layout, frame.width);
-  const height = level === 'line' && place.line !== null ? Math.max(networkHeight, fittedLineHeight(layout, place.line)) : networkHeight;
+  const height = level === 'platform' ? STATION_BAND_HEIGHT : level === 'line' && place.line !== null ? Math.max(networkHeight, fittedLineHeight(layout, place.line)) : networkHeight;
 
   return (
     <>

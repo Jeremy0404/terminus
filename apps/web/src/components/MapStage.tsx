@@ -43,14 +43,17 @@ export function Rail({ network, lineId, onOpen, onMemory, children }: RailProps)
 
 interface MapStageProps extends ExplorerProps {
   readonly rail: ReactNode;
+  readonly station?: ReactNode;
 }
 
-export function MapStage({ rail, ...explorer }: MapStageProps) {
+export function MapStage({ rail, station, ...explorer }: MapStageProps) {
+  const open = station !== undefined;
   return (
-    <div className="stage">
-      <section className="map-box">
+    <div className={open ? 'stage stage-platform' : 'stage'}>
+      <section className={open ? 'map-box station-band' : 'map-box'} inert={open}>
         <PlaceExplorer {...explorer} />
       </section>
+      {station}
       {rail}
     </div>
   );

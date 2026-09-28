@@ -93,10 +93,12 @@ function Cockpit() {
   const openMemory = (): void => setPanel('memory');
   const journey = (loaded: NetworkDto, content: ReactNode): ReactNode => (
     <>
-      <Trip network={loaded} place={here} go={go} />
+      {screen.kind !== 'platform' && <Trip network={loaded} place={here} go={go} />}
       {content}
     </>
   );
+  const mapLevel = (loaded: NetworkDto, rail: ReactNode, station?: ReactNode): ReactNode =>
+    journey(loaded, <MapStage network={loaded} place={place} appId={appId} go={go} onStation={openStation} rail={rail} station={station} />);
 
   const screenContent = (): ReactNode => {
     switch (screen.kind) {
@@ -141,33 +143,19 @@ function Cockpit() {
       case 'empty':
         return <EmptyState noApps={apps.data?.length === 0} onFound={() => setFounding(true)} onAdopt={() => setAdopting(true)} />;
       case 'network':
-        return journey(screen.network, (
-          <MapStage
-            network={screen.network}
-            place={place}
-            appId={appId}
-            go={go}
-            onStation={openStation}
-            rail={<NetworkRail network={screen.network} resume={resume} onLine={openLine} onStation={openStation} onMemory={openMemory} />}
-          />
-        ));
+        return mapLevel(screen.network, <NetworkRail network={screen.network} resume={resume} onLine={openLine} onStation={openStation} onMemory={openMemory} />);
       case 'line':
-        return journey(screen.network, (
-          <MapStage
-            network={screen.network}
-            place={place}
-            appId={appId}
-            go={go}
-            onStation={openStation}
-            rail={(
-              <Rail network={screen.network} lineId={screen.lineId} onOpen={openStation} onMemory={openMemory}>
-                <LineCard network={screen.network} lineId={screen.lineId} onStation={openStation} />
-              </Rail>
-            )}
-          />
+        return mapLevel(screen.network, (
+          <Rail network={screen.network} lineId={screen.lineId} onOpen={openStation} onMemory={openMemory}>
+            <LineCard network={screen.network} lineId={screen.lineId} onStation={openStation} />
+          </Rail>
         ));
       case 'platform':
-        return journey(screen.network, <PlatformScreen network={screen.network} place={place} appId={appId} taskId={screen.taskId} go={go} onStation={openStation} onMemory={openMemory} />);
+        return mapLevel(
+          screen.network,
+          <Rail network={screen.network} lineId={place.line} onOpen={openStation} onMemory={openMemory} />,
+          <PlatformScreen network={screen.network} place={place} appId={appId} taskId={screen.taskId} go={go} />,
+        );
     }
   };
 
