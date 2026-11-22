@@ -6,19 +6,32 @@ updates:
       interval: "monthly"
     cooldown:
       default-days: 7
+      semver-major-days: 30
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    ignore:
+      # typescript-eslint does not accept TypeScript 7 yet.
+      - dependency-name: "typescript"
+        versions: [">=7.0.0"]
+      # Moves with the runtime Node major.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-minor-and-patch:
-        update-types:
-          - "minor"
-          - "patch"
+        update-types: ["minor", "patch"]
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
     cooldown:
       default-days: 7
+    commit-message:
+      prefix: "chore"
+      include: "scope"
     groups:
-      github-actions-minor-and-patch:
-        update-types:
-          - "minor"
-          - "patch"
+      github-actions:
+        patterns: ["*"]
